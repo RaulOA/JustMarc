@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIFCNP — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Layout ───────────────────────────────────────────── */
+    body { background: var(--grey-100); min-height: 100vh; }
+
+    /* Top bar */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: var(--blue-900);
+      box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px;
+      height: 52px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .topbar-brand .logo-icon {
+      width: 30px; height: 30px;
+      background: var(--white);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .topbar-brand .logo-icon svg { width: 18px; height: 18px; }
+
+    .topbar-brand h1 {
+      color: var(--white);
+      font-size: .95rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+
+    .topbar-brand p {
+      color: rgba(255,255,255,.45);
+      font-size: .72rem;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+
+    .topbar-brand .user-info {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-brand .user-info span {
+      color: rgba(255,255,255,.6);
+      font-size: .8rem;
+    }
+
+    .topbar-brand .logout-btn {
+      padding: 5px 12px;
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.8);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--radius-sm);
+      font-size: .78rem;
+      cursor: pointer;
+      transition: background var(--transition);
+      font-family: var(--font-main);
+    }
+    .topbar-brand .logout-btn:hover { background: rgba(255,255,255,.15); }
+
+    /* Nav tabs row */
+    .topbar-nav {
+      display: flex;
+      padding: 0 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .topbar-nav::-webkit-scrollbar { display: none; }
+
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 18px;
+      height: 44px;
+      color: rgba(255,255,255,.55);
+      font-size: .82rem;
+      font-weight: 500;
+      letter-spacing: .2px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: color var(--transition), border-color var(--transition);
+      user-select: none;
+    }
+    .nav-tab:hover { color: rgba(255,255,255,.85); }
+    .nav-tab.active {
+      color: var(--white);
+      border-bottom-color: var(--blue-300);
+    }
+
+    .nav-tab .tab-icon {
+      width: 16px; height: 16px; flex-shrink: 0;
+    }
+
+    /* Main content */
+    .main-content {
+      padding: 96px 24px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Panel header */
+    .panel-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--grey-200);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .panel-header .panel-title h2 { font-size: 1.3rem; }
+    .panel-header .panel-title p { color: var(--grey-600); font-size: .85rem; margin-top: 3px; }
+
+    /* Two-column layout for funcionario */
+    .two-col {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* Detail row in jefatura table */
+    .detail-row td {
+      background: var(--blue-50);
+      padding: 16px 20px;
+    }
+    .detail-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .detail-field label { font-size: .75rem; text-transform: uppercase; color: var(--grey-500); }
+    .detail-field p { font-size: .88rem; color: var(--grey-800); margin-top: 3px; }
+
+    /* Stats bar (RRHH) */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--grey-200);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+    }
+    .stat-card .stat-num {
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--blue-700);
+    }
+    .stat-card .stat-label {
+      font-size: .78rem;
+      color: var(--grey-500);
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      margin-top: 2px;
+    }
+
+    /* Shake animation for login error */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60%  { transform: translateX(-8px); }
+      40%,80%  { transform: translateX(8px); }
+    }
+
+    /* Tab panel animation */
+    .tab-panel { animation: panelIn .25s ease both; }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ TOP BAR ═══════════════════════════════════════════ -->
+<header class="topbar">
+  <!-- Brand row -->
+  <div class="topbar-brand">
+    <div class="logo-icon">
+      <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="3" width="16" height="12" rx="1.5" fill="var(--blue-700)"/>
+        <rect x="3" y="5" width="5" height="4" rx=".5" fill="white" opacity=".9"/>
+        <rect x="10" y="5" width="5" height="4" rx=".5" fill="white" opacity=".9"/>
+        <rect x="3" y="11" width="12" height="1" rx=".5" fill="white" opacity=".5"/>
+      </svg>
+    </div>
+    <div>
+      <h1>SIFCNP</h1>
+      <p>Sistema de Justificación de Marcas</p>
+    </div>
+    <div class="user-info">
+      <span>👤 admin</span>
+      <button class="logout-btn" onclick="handleLogout()">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- Navigation tabs -->
+  <nav class="topbar-nav">
+
+    <div class="nav-tab" data-tab="panel-funcionario" onclick="switchTab('panel-funcionario')">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+      </svg>
+      Panel Funcionario
+    </div>
+
+    <div class="nav-tab" data-tab="panel-jefatura" onclick="switchTab('panel-jefatura')">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+        <path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/>
+        <path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>
+      </svg>
+      Panel Jefatura
+    </div>
+
+    <div class="nav-tab" data-tab="panel-rrhh" onclick="switchTab('panel-rrhh')">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+      </svg>
+      Panel RRHH
+    </div>
+
+    <div class="nav-tab" data-tab="panel-sifcnp" onclick="switchTab('panel-sifcnp')">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 0 1-10.535 5.1L1.05 13.015a.5.5 0 0 1-.707-.707L1.757 10.9A6.5 6.5 0 1 1 13 6.5z"/>
+      </svg>
+      Consulta Histórica (SIFCNP)
+    </div>
+
+  </nav>
+</header>
+
+<!-- ══ MAIN CONTENT ═══════════════════════════════════════ -->
+<main class="main-content">
+
+  <!-- ══ PANEL FUNCIONARIO ════════════════════════════════ -->
+  <section id="panel-funcionario" class="tab-panel hidden">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>Panel del Funcionario</h2>
+        <p>Registre y consulte sus justificaciones de marca</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+
+      <!-- Form card -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Nueva Justificación</h3>
+        </div>
+        <div class="card-body" id="funcionario-form">
+          <div id="f-notice" class="alert" style="display:none"></div>
+
+          <div class="form-group">
+            <label for="f-motivo">Motivo General <span style="color:var(--danger)">*</span></label>
+            <textarea id="f-motivo" placeholder="Describa el motivo principal de la justificación..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="f-tipo">Tipo de Justificación <span style="color:var(--danger)">*</span></label>
+            <select id="f-tipo">
+              <option value="">— Seleccione —</option>
+              <option value="Tardanza">Tardanza</option>
+              <option value="Ausencia">Ausencia</option>
+              <option value="Salida anticipada">Salida anticipada</option>
+              <option value="Omisión de marca">Omisión de marca</option>
+              <option value="Tiempo de almuerzo extendido">Tiempo de almuerzo extendido</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="f-fecha">Fecha de Marca <span style="color:var(--danger)">*</span></label>
+            <input type="date" id="f-fecha" />
+          </div>
+
+          <div class="form-group">
+            <label for="f-observacion">Observación / Detalle</label>
+            <textarea id="f-observacion" placeholder="Información adicional o contextual..."></textarea>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="registerJustification()">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm.5-9.5v-2a.5.5 0 0 0-1 0v2h-2a.5.5 0 0 0 0 1h2v2a.5.5 0 0 0 1 0v-2h2a.5.5 0 0 0 0-1h-2z"/></svg>
+            Registrar Justificación
+          </button>
+        </div>
+      </div>
+
+      <!-- History table -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Mi Historial de Justificaciones</h3>
+          <span class="text-sm text-muted">Últimos 30 días</span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrapper" style="border:none;border-radius:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Motivo</th>
+                  <th>Tipo</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="funcionario-history-body">
+                <tr>
+                  <td class="text-mono text-sm">JM-0098</td>
+                  <td>Cita médica urgente en CCSS</td>
+                  <td>Ausencia</td>
+                  <td>18/03/2025</td>
+                  <td><span class="badge badge-approved">Aprobado</span></td>
+                </tr>
+                <tr>
+                  <td class="text-mono text-sm">JM-0087</td>
+                  <td>Tráfico en Ruta 27 por accidente</td>
+                  <td>Tardanza</td>
+                  <td>12/03/2025</td>
+                  <td><span class="badge badge-approved">Aprobado</span></td>
+                </tr>
+                <tr>
+                  <td class="text-mono text-sm">JM-0075</td>
+                  <td>Olvido de marcación al salir</td>
+                  <td>Omisión de marca</td>
+                  <td>05/03/2025</td>
+                  <td><span class="badge badge-rejected">Rechazado</span></td>
+                </tr>
+                <tr>
+                  <td class="text-mono text-sm">JM-0063</td>
+                  <td>Diligencia bancaria — trámite urgente</td>
+                  <td>Salida anticipada</td>
+                  <td>27/02/2025</td>
+                  <td><span class="badge badge-pending">Pendiente</span></td>
+                </tr>
+                <tr>
+                  <td class="text-mono text-sm">JM-0051</td>
+                  <td>Reunión con proveedor extendida</td>
+                  <td>Tiempo de almuerzo extendido</td>
+                  <td>20/02/2025</td>
+                  <td><span class="badge badge-approved">Aprobado</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ PANEL JEFATURA ════════════════════════════════════ -->
+  <section id="panel-jefatura" class="tab-panel hidden">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>Panel de Jefatura</h2>
+        <p>Revise y gestione las solicitudes de justificación de su departamento</p>
+      </div>
+      <span class="badge badge-pending" style="font-size:.82rem;padding:6px 14px;">5 pendientes</span>
+    </div>
+
+    <div id="j-notice" class="alert" style="display:none"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Solicitudes Pendientes</h3>
+      </div>
+      <div class="table-wrapper" style="border:none;border-radius:0 0 8px 8px">
+        <table>
+          <thead>
+            <tr>
+              <th>Funcionario</th>
+              <th>Motivo</th>
+              <th>Tipo</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Row 1 -->
+            <tr>
+              <td><strong>María Solano Mora</strong></td>
+              <td>Acompañamiento familiar en emergencia</td>
+              <td>Ausencia</td>
+              <td>22/03/2025</td>
+              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
+              <td>
+                <div class="flex gap-8">
+                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
+                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
+                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="detail-row hidden">
+              <td colspan="6">
+                <div class="detail-inner">
+                  <div class="detail-field"><label>Motivo general</label><p>Acompañamiento familiar en emergencia médica</p></div>
+                  <div class="detail-field"><label>Tipo</label><p>Ausencia</p></div>
+                  <div class="detail-field"><label>Fecha de marca</label><p>22/03/2025</p></div>
+                  <div class="detail-field"><label>Observación</label><p>Familiar con diagnóstico urgente requirió acompañante. Se adjuntará boleta médica.</p></div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 2 -->
+            <tr>
+              <td><strong>Carlos Brenes Jiménez</strong></td>
+              <td>Marcación olvidada por salida a campo</td>
+              <td>Omisión de marca</td>
+              <td>21/03/2025</td>
+              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
+              <td>
+                <div class="flex gap-8">
+                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
+                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
+                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="detail-row hidden">
+              <td colspan="6">
+                <div class="detail-inner">
+                  <div class="detail-field"><label>Motivo general</label><p>Salida a inspección de campo sin acceso a sistema biométrico</p></div>
+                  <div class="detail-field"><label>Tipo</label><p>Omisión de marca</p></div>
+                  <div class="detail-field"><label>Fecha de marca</label><p>21/03/2025</p></div>
+                  <div class="detail-field"><label>Observación</label><p>Trabajo en zona rural — Corredores, Puntarenas. Sin señal ni acceso a reloj marcador.</p></div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 3 -->
+            <tr>
+              <td><strong>Adriana Vindas Rojas</strong></td>
+              <td>Trámite en Registro Nacional</td>
+              <td>Tardanza</td>
+              <td>20/03/2025</td>
+              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
+              <td>
+                <div class="flex gap-8">
+                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
+                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
+                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="detail-row hidden">
+              <td colspan="6">
+                <div class="detail-inner">
+                  <div class="detail-field"><label>Motivo general</label><p>Gestión de personería jurídica en Registro Nacional</p></div>
+                  <div class="detail-field"><label>Tipo</label><p>Tardanza</p></div>
+                  <div class="detail-field"><label>Fecha de marca</label><p>20/03/2025</p></div>
+                  <div class="detail-field"><label>Observación</label><p>Fila de espera superior a 2 horas. Arribo a oficina 10:15 a.m.</p></div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 4 -->
+            <tr>
+              <td><strong>Luis Herrera Campos</strong></td>
+              <td>Almuerzo extendido por reunión</td>
+              <td>Tiempo de almuerzo extendido</td>
+              <td>19/03/2025</td>
+              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
+              <td>
+                <div class="flex gap-8">
+                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
+                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
+                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="detail-row hidden">
+              <td colspan="6">
+                <div class="detail-inner">
+                  <div class="detail-field"><label>Motivo general</label><p>Reunión de coordinación con contraparte del MEP</p></div>
+                  <div class="detail-field"><label>Tipo</label><p>Tiempo de almuerzo extendido</p></div>
+                  <div class="detail-field"><label>Fecha de marca</label><p>19/03/2025</p></div>
+                  <div class="detail-field"><label>Observación</label><p>Reunión iniciada a las 12:00, se extendió hasta las 14:30 por agenda de contraparte.</p></div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 5 -->
+            <tr>
+              <td><strong>Patricia Ulate Soto</strong></td>
+              <td>Salida anticipada por emergencia</td>
+              <td>Salida anticipada</td>
+              <td>18/03/2025</td>
+              <td class="row-status"><span class="badge badge-review">En revisión</span></td>
+              <td>
+                <div class="flex gap-8">
+                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
+                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
+                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="detail-row hidden">
+              <td colspan="6">
+                <div class="detail-inner">
+                  <div class="detail-field"><label>Motivo general</label><p>Emergencia en el hogar — inundación parcial</p></div>
+                  <div class="detail-field"><label>Tipo</label><p>Salida anticipada</p></div>
+                  <div class="detail-field"><label>Fecha de marca</label><p>18/03/2025</p></div>
+                  <div class="detail-field"><label>Observación</label><p>Lluvias provocaron filtración en vivienda. Salió a las 14:00. Se adjunta reporte de bomberos.</p></div>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PANEL RRHH ════════════════════════════════════════ -->
+  <section id="panel-rrhh" class="tab-panel hidden">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>Panel de Recursos Humanos</h2>
+        <p>Gestión global de justificaciones y reportes institucionales</p>
+      </div>
+      <button class="btn btn-outline" onclick="downloadReport()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        Descargar Reporte
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num">148</div>
+        <div class="stat-label">Total Justificaciones</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--warning)">23</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--success)">109</div>
+        <div class="stat-label">Aprobadas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--danger)">16</div>
+        <div class="stat-label">Rechazadas</div>
+      </div>
+    </div>
+
+    <div id="rrhh-notice" class="alert" style="display:none"></div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+      <div class="form-group">
+        <label for="rrhh-fn">Funcionario</label>
+        <input type="text" id="rrhh-fn" placeholder="Nombre o cédula..." />
+      </div>
+      <div class="form-group">
+        <label for="rrhh-estado">Estado</label>
+        <select id="rrhh-estado">
+          <option value="">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Aprobado">Aprobado</option>
+          <option value="Rechazado">Rechazado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="rrhh-desde">Desde</label>
+        <input type="date" id="rrhh-desde" />
+      </div>
+      <div class="form-group">
+        <label for="rrhh-hasta">Hasta</label>
+        <input type="date" id="rrhh-hasta" />
+      </div>
+      <button class="btn btn-primary" onclick="applyRRHHFilter()">Filtrar</button>
+      <button class="btn btn-secondary" onclick="resetRRHHFilter()">Limpiar</button>
+    </div>
+
+    <!-- Global table -->
+    <div class="card">
+      <div class="table-wrapper" style="border:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Funcionario</th>
+              <th>Departamento</th>
+              <th>Motivo</th>
+              <th>Tipo</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="rrhh-tbody">
+            <tr><td>María Solano Mora</td><td>Planificación</td><td>Emergencia familiar</td><td>Ausencia</td><td>22/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+            <tr><td>Carlos Brenes Jiménez</td><td>Infraestructura</td><td>Trabajo de campo</td><td>Omisión de marca</td><td>21/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+            <tr><td>Adriana Vindas Rojas</td><td>Legal</td><td>Trámite en Registro</td><td>Tardanza</td><td>20/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+            <tr><td>Luis Herrera Campos</td><td>TI</td><td>Reunión con MEP</td><td>Almuerzo extendido</td><td>19/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+            <tr><td>Patricia Ulate Soto</td><td>Administración</td><td>Emergencia doméstica</td><td>Salida anticipada</td><td>18/03/2025</td><td><span class="badge badge-review">En revisión</span></td></tr>
+            <tr><td>Roberto Alfaro Mora</td><td>Contabilidad</td><td>Cita médica CCSS</td><td>Tardanza</td><td>17/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Silvia Méndez Umaña</td><td>Planificación</td><td>Olvido de marcación</td><td>Omisión de marca</td><td>15/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Andrés Quirós Herrera</td><td>Recursos Humanos</td><td>Diligencia bancaria</td><td>Salida anticipada</td><td>14/03/2025</td><td><span class="badge badge-rejected">Rechazado</span></td></tr>
+            <tr><td>Diana Vargas Castillo</td><td>Legal</td><td>Accidente de tránsito</td><td>Ausencia</td><td>12/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Fernando Quesada López</td><td>TI</td><td>Falla en transporte público</td><td>Tardanza</td><td>10/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PANEL SIFCNP ══════════════════════════════════════ -->
+  <section id="panel-sifcnp" class="tab-panel hidden">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>Consulta Histórica — SIFCNP</h2>
+        <p>Busque registros históricos de justificaciones en el sistema</p>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="filter-bar">
+      <div class="form-group" style="flex:2">
+        <label for="sifcnp-query">Funcionario</label>
+        <input type="text" id="sifcnp-query" placeholder="Ingrese nombre o número de cédula..." />
+      </div>
+      <div class="form-group">
+        <label for="sifcnp-desde">Fecha inicio</label>
+        <input type="date" id="sifcnp-desde" />
+      </div>
+      <div class="form-group">
+        <label for="sifcnp-hasta">Fecha fin</label>
+        <input type="date" id="sifcnp-hasta" />
+      </div>
+      <button class="btn btn-primary" onclick="sifcnpSearch()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/></svg>
+        Buscar
+      </button>
+    </div>
+
+    <!-- Results table -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Resultados Históricos</h3>
+        <span class="text-sm text-muted">Mostrando registros del período seleccionado</span>
+      </div>
+      <div class="table-wrapper" style="border:none;border-radius:0 0 8px 8px">
+        <table>
+          <thead>
+            <tr>
+              <th>Funcionario</th>
+              <th>Cédula</th>
+              <th>Concepto</th>
+              <th>Fecha</th>
+              <th>Observación</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="sifcnp-tbody">
+            <tr><td>María Solano Mora</td><td class="text-mono text-sm">1-0723-0456</td><td>Ausencia</td><td>10/01/2025</td><td>Incapacidad médica verificada</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>María Solano Mora</td><td class="text-mono text-sm">1-0723-0456</td><td>Tardanza</td><td>22/11/2024</td><td>Bloqueo en Circunvalación</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Carlos Brenes Jiménez</td><td class="text-mono text-sm">2-0345-0789</td><td>Omisión de marca</td><td>03/02/2025</td><td>Sin acceso biométrico en campo</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Carlos Brenes Jiménez</td><td class="text-mono text-sm">2-0345-0789</td><td>Tardanza</td><td>15/12/2024</td><td>Desvío por obras en autopista</td><td><span class="badge badge-rejected">Rechazado</span></td></tr>
+            <tr><td>Adriana Vindas Rojas</td><td class="text-mono text-sm">1-0891-0234</td><td>Salida anticipada</td><td>28/01/2025</td><td>Consulta notarial urgente</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Luis Herrera Campos</td><td class="text-mono text-sm">3-0512-0667</td><td>Almuerzo extendido</td><td>07/02/2025</td><td>Reunión técnica de coordinación</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Patricia Ulate Soto</td><td class="text-mono text-sm">1-0654-0321</td><td>Ausencia</td><td>20/10/2024</td><td>Cuido de menor enfermo</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Roberto Alfaro Mora</td><td class="text-mono text-sm">4-0178-0995</td><td>Tardanza</td><td>09/02/2025</td><td>Demora en tren interurbano</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+            <tr><td>Silvia Méndez Umaña</td><td class="text-mono text-sm">1-0932-0112</td><td>Omisión de marca</td><td>14/01/2025</td><td>Sistema biométrico fuera de línea</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
+            <tr><td>Andrés Quirós Herrera</td><td class="text-mono text-sm">2-0267-0483</td><td>Salida anticipada</td><td>05/03/2025</td><td>Trámite bancario institucional</td><td><span class="badge badge-rejected">Rechazado</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  /* ══ TODA LA LÓGICA DE APP.JS INCRUSTADA ══ */
+
+  /* ── Auth Guard ── */
+  function requireAuth() {
+    if (!sessionStorage.getItem('sjm_auth')) {
+      window.location.href = 'index.html';
+    }
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem('sjm_auth');
+    sessionStorage.removeItem('sjm_user');
+    window.location.href = 'index.html';
+  }
+
+  /* ── Tab Navigation ── */
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    const panel = document.getElementById(tabId);
+    if (panel) panel.classList.remove('hidden');
+    const tab = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+    if (tab) tab.classList.add('active');
+    sessionStorage.setItem('sjm_activeTab', tabId);
+  }
+
+  function restoreTab() {
+    const saved = sessionStorage.getItem('sjm_activeTab') || 'panel-funcionario';
+    switchTab(saved);
+  }
+
+  /* ── Panel Funcionario ── */
+  function registerJustification() {
+    const motivo      = document.getElementById('f-motivo').value.trim();
+    const tipo        = document.getElementById('f-tipo').value;
+    const fecha       = document.getElementById('f-fecha').value;
+    const observacion = document.getElementById('f-observacion').value.trim();
+
+    if (!motivo || !tipo || !fecha) {
+      showNotice('f-notice', 'error', 'Complete los campos obligatorios: Motivo, Tipo y Fecha.');
+      return;
+    }
+
+    const tbody = document.getElementById('funcionario-history-body');
+    const newId = 'JM-' + String(tbody.rows.length + 101).padStart(4, '0');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-mono text-sm">${newId}</td>
+      <td>${escapeHtml(motivo)}</td>
+      <td>${escapeHtml(tipo)}</td>
+      <td>${formatDate(fecha)}</td>
+      <td><span class="badge badge-pending">Pendiente</span></td>`;
+    tbody.insertBefore(tr, tbody.firstChild);
+
+    showNotice('f-notice', 'success', 'Justificación registrada exitosamente. Estado: Pendiente de revisión.');
+    ['f-motivo','f-tipo','f-fecha','f-observacion'].forEach(id => document.getElementById(id).value = '');
+  }
+
+  /* ── Panel Jefatura ── */
+  function approveRequest(btn, action) {
+    const row = btn.closest('tr');
+    const statusCell = row.querySelector('.row-status');
+    if (action === 'approve') {
+      statusCell.innerHTML = '<span class="badge badge-approved">Aprobado</span>';
+      showNotice('j-notice', 'success', 'Solicitud aprobada correctamente.');
+    } else {
+      statusCell.innerHTML = '<span class="badge badge-rejected">Rechazado</span>';
+      showNotice('j-notice', 'error', 'Solicitud rechazada.');
+    }
+    row.querySelectorAll('.btn').forEach(b => b.disabled = true);
+  }
+
+  function toggleDetail(btn) {
+    const row = btn.closest('tr');
+    const detailRow = row.nextElementSibling;
+    if (!detailRow || !detailRow.classList.contains('detail-row')) return;
+    const isHidden = detailRow.classList.contains('hidden');
+    detailRow.classList.toggle('hidden', !isHidden);
+    btn.textContent = isHidden ? 'Ocultar ▲' : 'Ver detalle ▼';
+  }
+
+  /* ── Panel RRHH ── */
+  function applyRRHHFilter() {
+    const fnFilter = document.getElementById('rrhh-fn').value.toLowerCase().trim();
+    const stFilter = document.getElementById('rrhh-estado').value;
+    document.querySelectorAll('#rrhh-tbody tr').forEach(row => {
+      const fn     = row.cells[0]?.textContent.toLowerCase() || '';
+      const estado = row.cells[5]?.textContent.trim() || '';
+      row.style.display = (!fnFilter || fn.includes(fnFilter)) && (!stFilter || estado.includes(stFilter)) ? '' : 'none';
+    });
+  }
+
+  function resetRRHHFilter() {
+    ['rrhh-fn','rrhh-estado','rrhh-desde','rrhh-hasta'].forEach(id => document.getElementById(id).value = '');
+    document.querySelectorAll('#rrhh-tbody tr').forEach(r => r.style.display = '');
+  }
+
+  function downloadReport() {
+    const fecha = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    showNotice('rrhh-notice', 'success', `Reporte generado: Reporte_Justificaciones_${fecha}.xlsx`);
+  }
+
+  /* ── SIFCNP ── */
+  function sifcnpSearch() {
+    const query = document.getElementById('sifcnp-query').value.toLowerCase().trim();
+    document.querySelectorAll('#sifcnp-tbody tr').forEach(row => {
+      const fn = row.cells[0]?.textContent.toLowerCase() || '';
+      row.style.display = !query || fn.includes(query) ? '' : 'none';
+    });
+  }
+
+  /* ── Helpers ── */
+  function showNotice(targetId, type, msg) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const icon = type === 'error'
+      ? 'M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z'
+      : 'M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z';
+    el.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
+    el.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${icon}"/></svg>${msg}`;
+    el.style.display = 'flex';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Init ── */
+  requireAuth();
+  restoreTab();
+</script>
+</body>
+</html>

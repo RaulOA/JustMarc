@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIFCNP — Iniciar Sesión</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Login-specific styles ────────────────────────── */
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--blue-900);
+      background-image:
+        linear-gradient(135deg, var(--blue-900) 0%, var(--blue-800) 60%, var(--blue-700) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Geometric background pattern */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 60px,
+          rgba(255,255,255,.025) 60px,
+          rgba(255,255,255,.025) 61px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 60px,
+          rgba(255,255,255,.025) 60px,
+          rgba(255,255,255,.025) 61px
+        );
+      pointer-events: none;
+    }
+
+    .login-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+      animation: fadeUp .5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Institutional header above card */
+    .login-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-header .coat-of-arms {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 14px;
+      background: var(--white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    }
+
+    .login-header .coat-of-arms svg {
+      width: 38px; height: 38px;
+    }
+
+    .login-header h1 {
+      color: var(--white);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+
+    .login-header p {
+      color: rgba(255,255,255,.55);
+      font-size: .8rem;
+      margin-top: 4px;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+
+    /* Card */
+    .login-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .login-card-top {
+      background: var(--blue-700);
+      padding: 18px 28px;
+    }
+
+    .login-card-top h2 {
+      color: var(--white);
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .login-card-top p {
+      color: rgba(255,255,255,.6);
+      font-size: .82rem;
+      margin-top: 2px;
+    }
+
+    .login-card-body {
+      padding: 28px;
+    }
+
+    .login-card-body .form-group {
+      margin-bottom: 18px;
+    }
+
+    .login-card-body label {
+      font-size: .78rem;
+      color: var(--grey-600);
+    }
+
+    .login-card-body input {
+      font-size: .95rem;
+      padding: 10px 14px;
+    }
+
+    .login-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 12px;
+      font-size: .95rem;
+      font-weight: 600;
+      letter-spacing: .3px;
+      background: var(--blue-700);
+      margin-top: 8px;
+    }
+    .login-btn:hover { background: var(--blue-800); }
+
+    .login-hint {
+      margin-top: 18px;
+      padding: 10px 14px;
+      background: var(--blue-50);
+      border: 1px solid var(--blue-100);
+      border-radius: var(--radius-sm);
+      font-size: .8rem;
+      color: var(--blue-600);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    /* Footer */
+    .login-footer {
+      text-align: center;
+      margin-top: 22px;
+      color: rgba(255,255,255,.35);
+      font-size: .75rem;
+    }
+
+    #loginError {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-wrapper">
+
+    <!-- Institutional Header -->
+    <div class="login-header">
+      <div class="coat-of-arms">
+        <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="6" width="30" height="22" rx="2" fill="var(--blue-700)"/>
+          <rect x="8" y="10" width="10" height="7" rx="1" fill="var(--white)" opacity=".9"/>
+          <rect x="20" y="10" width="10" height="7" rx="1" fill="var(--white)" opacity=".9"/>
+          <rect x="8" y="20" width="22" height="2" rx="1" fill="var(--white)" opacity=".6"/>
+          <path d="M19 28 L14 34 L24 34 Z" fill="var(--blue-700)"/>
+          <rect x="15" y="33" width="8" height="2" rx="1" fill="var(--blue-700)"/>
+        </svg>
+      </div>
+      <h1>SIFCNP</h1>
+      <p>Sistema de Justificación de Marcas</p>
+    </div>
+
+    <!-- Login Card -->
+    <div class="login-card">
+      <div class="login-card-top">
+        <h2>Acceso al Sistema</h2>
+        <p>Ingrese sus credenciales institucionales</p>
+      </div>
+      <div class="login-card-body">
+
+        <!-- Error alert -->
+        <div id="loginError" class="alert alert-error">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z"/></svg>
+          Credenciales incorrectas. Verifique e intente nuevamente.
+        </div>
+
+        <div class="form-group">
+          <label for="username">Usuario</label>
+          <input type="text" id="username" placeholder="Nombre de usuario" autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+
+        <button class="btn btn-primary login-btn" onclick="handleLogin()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M10 2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-3a.5.5 0 0 1 0-1h3V3h-3a.5.5 0 0 1 0-1zM6.146 5.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L8.793 8.5H1.5a.5.5 0 0 1 0-1h7.293L6.146 5.854a.5.5 0 0 1 0-.708z"/></svg>
+          Ingresar
+        </button>
+
+        <div class="login-hint">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M7 0a7 7 0 1 0 0 14A7 7 0 0 0 7 0zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V2.5h1.5V4z"/></svg>
+          <span>Credenciales de acceso: usuario <strong>admin</strong> / contraseña <strong>1234</strong></span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="login-footer">
+      &copy; 2025 &mdash; Todos los derechos reservados &mdash; v1.0.0
+    </div>
+
+  </div>
+
+  <script>
+    /* ── Credenciales quemadas ── */
+    const CREDENTIALS = { username: 'admin', password: '1234' };
+
+    function handleLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errorDiv = document.getElementById('loginError');
+
+      if (username === CREDENTIALS.username && password === CREDENTIALS.password) {
+        sessionStorage.setItem('sjm_auth', 'true');
+        sessionStorage.setItem('sjm_user', username);
+        window.location.href = 'dashboard.html';
+      } else {
+        errorDiv.style.display = 'flex';
+        const loginCard = document.querySelector('.login-card');
+        if (loginCard) {
+          loginCard.style.animation = 'none';
+          void loginCard.offsetWidth; // reflow para reiniciar animación
+          loginCard.style.animation = 'shake .35s ease';
+        }
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    /* Animación shake */
+    const style = document.createElement('style');
+    style.textContent = `@keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60%  { transform: translateX(-8px); }
+      40%,80%  { transform: translateX(8px); }
+    }`;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>
