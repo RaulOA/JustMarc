@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj" />
+    <Project Path="src/IntegradorMarcas.Application/IntegradorMarcas.Application.csproj" />
+    <Project Path="src/IntegradorMarcas.Domain/IntegradorMarcas.Domain.csproj" />
+    <Project Path="src/IntegradorMarcas.Infrastructure/IntegradorMarcas.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj" />
+  </Folder>
+</Solution>

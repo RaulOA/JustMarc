@@ -225,7 +225,7 @@
 
         <div class="login-hint">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M7 0a7 7 0 1 0 0 14A7 7 0 0 0 7 0zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V2.5h1.5V4z"/></svg>
-          <span>Credenciales de acceso: usuario <strong>admin</strong> / contraseña <strong>1234</strong></span>
+          <span>Ambiente de prueba. Ejemplos de usuario para rol: <strong>jefe.maria</strong>, <strong>rrhh.carlos</strong> o <strong>funcionario.ana</strong>.</span>
         </div>
 
       </div>
@@ -237,42 +237,6 @@
 
   </div>
 
-  <script>
-    /* ── Credenciales quemadas ── */
-    const CREDENTIALS = { username: 'admin', password: '1234' };
-
-    function handleLogin() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-      const errorDiv = document.getElementById('loginError');
-
-      if (username === CREDENTIALS.username && password === CREDENTIALS.password) {
-        sessionStorage.setItem('sjm_auth', 'true');
-        sessionStorage.setItem('sjm_user', username);
-        window.location.href = 'dashboard.html';
-      } else {
-        errorDiv.style.display = 'flex';
-        const loginCard = document.querySelector('.login-card');
-        if (loginCard) {
-          loginCard.style.animation = 'none';
-          void loginCard.offsetWidth; // reflow para reiniciar animación
-          loginCard.style.animation = 'shake .35s ease';
-        }
-      }
-    }
-
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') handleLogin();
-    });
-
-    /* Animación shake */
-    const style = document.createElement('style');
-    style.textContent = `@keyframes shake {
-      0%,100% { transform: translateX(0); }
-      20%,60%  { transform: translateX(-8px); }
-      40%,80%  { transform: translateX(8px); }
-    }`;
-    document.head.appendChild(style);
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>

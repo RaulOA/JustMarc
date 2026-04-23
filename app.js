@@ -1,123 +1,548 @@
 /* ============================================================
-   SIFCNP — Lógica de Aplicación
+   SIFCNP — Lógica de Aplicación (MVP PRP)
    ============================================================ */
 
-/* ── Credenciales (quemadas en código) ───────────────────── */
-const CREDENTIALS = { username: 'admin', password: '1234' };
+const STORAGE_KEYS = {
+  session: 'sjm_session',
+  activeTab: 'sjm_activeTab',
+  apiBaseUrl: 'sjm_api_base_url'
+};
 
-/* ── Login ───────────────────────────────────────────────── */
-function handleLogin() {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-  const errorDiv = document.getElementById('loginError');
+const ESTADOS = {
+  PENDIENTE: 'Pendiente Jefatura',
+  APROBADO: 'Aprobado',
+  RECHAZADO: 'Rechazado'
+};
 
-  if (username === CREDENTIALS.username && password === CREDENTIALS.password) {
-    // Store session flag
-    sessionStorage.setItem('sjm_auth', 'true');
-    sessionStorage.setItem('sjm_user', username);
-    window.location.href = 'dashboard.html';
-  } else {
-    if (errorDiv) {
-      errorDiv.style.display = 'flex';
-      // shake effect
-      const loginCard = document.querySelector('.login-card');
-      if (loginCard) {
-        loginCard.style.animation = 'shake .35s ease';
-        setTimeout(() => loginCard.style.animation = '', 350);
-      }
-    }
+const COMPANY_BY_PREFIX = {
+  cnp: 'CNP',
+  fanal: 'FANAL'
+};
+
+let draftDetails = [];
+
+const API_CONFIG = {
+  defaultBaseUrl: 'http://localhost:5093',
+  timeoutMs: 12000
+};
+
+const MOCK_USER_DIRECTORY = {
+  'funcionario.ana': { userId: 10, role: 'ROL_FUNC' },
+  'jefe.maria': { userId: 20, role: 'ROL_JEFE' },
+  'rrhh.carlos': { userId: 30, role: 'ROL_RRHH' }
+};
+
+const JUSTIFICACION_TIPO_IDS = {
+  'Marca Tardía': 1,
+  'Omisión Marca de Entrada': 2,
+  'Omisión Marca de Salida': 3,
+  'Marca antes Hora de Salida': 4,
+  Ausencia: 5
+};
+
+function inferRole(username) {
+  const normalized = username.toLowerCase();
+  if (normalized.includes('rrhh')) return 'ROL_RRHH';
+  if (normalized.includes('jefe')) return 'ROL_JEFE';
+  return 'ROL_FUNC';
+}
+
+function inferCompany(username) {
+  const normalized = username.toLowerCase();
+  if (normalized.startsWith('fanal') || normalized.includes('.fanal')) return COMPANY_BY_PREFIX.fanal;
+  return COMPANY_BY_PREFIX.cnp;
+}
+
+function getSession() {
+  const raw = sessionStorage.getItem(STORAGE_KEYS.session);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
 }
 
-/* ── Auth Guard (call on dashboard pages) ────────────────── */
+function setSession(session) {
+  sessionStorage.setItem(STORAGE_KEYS.session, JSON.stringify(session));
+}
+
+function getApiBaseUrl() {
+  const fromWindow = typeof window !== 'undefined' ? window.SJM_API_BASE_URL : '';
+  const fromSession = sessionStorage.getItem(STORAGE_KEYS.apiBaseUrl) || '';
+  const selected = String(fromWindow || fromSession || API_CONFIG.defaultBaseUrl).trim();
+  return selected.replace(/\/$/, '');
+}
+
+function buildApiUrl(path) {
+  return `${getApiBaseUrl()}${path}`;
+}
+
+function resolveUserIdentity(session) {
+  if (!session?.username) return null;
+
+  const normalized = session.username.toLowerCase();
+  const directoryIdentity = MOCK_USER_DIRECTORY[normalized];
+  if (directoryIdentity) {
+    return {
+      userId: directoryIdentity.userId,
+      role: directoryIdentity.role
+    };
+  }
+
+  return {
+    userId: 10,
+    role: session.role || inferRole(session.username)
+  };
+}
+
+function buildApiHeaders(session, withJsonBody = false) {
+  const identity = resolveUserIdentity(session);
+  if (!identity?.userId || !identity?.role) {
+    throw new Error('No fue posible resolver identidad para llamar la API.');
+  }
+
+  const headers = {
+    'X-User-Id': String(identity.userId),
+    'X-User-Role': identity.role
+  };
+
+  if (withJsonBody) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  return headers;
+}
+
+async function parseApiError(response) {
+  let parsed;
+
+  try {
+    parsed = await response.clone().json();
+  } catch {
+    parsed = null;
+  }
+
+  const message = parsed?.detail
+    || parsed?.title
+    || parsed?.message
+    || `Error HTTP ${response.status}`;
+
+  const error = new Error(message);
+  error.status = response.status;
+  error.payload = parsed;
+  return error;
+}
+
+async function apiFetch(path, options = {}, session = getSession()) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_CONFIG.timeoutMs);
+
+  try {
+    const response = await fetch(buildApiUrl(path), {
+      ...options,
+      headers: {
+        ...(options.headers || {})
+      },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+
+    return null;
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('La API tardó demasiado en responder. Intente de nuevo.');
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
+
+    if (error instanceof TypeError) {
+      const networkError = new Error('No fue posible conectar con la API. Verifique backend, URL y CORS.');
+      networkError.status = 0;
+      throw networkError;
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function mapEstadoDescripcion(estadoId, estadoDescripcion) {
+  const desc = String(estadoDescripcion || '').toLowerCase();
+  if (estadoId === 2 || desc.includes('aprobad')) return ESTADOS.APROBADO;
+  if (estadoId === 3 || desc.includes('rechazad')) return ESTADOS.RECHAZADO;
+  return ESTADOS.PENDIENTE;
+}
+
+function presentBoletaId(justificacionId) {
+  const numeric = Number(justificacionId);
+  if (!Number.isFinite(numeric)) return 'JM-0000';
+  return `JM-${String(numeric).padStart(4, '0')}`;
+}
+
+function normalizeApiResumen(item) {
+  return {
+    id: item?.justificacionID ?? 0,
+    idPresentacion: presentBoletaId(item?.justificacionID),
+    motivoGeneral: item?.motivoGeneral || 'Sin motivo disponible',
+    estado: mapEstadoDescripcion(item?.estadoID, item?.estadoDescripcion),
+    fechaCreacion: item?.fechaCreacion || null,
+    fechaResolucion: item?.fechaAprobacion || null,
+    cantidadDetalles: Number(item?.cantidadDetalles || 0),
+    funcionarioNombre: 'No disponible en API',
+    tipoPrincipal: 'No disponible en API',
+    observacionDetalle: 'No disponible en API',
+    aprobadorLabel: item?.aprobadorID ? `ID ${item.aprobadorID}` : null
+  };
+}
+
+function mapDetailToApi(detail) {
+  const tipoJustificacionID = JUSTIFICACION_TIPO_IDS[detail.tipo];
+
+  if (!tipoJustificacionID) {
+    throw new Error(`Tipo de justificación no mapeado: ${detail.tipo}`);
+  }
+
+  return {
+    tipoJustificacionID,
+    fechaMarca: `${detail.fecha}T00:00:00`,
+    observacionDetalle: detail.observacion || null
+  };
+}
+
+function handleLogin() {
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const errorDiv = document.getElementById('loginError');
+
+  if (!usernameInput || !passwordInput) return;
+
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+
+  if (username.length < 3 || password.length < 4) {
+    if (errorDiv) {
+      errorDiv.textContent = 'Credenciales no válidas. Verifique usuario y contraseña.';
+      errorDiv.style.display = 'flex';
+    }
+    shakeLoginCard();
+    return;
+  }
+
+  const session = {
+    isAuth: true,
+    username,
+    role: inferRole(username),
+    company: inferCompany(username),
+    apiBaseUrl: getApiBaseUrl()
+  };
+
+  setSession(session);
+  window.location.href = 'dashboard.html';
+}
+
+function shakeLoginCard() {
+  const loginCard = document.querySelector('.login-card');
+  if (!loginCard) return;
+  loginCard.style.animation = 'none';
+  void loginCard.offsetWidth;
+  loginCard.style.animation = 'shake .35s ease';
+}
+
 function requireAuth() {
-  if (!sessionStorage.getItem('sjm_auth')) {
+  const session = getSession();
+  if (!session?.isAuth) {
     window.location.href = 'index.html';
   }
 }
 
-/* ── Logout ──────────────────────────────────────────────── */
 function handleLogout() {
-  sessionStorage.removeItem('sjm_auth');
-  sessionStorage.removeItem('sjm_user');
+  sessionStorage.removeItem(STORAGE_KEYS.session);
+  sessionStorage.removeItem(STORAGE_KEYS.activeTab);
   window.location.href = 'index.html';
 }
 
-/* ── Tab Navigation ──────────────────────────────────────── */
-function switchTab(tabId) {
-  // Hide all panels
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-  // Deactivate all nav tabs
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+function configureRoleUI() {
+  const session = getSession();
+  if (!session) return;
 
-  // Show selected panel
+  const userEl = document.getElementById('current-user');
+  const roleEl = document.getElementById('current-role');
+  if (userEl) userEl.textContent = session.username;
+  if (roleEl) roleEl.textContent = session.role.replace('ROL_', '');
+
+  const allowedByRole = {
+    ROL_FUNC: ['panel-funcionario', 'panel-sifcnp'],
+    ROL_JEFE: ['panel-jefatura', 'panel-sifcnp'],
+    ROL_RRHH: ['panel-rrhh', 'panel-sifcnp']
+  };
+
+  const allowedTabs = allowedByRole[session.role] || ['panel-sifcnp'];
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    const tabId = tab.getAttribute('data-tab');
+    tab.classList.toggle('hidden', !allowedTabs.includes(tabId));
+  });
+
+  const savedTab = sessionStorage.getItem(STORAGE_KEYS.activeTab);
+  const fallback = allowedTabs[0];
+  const target = savedTab && allowedTabs.includes(savedTab) ? savedTab : fallback;
+  switchTab(target);
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+  document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+
   const panel = document.getElementById(tabId);
   if (panel) panel.classList.remove('hidden');
 
-  // Activate selected nav tab
   const tab = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
   if (tab) tab.classList.add('active');
 
-  // Persist active tab in session
-  sessionStorage.setItem('sjm_activeTab', tabId);
+  sessionStorage.setItem(STORAGE_KEYS.activeTab, tabId);
 }
 
-/* ── Restore last active tab ─────────────────────────────── */
-function restoreTab() {
-  const saved = sessionStorage.getItem('sjm_activeTab') || 'panel-funcionario';
-  switchTab(saved);
-}
+function addDetailLine() {
+  const tipoEl = document.getElementById('f-d-tipo');
+  const fechaEl = document.getElementById('f-d-fecha');
+  const obsEl = document.getElementById('f-d-observacion');
 
-/* ── Register Justification (Panel Funcionario) ──────────── */
-function registerJustification() {
-  const motivo      = document.getElementById('f-motivo')?.value?.trim();
-  const tipo        = document.getElementById('f-tipo')?.value;
-  const fecha       = document.getElementById('f-fecha')?.value;
-  const observacion = document.getElementById('f-observacion')?.value?.trim();
+  const tipo = tipoEl?.value || '';
+  const fecha = fechaEl?.value || '';
+  const observacion = obsEl?.value?.trim() || '';
 
-  if (!motivo || !tipo || !fecha) {
-    showNotice('f-notice', 'error', 'Por favor complete los campos obligatorios: Motivo, Tipo y Fecha.');
+  if (!tipo || !fecha) {
+    showNotice('f-notice', 'error', 'Cada detalle requiere tipo de justificación y fecha de marca.');
     return;
   }
 
-  // Add row to personal history table
+  draftDetails.push({ tipo, fecha, observacion });
+  renderDraftDetails();
+
+  if (tipoEl) tipoEl.value = '';
+  if (fechaEl) fechaEl.value = '';
+  if (obsEl) obsEl.value = '';
+}
+
+function removeDetailLine(index) {
+  draftDetails = draftDetails.filter((_, i) => i !== index);
+  renderDraftDetails();
+}
+
+function renderDraftDetails() {
+  const tbody = document.getElementById('f-detail-body');
+  const total = document.getElementById('f-detail-count');
+  if (!tbody || !total) return;
+
+  total.textContent = String(draftDetails.length);
+  if (draftDetails.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No hay líneas agregadas.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = draftDetails.map((d, i) => `
+    <tr>
+      <td>${escapeHtml(d.tipo)}</td>
+      <td>${formatDate(d.fecha)}</td>
+      <td>${escapeHtml(d.observacion || '—')}</td>
+      <td><button class="btn btn-sm btn-danger" type="button" onclick="removeDetailLine(${i})">Eliminar</button></td>
+    </tr>
+  `).join('');
+}
+
+async function registerJustification() {
+  const session = getSession();
+  const motivo = document.getElementById('f-motivo')?.value?.trim() || '';
+
+  if (!session || session.role !== 'ROL_FUNC') {
+    showNotice('f-notice', 'error', 'Solo el rol Funcionario puede registrar boletas.');
+    return;
+  }
+
+  if (!motivo) {
+    showNotice('f-notice', 'error', 'El motivo general es obligatorio.');
+    return;
+  }
+
+  if (draftDetails.length === 0) {
+    showNotice('f-notice', 'error', 'Debe agregar al menos una línea de detalle.');
+    return;
+  }
+
+  const payload = {
+    motivoGeneral: motivo,
+    detalles: draftDetails.map(mapDetailToApi)
+  };
+
+  try {
+    await apiFetch('/api/justificaciones', {
+      method: 'POST',
+      headers: buildApiHeaders(session, true),
+      body: JSON.stringify(payload)
+    }, session);
+
+    draftDetails = [];
+    renderDraftDetails();
+
+    const motivoEl = document.getElementById('f-motivo');
+    if (motivoEl) motivoEl.value = '';
+
+    showNotice('f-notice', 'success', 'Boleta registrada en estado Pendiente Jefatura.');
+    await renderFuncionarioHistory();
+    await renderJefaturaRequests();
+    await renderRRHHTable();
+  } catch (error) {
+    showNotice('f-notice', 'error', `No se pudo registrar la boleta: ${error.message}`);
+  }
+}
+
+async function renderFuncionarioHistory() {
+  const session = getSession();
   const tbody = document.getElementById('funcionario-history-body');
-  if (tbody) {
-    const newId = `JM-${String(tbody.rows.length + 100 + 1).padStart(4, '0')}`;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-mono text-sm">${newId}</td>
-      <td>${escapeHtml(motivo)}</td>
-      <td>${escapeHtml(tipo)}</td>
-      <td>${formatDate(fecha)}</td>
-      <td><span class="badge badge-pending">Pendiente</span></td>
-    `;
-    tbody.insertBefore(tr, tbody.firstChild);
+  if (!tbody || !session) return;
+
+  if (session.role !== 'ROL_FUNC') {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Vista disponible solo para rol Funcionario.</td></tr>';
+    return;
   }
 
-  showNotice('f-notice', 'success', 'Justificación registrada exitosamente. Estado: Pendiente de revisión.');
-  clearForm('funcionario-form');
-}
+  try {
+    const response = await apiFetch('/api/justificaciones/mias', {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
 
-/* ── Approve / Reject (Panel Jefatura) ───────────────────── */
-function approveRequest(btn, action) {
-  const row = btn.closest('tr');
-  if (!row) return;
-  const statusCell = row.querySelector('.row-status');
-  if (!statusCell) return;
+    const mine = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
+    if (mine.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay boletas registradas.</td></tr>';
+      return;
+    }
 
-  if (action === 'approve') {
-    statusCell.innerHTML = '<span class="badge badge-approved">Aprobado</span>';
-    row.querySelectorAll('.btn').forEach(b => b.disabled = true);
-    showNotice('j-notice', 'success', 'Solicitud aprobada correctamente.');
-  } else {
-    statusCell.innerHTML = '<span class="badge badge-rejected">Rechazado</span>';
-    row.querySelectorAll('.btn').forEach(b => b.disabled = true);
-    showNotice('j-notice', 'error', 'Solicitud rechazada.');
+    tbody.innerHTML = mine.map(b => `
+      <tr>
+        <td class="text-mono text-sm">${b.idPresentacion}</td>
+        <td>${escapeHtml(b.motivoGeneral)}</td>
+        <td>${b.cantidadDetalles}</td>
+        <td>${formatDateTime(b.fechaCreacion)}</td>
+        <td>${renderStatusBadge(b.estado)}</td>
+        <td>${b.fechaResolucion ? formatDateTime(b.fechaResolucion) : '—'}</td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay boletas registradas.</td></tr>';
+    showNotice('f-notice', 'error', `No se pudo cargar el historial: ${error.message}`);
   }
 }
 
-/* ── Toggle detail row (Jefatura) ────────────────────────── */
+async function renderJefaturaRequests() {
+  const session = getSession();
+  const tbody = document.getElementById('jefatura-tbody');
+  const countEl = document.getElementById('jefatura-pending-count');
+  if (!tbody || !session) return;
+
+  if (session.role !== 'ROL_JEFE') {
+    if (countEl) countEl.textContent = '0 pendientes';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Vista disponible solo para rol Jefatura.</td></tr>';
+    return;
+  }
+
+  try {
+    const response = await apiFetch('/api/jefatura/justificaciones/pendientes', {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
+
+    const pending = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
+    if (countEl) countEl.textContent = `${pending.length} pendientes`;
+
+    if (pending.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay solicitudes pendientes.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = pending.map((b) => `
+      <tr>
+        <td><strong>${escapeHtml(b.funcionarioNombre)}</strong></td>
+        <td>${escapeHtml(b.motivoGeneral)}</td>
+        <td>${escapeHtml(b.tipoPrincipal)}</td>
+        <td>${formatDateTime(b.fechaCreacion)}</td>
+        <td class="row-status">${renderStatusBadge(b.estado)}</td>
+        <td>
+          <div class="flex gap-8">
+            <button class="btn btn-sm btn-success" type="button" onclick="approveRequest(${b.id},'approve')">Aprobar</button>
+            <button class="btn btn-sm btn-danger" type="button" onclick="approveRequest(${b.id},'reject')">Rechazar</button>
+            <button class="btn btn-sm btn-secondary" type="button" onclick="toggleDetail(this)">Ver detalle ▼</button>
+          </div>
+        </td>
+      </tr>
+      <tr class="detail-row hidden">
+        <td colspan="6">
+          <div class="detail-inner">
+            <div class="detail-field"><label>ID Boleta</label><p>${b.idPresentacion}</p></div>
+            <div class="detail-field"><label>Funcionario</label><p>${escapeHtml(b.funcionarioNombre)}</p></div>
+            <div class="detail-field"><label>Motivo general</label><p>${escapeHtml(b.motivoGeneral)}</p></div>
+            <div class="detail-field"><label>Líneas</label><p>${b.cantidadDetalles}</p></div>
+            <div class="detail-field" style="grid-column: 1 / -1;"><label>Detalle completo</label><p>${escapeHtml(b.observacionDetalle)}</p></div>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    if (countEl) countEl.textContent = '0 pendientes';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay solicitudes pendientes.</td></tr>';
+    showNotice('j-notice', 'error', `No se pudieron cargar pendientes: ${error.message}`);
+  }
+}
+
+async function approveRequest(boletaId, action) {
+  const session = getSession();
+
+  if (!session || session.role !== 'ROL_JEFE') {
+    showNotice('j-notice', 'error', 'Solo el rol Jefatura puede resolver boletas.');
+    return;
+  }
+
+  const requestBody = {
+    accion: action === 'approve' ? 'APROBAR' : 'RECHAZAR',
+    comentario: ''
+  };
+
+  try {
+    await apiFetch(`/api/jefatura/justificaciones/${boletaId}/resolver`, {
+      method: 'PATCH',
+      headers: buildApiHeaders(session, true),
+      body: JSON.stringify(requestBody)
+    }, session);
+
+    showNotice(
+      'j-notice',
+      action === 'approve' ? 'success' : 'error',
+      action === 'approve'
+        ? `Boleta ${presentBoletaId(boletaId)} aprobada.`
+        : `Boleta ${presentBoletaId(boletaId)} rechazada.`
+    );
+
+    await renderJefaturaRequests();
+    await renderRRHHTable();
+    await renderFuncionarioHistory();
+  } catch (error) {
+    showNotice('j-notice', 'error', `No se pudo resolver la boleta: ${error.message}`);
+  }
+}
+
 function toggleDetail(btn) {
   const row = btn.closest('tr');
   const detailRow = row?.nextElementSibling;
@@ -128,35 +553,91 @@ function toggleDetail(btn) {
   btn.textContent = isHidden ? 'Ocultar ▲' : 'Ver detalle ▼';
 }
 
-/* ── RRHH Filter ─────────────────────────────────────────── */
-function applyRRHHFilter() {
-  const fnFilter    = document.getElementById('rrhh-fn')?.value?.toLowerCase().trim();
-  const stFilter    = document.getElementById('rrhh-estado')?.value;
-  const tbody       = document.getElementById('rrhh-tbody');
+async function renderRRHHTable() {
+  const tbody = document.getElementById('rrhh-tbody');
   if (!tbody) return;
 
-  Array.from(tbody.rows).forEach(row => {
-    const fn     = row.cells[0]?.textContent.toLowerCase() || '';
-    const estado = row.cells[4]?.textContent.trim() || '';
+  const session = getSession();
+  if (!session) return;
+
+  if (session.role === 'ROL_RRHH') {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Sin endpoint RRHH en esta versión. Use panel Funcionario o Jefatura para datos integrados.</td></tr>';
+    return;
+  }
+
+  const endpoint = session.role === 'ROL_JEFE'
+    ? '/api/jefatura/justificaciones/pendientes'
+    : '/api/justificaciones/mias';
+
+  try {
+    const response = await apiFetch(endpoint, {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
+
+    const boletas = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
+    if (boletas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No hay registros disponibles.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = boletas.map(b => `
+      <tr>
+        <td>${escapeHtml(b.funcionarioNombre)}</td>
+        <td>${escapeHtml(session.company || 'CNP')}</td>
+        <td>${escapeHtml(b.motivoGeneral)}</td>
+        <td>${escapeHtml(b.tipoPrincipal)}</td>
+        <td>${formatDateTime(b.fechaCreacion)}</td>
+        <td>${renderStatusBadge(b.estado)}</td>
+        <td>${b.aprobadorLabel && b.fechaResolucion ? `${escapeHtml(b.aprobadorLabel)} (${formatDateTime(b.fechaResolucion)})` : '—'}</td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No hay registros disponibles.</td></tr>';
+    showNotice('rrhh-notice', 'error', `No se pudo cargar información integrada: ${error.message}`);
+  }
+}
+
+function applyRRHHFilter() {
+  const fnFilter = (document.getElementById('rrhh-fn')?.value || '').toLowerCase().trim();
+  const stFilter = document.getElementById('rrhh-estado')?.value || '';
+  const companyFilter = document.getElementById('rrhh-company')?.value || '';
+  const fromDate = document.getElementById('rrhh-desde')?.value || '';
+  const toDate = document.getElementById('rrhh-hasta')?.value || '';
+
+  const rows = document.querySelectorAll('#rrhh-tbody tr');
+  rows.forEach(row => {
+    const fn = row.cells[0]?.textContent.toLowerCase() || '';
+    const company = row.cells[1]?.textContent.trim() || '';
+    const estado = row.cells[5]?.textContent.trim() || '';
+    const fechaText = row.cells[4]?.textContent.trim() || '';
+
+    const [datePart] = fechaText.split(' ');
+    const [d, m, y] = datePart.split('/');
+    const iso = d && m && y ? `${y}-${m}-${d}` : '';
 
     const fnMatch = !fnFilter || fn.includes(fnFilter);
     const stMatch = !stFilter || estado.includes(stFilter);
-    row.style.display = fnMatch && stMatch ? '' : 'none';
+    const companyMatch = !companyFilter || company === companyFilter;
+    const fromMatch = !fromDate || (iso && iso >= fromDate);
+    const toMatch = !toDate || (iso && iso <= toDate);
+
+    row.style.display = fnMatch && stMatch && companyMatch && fromMatch && toMatch ? '' : 'none';
   });
 }
 
 function resetRRHHFilter() {
-  ['rrhh-fn', 'rrhh-estado', 'rrhh-desde', 'rrhh-hasta'].forEach(id => {
+  ['rrhh-fn', 'rrhh-estado', 'rrhh-company', 'rrhh-desde', 'rrhh-hasta'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  const tbody = document.getElementById('rrhh-tbody');
-  if (tbody) Array.from(tbody.rows).forEach(r => r.style.display = '');
+  document.querySelectorAll('#rrhh-tbody tr').forEach(row => {
+    row.style.display = '';
+  });
 }
 
-/* ── SIFCNP Search ───────────────────────────────────────── */
 function sifcnpSearch() {
-  const query = document.getElementById('sifcnp-query')?.value?.toLowerCase().trim();
+  const query = (document.getElementById('sifcnp-query')?.value || '').toLowerCase().trim();
   const tbody = document.getElementById('sifcnp-tbody');
   if (!tbody) return;
 
@@ -166,37 +647,86 @@ function sifcnpSearch() {
   });
 }
 
-/* ── Mock Download ───────────────────────────────────────── */
 function downloadReport() {
-  showNotice('rrhh-notice', 'success', 'Reporte generado y descargado: Reporte_Justificaciones_' + today() + '.xlsx');
+  showNotice('rrhh-notice', 'success', `Reporte generado: Reporte_Justificaciones_${today()}.xlsx`);
 }
 
-/* ── Helpers ─────────────────────────────────────────────── */
+function renderStatusBadge(estado) {
+  if (estado === ESTADOS.APROBADO) return '<span class="badge badge-approved">Aprobado</span>';
+  if (estado === ESTADOS.RECHAZADO) return '<span class="badge badge-rejected">Rechazado</span>';
+  return '<span class="badge badge-pending">Pendiente</span>';
+}
+
 function showNotice(targetId, type, msg) {
   const el = document.getElementById(targetId);
   if (!el) return;
+  const icon = type === 'error'
+    ? 'M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z'
+    : 'M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z';
+
   el.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
-  el.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${type === 'error' ? 'M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z' : 'M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z'}"/></svg>${msg}`;
+  el.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${icon}"/></svg>${msg}`;
   el.style.display = 'flex';
-  setTimeout(() => { if (el) el.style.display = 'none'; }, 5000);
+  setTimeout(() => {
+    if (el) el.style.display = 'none';
+  }, 5000);
 }
 
-function clearForm(formId) {
-  const form = document.getElementById(formId);
-  if (!form) return;
-  form.querySelectorAll('input, textarea, select').forEach(el => el.value = '');
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  const [y, m, d] = iso.split('-');
+function formatDate(isoDate) {
+  if (!isoDate) return '—';
+  const [y, m, d] = isoDate.split('-');
+  if (!y || !m || !d) return '—';
   return `${d}/${m}/${y}`;
+}
+
+function formatDateTime(isoDate) {
+  if (!isoDate) return '—';
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '—';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
 function today() {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
+
+function initLoginPage() {
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      handleLogin();
+    }
+  });
+}
+
+function initDashboardPage() {
+  requireAuth();
+  configureRoleUI();
+  renderDraftDetails();
+  renderFuncionarioHistory();
+  renderJefaturaRequests();
+  renderRRHHTable();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('username')) {
+    initLoginPage();
+  }
+
+  if (document.querySelector('.topbar')) {
+    initDashboardPage();
+  }
+});

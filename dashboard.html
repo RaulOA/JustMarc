@@ -219,7 +219,7 @@
       <p>Sistema de Justificación de Marcas</p>
     </div>
     <div class="user-info">
-      <span>👤 admin</span>
+      <span>Usuario: <strong id="current-user">—</strong> | Rol: <strong id="current-role">—</strong></span>
       <button class="logout-btn" onclick="handleLogout()">Cerrar sesión</button>
     </div>
   </div>
@@ -287,27 +287,55 @@
             <textarea id="f-motivo" placeholder="Describa el motivo principal de la justificación..."></textarea>
           </div>
 
-          <div class="form-group">
-            <label for="f-tipo">Tipo de Justificación <span style="color:var(--danger)">*</span></label>
-            <select id="f-tipo">
-              <option value="">— Seleccione —</option>
-              <option value="Tardanza">Tardanza</option>
-              <option value="Ausencia">Ausencia</option>
-              <option value="Salida anticipada">Salida anticipada</option>
-              <option value="Omisión de marca">Omisión de marca</option>
-              <option value="Tiempo de almuerzo extendido">Tiempo de almuerzo extendido</option>
-            </select>
+          <div class="card" style="border-style:dashed; margin-bottom:16px;">
+            <div class="card-header">
+              <h4>Agregar Línea de Detalle</h4>
+            </div>
+            <div class="card-body" style="padding:14px;">
+              <div class="form-group">
+                <label for="f-d-tipo">Tipo de Justificación <span style="color:var(--danger)">*</span></label>
+                <select id="f-d-tipo">
+                  <option value="">— Seleccione —</option>
+                  <option value="Marca Tardía">Marca Tardía</option>
+                  <option value="Omisión Marca de Entrada">Omisión Marca de Entrada</option>
+                  <option value="Omisión Marca de Salida">Omisión Marca de Salida</option>
+                  <option value="Marca antes Hora de Salida">Marca antes Hora de Salida</option>
+                  <option value="Ausencia">Ausencia</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="f-d-fecha">Fecha de Marca <span style="color:var(--danger)">*</span></label>
+                <input type="date" id="f-d-fecha" />
+              </div>
+
+              <div class="form-group">
+                <label for="f-d-observacion">Observación del Detalle</label>
+                <textarea id="f-d-observacion" placeholder="Opcional"></textarea>
+              </div>
+
+              <button class="btn btn-secondary" type="button" style="width:100%; justify-content:center;" onclick="addDetailLine()">
+                Agregar Línea
+              </button>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="f-fecha">Fecha de Marca <span style="color:var(--danger)">*</span></label>
-            <input type="date" id="f-fecha" />
+          <div class="table-wrapper" style="margin-bottom:14px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Fecha</th>
+                  <th>Observación</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="f-detail-body">
+                <tr><td colspan="4" class="text-muted">No hay líneas agregadas.</td></tr>
+              </tbody>
+            </table>
           </div>
-
-          <div class="form-group">
-            <label for="f-observacion">Observación / Detalle</label>
-            <textarea id="f-observacion" placeholder="Información adicional o contextual..."></textarea>
-          </div>
+          <p class="text-sm text-muted mb-16">Líneas agregadas: <strong id="f-detail-count">0</strong></p>
 
           <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="registerJustification()">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm.5-9.5v-2a.5.5 0 0 0-1 0v2h-2a.5.5 0 0 0 0 1h2v2a.5.5 0 0 0 1 0v-2h2a.5.5 0 0 0 0-1h-2z"/></svg>
@@ -329,48 +357,13 @@
                 <tr>
                   <th>ID</th>
                   <th>Motivo</th>
-                  <th>Tipo</th>
-                  <th>Fecha</th>
+                  <th>Conceptos</th>
+                  <th>Creada</th>
                   <th>Estado</th>
+                  <th>Resolución</th>
                 </tr>
               </thead>
-              <tbody id="funcionario-history-body">
-                <tr>
-                  <td class="text-mono text-sm">JM-0098</td>
-                  <td>Cita médica urgente en CCSS</td>
-                  <td>Ausencia</td>
-                  <td>18/03/2025</td>
-                  <td><span class="badge badge-approved">Aprobado</span></td>
-                </tr>
-                <tr>
-                  <td class="text-mono text-sm">JM-0087</td>
-                  <td>Tráfico en Ruta 27 por accidente</td>
-                  <td>Tardanza</td>
-                  <td>12/03/2025</td>
-                  <td><span class="badge badge-approved">Aprobado</span></td>
-                </tr>
-                <tr>
-                  <td class="text-mono text-sm">JM-0075</td>
-                  <td>Olvido de marcación al salir</td>
-                  <td>Omisión de marca</td>
-                  <td>05/03/2025</td>
-                  <td><span class="badge badge-rejected">Rechazado</span></td>
-                </tr>
-                <tr>
-                  <td class="text-mono text-sm">JM-0063</td>
-                  <td>Diligencia bancaria — trámite urgente</td>
-                  <td>Salida anticipada</td>
-                  <td>27/02/2025</td>
-                  <td><span class="badge badge-pending">Pendiente</span></td>
-                </tr>
-                <tr>
-                  <td class="text-mono text-sm">JM-0051</td>
-                  <td>Reunión con proveedor extendida</td>
-                  <td>Tiempo de almuerzo extendido</td>
-                  <td>20/02/2025</td>
-                  <td><span class="badge badge-approved">Aprobado</span></td>
-                </tr>
-              </tbody>
+              <tbody id="funcionario-history-body"></tbody>
             </table>
           </div>
         </div>
@@ -386,7 +379,7 @@
         <h2>Panel de Jefatura</h2>
         <p>Revise y gestione las solicitudes de justificación de su departamento</p>
       </div>
-      <span class="badge badge-pending" style="font-size:.82rem;padding:6px 14px;">5 pendientes</span>
+      <span id="jefatura-pending-count" class="badge badge-pending" style="font-size:.82rem;padding:6px 14px;">0 pendientes</span>
     </div>
 
     <div id="j-notice" class="alert" style="display:none"></div>
@@ -407,138 +400,7 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            <!-- Row 1 -->
-            <tr>
-              <td><strong>María Solano Mora</strong></td>
-              <td>Acompañamiento familiar en emergencia</td>
-              <td>Ausencia</td>
-              <td>22/03/2025</td>
-              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
-              <td>
-                <div class="flex gap-8">
-                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
-                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
-                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
-                </div>
-              </td>
-            </tr>
-            <tr class="detail-row hidden">
-              <td colspan="6">
-                <div class="detail-inner">
-                  <div class="detail-field"><label>Motivo general</label><p>Acompañamiento familiar en emergencia médica</p></div>
-                  <div class="detail-field"><label>Tipo</label><p>Ausencia</p></div>
-                  <div class="detail-field"><label>Fecha de marca</label><p>22/03/2025</p></div>
-                  <div class="detail-field"><label>Observación</label><p>Familiar con diagnóstico urgente requirió acompañante. Se adjuntará boleta médica.</p></div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- Row 2 -->
-            <tr>
-              <td><strong>Carlos Brenes Jiménez</strong></td>
-              <td>Marcación olvidada por salida a campo</td>
-              <td>Omisión de marca</td>
-              <td>21/03/2025</td>
-              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
-              <td>
-                <div class="flex gap-8">
-                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
-                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
-                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
-                </div>
-              </td>
-            </tr>
-            <tr class="detail-row hidden">
-              <td colspan="6">
-                <div class="detail-inner">
-                  <div class="detail-field"><label>Motivo general</label><p>Salida a inspección de campo sin acceso a sistema biométrico</p></div>
-                  <div class="detail-field"><label>Tipo</label><p>Omisión de marca</p></div>
-                  <div class="detail-field"><label>Fecha de marca</label><p>21/03/2025</p></div>
-                  <div class="detail-field"><label>Observación</label><p>Trabajo en zona rural — Corredores, Puntarenas. Sin señal ni acceso a reloj marcador.</p></div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- Row 3 -->
-            <tr>
-              <td><strong>Adriana Vindas Rojas</strong></td>
-              <td>Trámite en Registro Nacional</td>
-              <td>Tardanza</td>
-              <td>20/03/2025</td>
-              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
-              <td>
-                <div class="flex gap-8">
-                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
-                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
-                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
-                </div>
-              </td>
-            </tr>
-            <tr class="detail-row hidden">
-              <td colspan="6">
-                <div class="detail-inner">
-                  <div class="detail-field"><label>Motivo general</label><p>Gestión de personería jurídica en Registro Nacional</p></div>
-                  <div class="detail-field"><label>Tipo</label><p>Tardanza</p></div>
-                  <div class="detail-field"><label>Fecha de marca</label><p>20/03/2025</p></div>
-                  <div class="detail-field"><label>Observación</label><p>Fila de espera superior a 2 horas. Arribo a oficina 10:15 a.m.</p></div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- Row 4 -->
-            <tr>
-              <td><strong>Luis Herrera Campos</strong></td>
-              <td>Almuerzo extendido por reunión</td>
-              <td>Tiempo de almuerzo extendido</td>
-              <td>19/03/2025</td>
-              <td class="row-status"><span class="badge badge-pending">Pendiente</span></td>
-              <td>
-                <div class="flex gap-8">
-                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
-                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
-                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
-                </div>
-              </td>
-            </tr>
-            <tr class="detail-row hidden">
-              <td colspan="6">
-                <div class="detail-inner">
-                  <div class="detail-field"><label>Motivo general</label><p>Reunión de coordinación con contraparte del MEP</p></div>
-                  <div class="detail-field"><label>Tipo</label><p>Tiempo de almuerzo extendido</p></div>
-                  <div class="detail-field"><label>Fecha de marca</label><p>19/03/2025</p></div>
-                  <div class="detail-field"><label>Observación</label><p>Reunión iniciada a las 12:00, se extendió hasta las 14:30 por agenda de contraparte.</p></div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- Row 5 -->
-            <tr>
-              <td><strong>Patricia Ulate Soto</strong></td>
-              <td>Salida anticipada por emergencia</td>
-              <td>Salida anticipada</td>
-              <td>18/03/2025</td>
-              <td class="row-status"><span class="badge badge-review">En revisión</span></td>
-              <td>
-                <div class="flex gap-8">
-                  <button class="btn btn-sm btn-success" onclick="approveRequest(this,'approve')">✔ Aprobar</button>
-                  <button class="btn btn-sm btn-danger"  onclick="approveRequest(this,'reject')">✘ Rechazar</button>
-                  <button class="btn btn-sm btn-secondary" onclick="toggleDetail(this)">Ver detalle ▼</button>
-                </div>
-              </td>
-            </tr>
-            <tr class="detail-row hidden">
-              <td colspan="6">
-                <div class="detail-inner">
-                  <div class="detail-field"><label>Motivo general</label><p>Emergencia en el hogar — inundación parcial</p></div>
-                  <div class="detail-field"><label>Tipo</label><p>Salida anticipada</p></div>
-                  <div class="detail-field"><label>Fecha de marca</label><p>18/03/2025</p></div>
-                  <div class="detail-field"><label>Observación</label><p>Lluvias provocaron filtración en vivienda. Salió a las 14:00. Se adjunta reporte de bomberos.</p></div>
-                </div>
-              </td>
-            </tr>
-
-          </tbody>
+          <tbody id="jefatura-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -595,6 +457,14 @@
         </select>
       </div>
       <div class="form-group">
+        <label for="rrhh-company">Compañía</label>
+        <select id="rrhh-company">
+          <option value="">Todas</option>
+          <option value="CNP">CNP</option>
+          <option value="FANAL">FANAL</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label for="rrhh-desde">Desde</label>
         <input type="date" id="rrhh-desde" />
       </div>
@@ -613,25 +483,15 @@
           <thead>
             <tr>
               <th>Funcionario</th>
-              <th>Departamento</th>
+              <th>Compañía</th>
               <th>Motivo</th>
               <th>Tipo</th>
               <th>Fecha</th>
               <th>Estado</th>
+              <th>Resolución</th>
             </tr>
           </thead>
-          <tbody id="rrhh-tbody">
-            <tr><td>María Solano Mora</td><td>Planificación</td><td>Emergencia familiar</td><td>Ausencia</td><td>22/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
-            <tr><td>Carlos Brenes Jiménez</td><td>Infraestructura</td><td>Trabajo de campo</td><td>Omisión de marca</td><td>21/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
-            <tr><td>Adriana Vindas Rojas</td><td>Legal</td><td>Trámite en Registro</td><td>Tardanza</td><td>20/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
-            <tr><td>Luis Herrera Campos</td><td>TI</td><td>Reunión con MEP</td><td>Almuerzo extendido</td><td>19/03/2025</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
-            <tr><td>Patricia Ulate Soto</td><td>Administración</td><td>Emergencia doméstica</td><td>Salida anticipada</td><td>18/03/2025</td><td><span class="badge badge-review">En revisión</span></td></tr>
-            <tr><td>Roberto Alfaro Mora</td><td>Contabilidad</td><td>Cita médica CCSS</td><td>Tardanza</td><td>17/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Silvia Méndez Umaña</td><td>Planificación</td><td>Olvido de marcación</td><td>Omisión de marca</td><td>15/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Andrés Quirós Herrera</td><td>Recursos Humanos</td><td>Diligencia bancaria</td><td>Salida anticipada</td><td>14/03/2025</td><td><span class="badge badge-rejected">Rechazado</span></td></tr>
-            <tr><td>Diana Vargas Castillo</td><td>Legal</td><td>Accidente de tránsito</td><td>Ausencia</td><td>12/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Fernando Quesada López</td><td>TI</td><td>Falla en transporte público</td><td>Tardanza</td><td>10/03/2025</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-          </tbody>
+          <tbody id="rrhh-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -703,144 +563,6 @@
 
 </main>
 
-<script>
-  /* ══ TODA LA LÓGICA DE APP.JS INCRUSTADA ══ */
-
-  /* ── Auth Guard ── */
-  function requireAuth() {
-    if (!sessionStorage.getItem('sjm_auth')) {
-      window.location.href = 'index.html';
-    }
-  }
-
-  function handleLogout() {
-    sessionStorage.removeItem('sjm_auth');
-    sessionStorage.removeItem('sjm_user');
-    window.location.href = 'index.html';
-  }
-
-  /* ── Tab Navigation ── */
-  function switchTab(tabId) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    const panel = document.getElementById(tabId);
-    if (panel) panel.classList.remove('hidden');
-    const tab = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
-    if (tab) tab.classList.add('active');
-    sessionStorage.setItem('sjm_activeTab', tabId);
-  }
-
-  function restoreTab() {
-    const saved = sessionStorage.getItem('sjm_activeTab') || 'panel-funcionario';
-    switchTab(saved);
-  }
-
-  /* ── Panel Funcionario ── */
-  function registerJustification() {
-    const motivo      = document.getElementById('f-motivo').value.trim();
-    const tipo        = document.getElementById('f-tipo').value;
-    const fecha       = document.getElementById('f-fecha').value;
-    const observacion = document.getElementById('f-observacion').value.trim();
-
-    if (!motivo || !tipo || !fecha) {
-      showNotice('f-notice', 'error', 'Complete los campos obligatorios: Motivo, Tipo y Fecha.');
-      return;
-    }
-
-    const tbody = document.getElementById('funcionario-history-body');
-    const newId = 'JM-' + String(tbody.rows.length + 101).padStart(4, '0');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-mono text-sm">${newId}</td>
-      <td>${escapeHtml(motivo)}</td>
-      <td>${escapeHtml(tipo)}</td>
-      <td>${formatDate(fecha)}</td>
-      <td><span class="badge badge-pending">Pendiente</span></td>`;
-    tbody.insertBefore(tr, tbody.firstChild);
-
-    showNotice('f-notice', 'success', 'Justificación registrada exitosamente. Estado: Pendiente de revisión.');
-    ['f-motivo','f-tipo','f-fecha','f-observacion'].forEach(id => document.getElementById(id).value = '');
-  }
-
-  /* ── Panel Jefatura ── */
-  function approveRequest(btn, action) {
-    const row = btn.closest('tr');
-    const statusCell = row.querySelector('.row-status');
-    if (action === 'approve') {
-      statusCell.innerHTML = '<span class="badge badge-approved">Aprobado</span>';
-      showNotice('j-notice', 'success', 'Solicitud aprobada correctamente.');
-    } else {
-      statusCell.innerHTML = '<span class="badge badge-rejected">Rechazado</span>';
-      showNotice('j-notice', 'error', 'Solicitud rechazada.');
-    }
-    row.querySelectorAll('.btn').forEach(b => b.disabled = true);
-  }
-
-  function toggleDetail(btn) {
-    const row = btn.closest('tr');
-    const detailRow = row.nextElementSibling;
-    if (!detailRow || !detailRow.classList.contains('detail-row')) return;
-    const isHidden = detailRow.classList.contains('hidden');
-    detailRow.classList.toggle('hidden', !isHidden);
-    btn.textContent = isHidden ? 'Ocultar ▲' : 'Ver detalle ▼';
-  }
-
-  /* ── Panel RRHH ── */
-  function applyRRHHFilter() {
-    const fnFilter = document.getElementById('rrhh-fn').value.toLowerCase().trim();
-    const stFilter = document.getElementById('rrhh-estado').value;
-    document.querySelectorAll('#rrhh-tbody tr').forEach(row => {
-      const fn     = row.cells[0]?.textContent.toLowerCase() || '';
-      const estado = row.cells[5]?.textContent.trim() || '';
-      row.style.display = (!fnFilter || fn.includes(fnFilter)) && (!stFilter || estado.includes(stFilter)) ? '' : 'none';
-    });
-  }
-
-  function resetRRHHFilter() {
-    ['rrhh-fn','rrhh-estado','rrhh-desde','rrhh-hasta'].forEach(id => document.getElementById(id).value = '');
-    document.querySelectorAll('#rrhh-tbody tr').forEach(r => r.style.display = '');
-  }
-
-  function downloadReport() {
-    const fecha = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    showNotice('rrhh-notice', 'success', `Reporte generado: Reporte_Justificaciones_${fecha}.xlsx`);
-  }
-
-  /* ── SIFCNP ── */
-  function sifcnpSearch() {
-    const query = document.getElementById('sifcnp-query').value.toLowerCase().trim();
-    document.querySelectorAll('#sifcnp-tbody tr').forEach(row => {
-      const fn = row.cells[0]?.textContent.toLowerCase() || '';
-      row.style.display = !query || fn.includes(query) ? '' : 'none';
-    });
-  }
-
-  /* ── Helpers ── */
-  function showNotice(targetId, type, msg) {
-    const el = document.getElementById(targetId);
-    if (!el) return;
-    const icon = type === 'error'
-      ? 'M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z'
-      : 'M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z';
-    el.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
-    el.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${icon}"/></svg>${msg}`;
-    el.style.display = 'flex';
-    setTimeout(() => { el.style.display = 'none'; }, 5000);
-  }
-
-  function formatDate(iso) {
-    if (!iso) return '—';
-    const [y, m, d] = iso.split('-');
-    return `${d}/${m}/${y}`;
-  }
-
-  function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  /* ── Init ── */
-  requireAuth();
-  restoreTab();
-</script>
+<script src="app.js"></script>
 </body>
 </html>
