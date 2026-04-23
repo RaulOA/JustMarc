@@ -42,3 +42,11 @@ En produccion, las cadenas de conexion deben inyectarse por variables de entorno
 
 La API valida al iniciar que `ConnectionStrings:IntegraCnp` exista en entornos no Development y falla rapido si falta.
 
+## Guía de Implementación (Dev → Prod)
+
+Para instrucciones completas de setup, configuración de entornos, publicación y troubleshooting, consultar:
+
+**[docs/Guia_Implementacion_Dev_Prod.md](docs/Guia_Implementacion_Dev_Prod.md)**
+
+Incluye: prerrequisitos, arquitectura, orden de scripts BD, runbooks de desarrollo y publicación, variables de entorno, checklist de verificación, rollback y matriz de troubleshooting.
+

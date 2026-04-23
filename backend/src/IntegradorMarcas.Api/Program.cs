@@ -37,6 +37,7 @@ builder.Services.AddScoped<ISqlConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddScoped<IJustificacionRepository, JustificacionRepository>();
 builder.Services.AddScoped<IJustificacionService, JustificacionService>();
 builder.Services.AddScoped<IUserContext, HeaderUserContext>();
+builder.Services.AddScoped<IErrorLogRepository, ErrorLogRepository>();
 
 var app = builder.Build();
 
@@ -54,6 +55,64 @@ app.UseExceptionHandler(exceptionApp =>
 
         context.Response.StatusCode = statusCode;
         await Results.Problem(title: title, statusCode: statusCode).ExecuteAsync(context);
+    });
+});
+app.UseExceptionHandler(exceptionApp =>
+{
+    exceptionApp.Run(async context =>
+    {
+        var feature   = context.Features.Get<IExceptionHandlerPathFeature>();
+        var exception = feature?.Error;
+
+        var correlationId = Guid.NewGuid();
+
+        var (statusCode, title) = exception switch
+        {
+            AppException ex        => (ex.StatusCode, ex.Message),
+            KeyNotFoundException ex => (StatusCodes.Status404NotFound, ex.Message),
+            OperationCanceledException => (499, "Solicitud cancelada por el cliente"),
+            _                      => (StatusCodes.Status500InternalServerError, "Error interno del servidor")
+        };
+
+        // Persistir en BD (fire-and-forget seguro, nunca lanza)
+        try
+        {
+            var errorRepo = context.RequestServices.GetService<IErrorLogRepository>();
+            if (errorRepo is not null && exception is not null)
+            {
+                var req     = context.Request;
+                var userId  = context.Request.Headers.TryGetValue("X-User-Id",   out var uid)  ? uid.ToString()  : null;
+                var userRole= context.Request.Headers.TryGetValue("X-User-Role", out var role) ? role.ToString() : null;
+                var ip      = context.Connection.RemoteIpAddress?.ToString();
+                var ua      = req.Headers.UserAgent.ToString();
+                var env     = app.Environment.EnvironmentName;
+
+                await errorRepo.LogAsync(new ErrorLogEntry(
+                    CorrelationId: correlationId,
+                    HttpMethod:    req.Method,
+                    Endpoint:      req.Path.Value ?? "/",
+                    StatusCode:    statusCode,
+                    TipoError:     exception.GetType().Name,
+                    Mensaje:       exception.Message,
+                    StackTrace:    statusCode >= 500 ? exception.StackTrace : null,
+                    UsuarioId:     userId,
+                    RolUsuario:    userRole,
+                    Entorno:       env,
+                    Ip:            ip,
+                    UserAgent:     ua
+                ));
+            }
+        }
+        catch { /* nunca propagar */ }
+
+        context.Response.StatusCode = statusCode;
+        context.Response.Headers["X-Correlation-Id"] = correlationId.ToString();
+
+        await Results.Problem(
+            title:      title,
+            statusCode: statusCode,
+            extensions: new Dictionary<string, object?> { ["correlationId"] = correlationId }
+        ).ExecuteAsync(context);
     });
 });
 

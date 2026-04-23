@@ -2,6 +2,84 @@
    SIFCNP — Lógica de Aplicación (MVP PRP)
    ============================================================ */
 
+/* ── Sistema de Toasts (notificaciones no invasivas) ─────── */
+(function initToasts() {
+  if (document.getElementById('toast-container')) return;
+  const container = document.createElement('div');
+  container.id = 'toast-container';
+  document.body.appendChild(container);
+})();
+
+/**
+ * Muestra una notificación tipo toast no invasiva.
+ * @param {'success'|'error'|'warning'|'info'} type
+ * @param {string} message  Mensaje principal visible al usuario.
+ * @param {object} [opts]
+ * @param {string}  [opts.title]         Título opcional (default según tipo).
+ * @param {number}  [opts.duration]      ms antes de auto-cerrar (default 5000, 0=permanente).
+ * @param {string}  [opts.correlationId] ID de correlación del servidor para soporte técnico.
+ */
+function toast(type, message, opts = {}) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const duration = opts.duration ?? 5000;
+  const defaultTitles = {
+    success: 'Operación exitosa',
+    error:   'Ha ocurrido un error',
+    warning: 'Advertencia',
+    info:    'Información'
+  };
+  const title = opts.title || defaultTitles[type] || '';
+
+  const icons = {
+    success: '<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>',
+    error:   '<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm.93-5.22a.75.75 0 0 0-1.46 0l-.5 4.5a.75.75 0 0 0 .745.845h1.03a.75.75 0 0 0 .745-.845l-.56-4.5zM8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>',
+    info:    '<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 4.25a.75.75 0 0 0-1.5 0v4.5a.75.75 0 0 0 1.5 0v-4.5zm-.75-2a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>'
+  };
+
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.setAttribute('role', 'alert');
+  el.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+
+  const corrHtml = opts.correlationId
+    ? `<div class="toast-corr">Ref: ${opts.correlationId}</div>`
+    : '';
+
+  const progressHtml = duration > 0
+    ? `<div class="toast-progress" style="animation-duration:${duration}ms;"></div>`
+    : '';
+
+  el.innerHTML = `
+    <span class="toast-icon">${icons[type] || icons.info}</span>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-msg">${message}</div>
+      ${corrHtml}
+    </div>
+    <button class="toast-close" aria-label="Cerrar notificación">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+    </button>
+    ${progressHtml}
+  `;
+
+  container.appendChild(el);
+
+  const dismiss = () => {
+    el.classList.add('toast-exit');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  };
+
+  el.querySelector('.toast-close').addEventListener('click', dismiss);
+
+  if (duration > 0) {
+    setTimeout(dismiss, duration);
+  }
+}
+
+
 const STORAGE_KEYS = {
   session: 'sjm_session',
   activeTab: 'sjm_activeTab',
@@ -134,6 +212,30 @@ async function parseApiError(response) {
   error.payload = parsed;
   return error;
 }
+  async function parseApiError(response) {
+    let parsed;
+    try {
+      parsed = await response.clone().json();
+    } catch {
+      parsed = null;
+    }
+
+    const message = parsed?.detail
+      || parsed?.title
+      || parsed?.message
+      || `Error HTTP ${response.status}`;
+
+    const correlationId = parsed?.correlationId
+      || response.headers.get('X-Correlation-Id')
+      || null;
+
+    const error = new Error(message);
+    error.status       = response.status;
+    error.payload      = parsed;
+    error.correlationId = correlationId;
+    return error;
+  }
+
 
 async function apiFetch(path, options = {}, session = getSession()) {
   const controller = new AbortController();
@@ -142,9 +244,7 @@ async function apiFetch(path, options = {}, session = getSession()) {
   try {
     const response = await fetch(buildApiUrl(path), {
       ...options,
-      headers: {
-        ...(options.headers || {})
-      },
+      headers: { ...(options.headers || {}) },
       signal: controller.signal
     });
 
@@ -152,14 +252,10 @@ async function apiFetch(path, options = {}, session = getSession()) {
       throw await parseApiError(response);
     }
 
-    if (response.status === 204) {
-      return null;
-    }
+    if (response.status === 204) return null;
 
     const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      return response.json();
-    }
+    if (contentType.includes('application/json')) return response.json();
 
     return null;
   } catch (error) {
@@ -168,13 +264,19 @@ async function apiFetch(path, options = {}, session = getSession()) {
       timeoutError.status = 408;
       throw timeoutError;
     }
-
     if (error instanceof TypeError) {
       const networkError = new Error('No fue posible conectar con la API. Verifique backend, URL y CORS.');
       networkError.status = 0;
       throw networkError;
     }
-
+    // Toast automático para errores de servidor y red (con correlationId para trazabilidad)
+    if (error?.status >= 500 || error?.status === 0 || error?.status === 408) {
+      toast('error', error.message, {
+        title: error?.status >= 500 ? 'Error del servidor' : 'Error de conexión',
+        correlationId: error.correlationId ?? undefined,
+        duration: 8000
+      });
+    }
     throw error;
   } finally {
     clearTimeout(timer);
@@ -725,6 +827,11 @@ function showNotice(targetId, type, msg) {
     if (el) el.style.display = 'none';
   }, 5000);
 }
+  /** showNotice redirige al sistema de toasts global. */
+  function showNotice(targetId, type, msg) {
+    const toastType = type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'success';
+    toast(toastType, msg);
+  }
 
 function formatDate(isoDate) {
   if (!isoDate) return '—';

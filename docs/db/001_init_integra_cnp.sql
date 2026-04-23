@@ -172,3 +172,39 @@ BEGIN
         ON dbo.Justificaciones_Detalle (JustificacionID);
 END;
 GO
+
+/* =========================
+   Log de errores de API
+   ========================= */
+IF OBJECT_ID('dbo.ApiErrorLog', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ApiErrorLog (
+        ErrorLogID      INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        CorrelationID   UNIQUEIDENTIFIER  NOT NULL DEFAULT NEWID(),
+        FechaUtc        DATETIME2(3)      NOT NULL DEFAULT SYSUTCDATETIME(),
+        HttpMethod      VARCHAR(10)       NOT NULL,
+        Endpoint        NVARCHAR(500)     NOT NULL,
+        StatusCode      INT               NOT NULL,
+        TipoError       VARCHAR(200)      NOT NULL,
+        Mensaje         NVARCHAR(1000)    NOT NULL,
+        StackTrace      NVARCHAR(MAX)     NULL,
+        UsuarioID       NVARCHAR(100)     NULL,
+        RolUsuario      NVARCHAR(50)      NULL,
+        Entorno         VARCHAR(20)       NOT NULL DEFAULT 'Unknown',
+        Ip              VARCHAR(45)       NULL,
+        UserAgent       NVARCHAR(500)     NULL
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ApiErrorLog_FechaUtc' AND object_id = OBJECT_ID('dbo.ApiErrorLog'))
+BEGIN
+    CREATE INDEX IX_ApiErrorLog_FechaUtc ON dbo.ApiErrorLog (FechaUtc DESC);
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ApiErrorLog_StatusCode' AND object_id = OBJECT_ID('dbo.ApiErrorLog'))
+BEGIN
+    CREATE INDEX IX_ApiErrorLog_StatusCode ON dbo.ApiErrorLog (StatusCode, FechaUtc DESC);
+END;
+GO
