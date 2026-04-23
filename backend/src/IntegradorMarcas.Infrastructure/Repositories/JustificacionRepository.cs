@@ -103,7 +103,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
         return data.ToList();
     }
 
-    public async Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(int jefaturaId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(int aprobadorUsuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
 
@@ -111,7 +111,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
             JustificacionesSql.ListPendientesJefatura,
             new
             {
-                JefaturaID = jefaturaId,
+                AprobadorUsuarioID = aprobadorUsuarioId,
                 EstadoPendiente = EstadoIds.PendienteJefatura,
                 filtros.Desde,
                 filtros.Hasta
@@ -140,7 +140,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
         return data.ToList();
     }
 
-    public async Task<JustificacionCompletaDto?> GetDetalleJefaturaAsync(int justificacionId, int jefaturaId, CancellationToken cancellationToken)
+    public async Task<JustificacionCompletaDto?> GetDetalleJefaturaAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
 
@@ -149,7 +149,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
             new
             {
                 JustificacionID = justificacionId,
-                JefaturaID = jefaturaId
+                AprobadorUsuarioID = aprobadorUsuarioId
             },
             cancellationToken: cancellationToken));
 
@@ -205,7 +205,23 @@ public sealed class JustificacionRepository : IJustificacionRepository
         };
     }
 
-    public async Task<ResolverValidationDto> GetResolverValidationAsync(int justificacionId, int jefaturaId, CancellationToken cancellationToken)
+    public async Task<AprobacionScopeValidationDto> GetAprobacionScopeValidationAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        var data = await connection.QuerySingleAsync<AprobacionScopeValidationDto>(new CommandDefinition(
+            JustificacionesSql.GetAprobacionScopeValidation,
+            new
+            {
+                JustificacionID = justificacionId,
+                AprobadorUsuarioID = aprobadorUsuarioId
+            },
+            cancellationToken: cancellationToken));
+
+        return data;
+    }
+
+    public async Task<ResolverValidationDto> GetResolverValidationAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
 
@@ -214,14 +230,14 @@ public sealed class JustificacionRepository : IJustificacionRepository
             new
             {
                 JustificacionID = justificacionId,
-                JefaturaID = jefaturaId
+                AprobadorUsuarioID = aprobadorUsuarioId
             },
             cancellationToken: cancellationToken));
 
         return data;
     }
 
-    public async Task<int> ResolverAsync(int justificacionId, int jefaturaId, int estadoId, string? comentario, CancellationToken cancellationToken)
+    public async Task<int> ResolverAsync(int justificacionId, int aprobadorUsuarioId, int estadoId, string? comentario, string? rolResolucion, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
 
@@ -230,10 +246,11 @@ public sealed class JustificacionRepository : IJustificacionRepository
             new
             {
                 JustificacionID = justificacionId,
-                JefaturaID = jefaturaId,
+                AprobadorUsuarioID = aprobadorUsuarioId,
                 EstadoID = estadoId,
                 EstadoPendiente = EstadoIds.PendienteJefatura,
-                Comentario = comentario
+                Comentario = comentario,
+                RolResolucion = string.IsNullOrWhiteSpace(rolResolucion) ? null : rolResolucion.Trim()
             },
             cancellationToken: cancellationToken));
     }

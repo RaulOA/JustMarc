@@ -1,0 +1,199 @@
+USE [WIZDOM]
+GO
+
+/****** Object:  Table [dbo].[empleado]    Script Date: 23/04/2026 11:32:29 a. m. ******/
+SET ANSI_NULLS OFF
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[empleado](
+	[compania] [dbo].[t_codigo_compania] NOT NULL,
+	[codigo_empleado] [dbo].[t_codigo_empleado] NOT NULL,
+	[codigo_nodo_organigrama] [dbo].[t_codigo_nodo_organigrama] NOT NULL,
+	[codigo_puesto] [dbo].[t_codigo_puesto] NOT NULL,
+	[nivel_puesto] [dbo].[t_nivel_puesto] NOT NULL,
+	[moneda] [dbo].[t_moneda] NOT NULL,
+	[codigo_tipo_identificacion] [dbo].[t_codigo_tipo_identificacion] NOT NULL,
+	[numero_identificacion] [dbo].[t_numero_identificacion] NOT NULL,
+	[numero_pasaporte] [dbo].[t_numero_identificacion] NULL,
+	[codigo_nacionalidad] [dbo].[t_codigo_nacionalidad] NOT NULL,
+	[estado_empleado] [dbo].[t_indicador_seleccion] NOT NULL,
+	[tipo_sangre] [dbo].[t_tipo_sangre] NULL,
+	[fecha_ingreso] [dbo].[t_fecha] NULL,
+	[fecha_egreso] [dbo].[t_fecha] NULL,
+	[fecha_fin_contrato] [dbo].[t_fecha] NULL,
+	[estado_civil] [dbo].[t_indicador_seleccion] NOT NULL,
+	[fecha_nacimiento] [dbo].[t_fecha] NULL,
+	[lugar_nacimiento] [dbo].[t_descripcion_corta] NULL,
+	[salario] [dbo].[t_salario] NULL,
+	[primer_apellido] [dbo].[t_nombre] NOT NULL,
+	[segundo_apellido] [dbo].[t_nombre] NOT NULL,
+	[nombre] [dbo].[t_nombre] NOT NULL,
+	[sexo] [dbo].[t_sexo] NOT NULL,
+	[apartado_postal] [dbo].[t_apartado_postal] NULL,
+	[direccion] [dbo].[t_direccion] NULL,
+	[correo_electronico_principal] [dbo].[t_correo_electronico] NULL,
+	[correo_electronico_alternativo] [dbo].[t_correo_electronico] NULL,
+	[numero_telefono_principal] [dbo].[t_numero_telefono] NULL,
+	[numero_telefono_alternativo] [dbo].[t_numero_telefono] NULL,
+	[fax_principal] [dbo].[t_numero_telefono] NULL,
+	[fax_alternativo] [dbo].[t_numero_telefono] NULL,
+	[tipo_salario] [dbo].[t_indicador_seleccion] NULL,
+	[id_foto] [dbo].[t_cantidad_decimal] NULL,
+	[forma_pago] [dbo].[t_forma_pago] NULL,
+	[banco] [dbo].[t_banco] NULL,
+	[cuenta_bancaria] [dbo].[t_cuenta_bancaria] NULL,
+	[talla_camisa] [dbo].[t_tallar_vestimenta] NULL,
+	[talla_pantalon] [dbo].[t_tallar_vestimenta] NULL,
+	[talla_calzado] [dbo].[t_tallar_vestimenta] NULL,
+	[fecha_corporativa] [dbo].[t_fecha] NULL,
+	[fecha_reingreso] [dbo].[t_fecha] NULL,
+	[asociacion_solidarista] [dbo].[t_indicador] NULL,
+	[marca_tarjeta] [dbo].[t_indicador] NULL,
+	[salario_depende_de_tarjeta] [dbo].[t_indicador] NULL,
+	[condicion_laboral] [dbo].[t_indicador_seleccion] NULL,
+	[codigo_jefe] [dbo].[t_codigo_jefe] NULL,
+	[jefe] [dbo].[t_indicador_seleccion] NULL,
+	[codigo_encargado_compras] [dbo].[t_codigo_empleado] NULL,
+	[encargado_compras] [dbo].[t_indicador_seleccion] NULL,
+	[clasificacion_empleado] [dbo].[t_clasificacion_empleado] NULL,
+	[localizacion] [dbo].[t_codigo_localizacion] NULL,
+	[ubicacion] [dbo].[t_division_politica] NULL,
+	[regimen_vacaciones] [dbo].[t_regimen_vacaciones] NULL,
+	[username] [dbo].[T_usuario_seguridad] NULL,
+	[password] [dbo].[t_password] NULL,
+	[moneda_salario] [dbo].[t_moneda] NULL,
+	[nomina_primaria] [dbo].[t_codigo_nomina] NULL,
+	[grupo_propiedad] [dbo].[t_codigo_grupo] NULL,
+	[secuencia_objeto] [dbo].[t_secuencia_objprop] NULL,
+	[rol] [dbo].[t_rol_empleado] NULL,
+	[pregunta_secreta] [dbo].[t_descripcion_corta] NULL,
+	[respuesta_secreta] [dbo].[t_password] NULL,
+	[fecha_liquidacion] [dbo].[t_fecha] NULL,
+	[numero_seguro_social] [dbo].[t_numero_identificacion] NOT NULL,
+	[extension_telefonica] [dbo].[t_numero_telefono] NULL,
+	[tstamp] [dbo].[t_tstamp] NOT NULL,
+	[codigo_empleado_horario] [dbo].[t_codigo_empleado] NULL,
+	[fecha_ven_prueba] [datetime] NULL,
+	[pais_sede] [varchar](3) NULL,
+	[fecha_liquidacion_anterior] [dbo].[t_fecha] NULL,
+	[grupo_contable_presup] [dbo].[t_grupo_contable] NULL,
+	[aplica_jefe_funcional] [dbo].[t_indicador] NULL,
+	[jefe_funiconal] [dbo].[t_codigo_empleado] NULL,
+	[codigo_empleado_jefe_funcional] [dbo].[t_codigo_empleado] NULL,
+	[jefe_funcional] [dbo].[t_indicador] NULL,
+	[fecha_expiracion_contrasena] [dbo].[t_fecha] NULL,
+	[usuario_adm_intranet] [dbo].[t_indicador] NULL,
+	[numero_telefono_emergencia] [dbo].[t_numero_telefono] NULL,
+	[codigo_meta] [dbo].[T_codigo_meta_pla] NULL,
+	[codigo_planificacion] [dbo].[T_codigo_interno_pao] NULL,
+	[fecha_inicio_vacaciones] [dbo].[t_fecha] NULL,
+	[encargado_segunda_aprobacion] [dbo].[t_codigo_empleado] NULL,
+	[fecha_accion_nombramiento] [dbo].[t_fecha] NULL,
+	[nombre_puesto_alterno] [dbo].[t_descripcion_corta] NULL,
+	[codigo_grupo] [dbo].[t_numerico] NULL,
+	[categoria_contable] [dbo].[t_codigo_categoria] NULL,
+	[cuenta_bancaria_origen] [dbo].[t_cuenta_bancaria] NULL,
+	[otras_senas] [dbo].[t_descripcion_larga] NULL,
+	[caso_emergencia] [dbo].[t_descripcion_larga] NULL,
+	[fecha_asignacion_proximo_mes] [dbo].[t_fecha] NULL,
+	[dia_asignacion_vacaciones] [int] NULL,
+	[numero_dependientes] [dbo].[t_cantidad] NULL,
+	[tipo_licencia] [dbo].[T_tipo_licencia_vehiculo] NULL,
+	[fecha_carrera_profesional] [dbo].[t_fecha] NULL,
+	[fechaini_carrera_profesional] [dbo].[t_fecha] NULL,
+	[ind_proceso_carrera] [varchar](1) NULL,
+	[fechault_carrera_profesional] [dbo].[t_fecha] NULL,
+	[estado_carrera_profesional] [dbo].[T_estado_empleado_carprof] NULL,
+	[acredita_carrera_profesional] [dbo].[t_indicador] NULL,
+	[fecharec_carrera_profesional] [dbo].[t_fecha] NULL,
+	[codigo_especialidad_profesion] [dbo].[T_cod_especialidad_profesion] NULL,
+	[num_plaza_carrera_profesional] [dbo].[T_numero_plaza_carprof] NULL,
+	[grado_academico_actual] [dbo].[t_codigo_grado_academico] NULL,
+	[codigo_plaza_principal] [dbo].[t_codigo_plaza] NULL,
+	[encargado_reclutamiento] [dbo].[t_indicador_seleccion] NULL,
+	[url_foto] [dbo].[t_descripcion_larga] NULL,
+ CONSTRAINT [pk_empleado] PRIMARY KEY CLUSTERED 
+(
+	[compania] ASC,
+	[codigo_empleado] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[empleado] ADD  DEFAULT (' ') FOR [segundo_apellido]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk1_grupo_empleado] FOREIGN KEY([compania], [codigo_grupo])
+REFERENCES [dbo].[grupo_empleado] ([compania], [codigo_grupo])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk1_grupo_empleado]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk1_moneda_emp] FOREIGN KEY([moneda])
+REFERENCES [dbo].[moneda] ([moneda])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk1_moneda_emp]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk3_tipoident_emp] FOREIGN KEY([codigo_tipo_identificacion])
+REFERENCES [dbo].[tipo_identificacion] ([codigo_identificacion])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk3_tipoident_emp]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk4_puestoorg_emp] FOREIGN KEY([compania], [codigo_nodo_organigrama], [codigo_puesto])
+REFERENCES [dbo].[puesto_organigrama] ([compania], [codigo_nodo_organigrama], [codigo_puesto])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk4_puestoorg_emp]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk5_clasificacion_empleado] FOREIGN KEY([compania], [clasificacion_empleado])
+REFERENCES [dbo].[clasificacion_empleado] ([compania], [codigo_clasificacion])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk5_clasificacion_empleado]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [FK6_ESPECIALIDAD_PROFESIONEMP] FOREIGN KEY([codigo_especialidad_profesion])
+REFERENCES [dbo].[especialidad_profesion] ([codigo_especialidad])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [FK6_ESPECIALIDAD_PROFESIONEMP]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk6_ubicacion_empleado] FOREIGN KEY([localizacion], [ubicacion])
+REFERENCES [dbo].[ubicacion] ([localizacion], [ubicacion])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk6_ubicacion_empleado]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk7_fk1_nac_emp] FOREIGN KEY([codigo_nacionalidad])
+REFERENCES [dbo].[pais] ([codigo_pais])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk7_fk1_nac_emp]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk8_empleado_compania] FOREIGN KEY([compania])
+REFERENCES [dbo].[compania_rh] ([compania])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk8_empleado_compania]
+GO
+
+ALTER TABLE [dbo].[empleado]  WITH NOCHECK ADD  CONSTRAINT [fk9_empleado_nivel] FOREIGN KEY([compania], [codigo_puesto], [nivel_puesto])
+REFERENCES [dbo].[niveles_puesto] ([compania], [codigo_puesto], [nivel_puesto])
+GO
+
+ALTER TABLE [dbo].[empleado] CHECK CONSTRAINT [fk9_empleado_nivel]
+GO
+
+

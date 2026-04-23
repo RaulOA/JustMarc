@@ -5,6 +5,15 @@
 **Versión:** 1.0 | Abril 2026  
 **Técnico de referencia:** Raúl Ortega Acuña
 
+> Documento orientado a runbooks de despliegue y operacion por entorno.
+> Para detalle de arquitectura, API, frontend, flujos, convenciones y pruebas, ver:
+> - [arquitectura-codigo-actual.md](arquitectura-codigo-actual.md)
+> - [api-endpoints-reference.md](api-endpoints-reference.md)
+> - [frontend-modulos-y-flujos.md](frontend-modulos-y-flujos.md)
+> - [flujos-datos-end-to-end.md](flujos-datos-end-to-end.md)
+> - [convenciones-codigo-y-documentacion.md](convenciones-codigo-y-documentacion.md)
+> - [pruebas-estrategia-y-cobertura.md](pruebas-estrategia-y-cobertura.md)
+
 ---
 
 ## Tabla de Contenidos

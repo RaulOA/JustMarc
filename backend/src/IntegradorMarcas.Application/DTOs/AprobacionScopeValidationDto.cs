@@ -1,6 +1,6 @@
 namespace IntegradorMarcas.Application.DTOs;
 
-public sealed class ResolverValidationDto
+public sealed class AprobacionScopeValidationDto
 {
     public bool Exists { get; set; }
     public int EstadoId { get; set; }

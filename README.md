@@ -1,52 +1,87 @@
-# Justificacion de Marca
+# Integrador Marcas
 
-## Backend API (.NET 8)
+Repositorio del sistema de Justificacion de Marcas para CNP/FANAL.
 
-La solución backend se encuentra en `backend/` y expone endpoints para RF-02/RF-03:
-- `POST /api/justificaciones`
-- `GET /api/justificaciones/mias`
-- `GET /api/jefatura/justificaciones/pendientes`
-- `PATCH /api/jefatura/justificaciones/{justificacionId}/resolver`
-- `GET /health`
+## Estado real del repositorio
+- Frontend web estatico (HTML/CSS/JS): login simulado, dashboard por roles y consumo de API.
+- Backend .NET 8 por capas (Api, Application, Domain, Infrastructure).
+- Persistencia SQL Server via Dapper y SQL centralizado.
+- Flujos implementados: Funcionario, Jefatura y RRHH.
 
-### Ejecutar
+## Arquitectura resumida
+```text
+Frontend (index.html, dashboard.html, app.js)
+	 -> HTTP + headers X-User-Id / X-User-Role
+API .NET 8 (controllers + validacion + excepciones)
+	 -> Application (servicios, reglas, validadores)
+Infrastructure (repositorios Dapper + SQL)
+	 -> SQL Server (INTEGRA_CNP)
+```
 
-1. Aplicar scripts SQL en este orden en SQL Server:
-	- `docs/db/001_init_integra_cnp.sql`
-	- `docs/db/007_integra_local_bridge.sql`
-2. La API de Marcas se conecta unicamente a `INTEGRA_CNP` (connection string `IntegraCnp`).
-3. Ajustar la cadena `ConnectionStrings:IntegraCnp` en `backend/src/IntegradorMarcas.Api/appsettings.Development.json`.
-4. Restaurar y compilar:
-	- `dotnet restore backend/IntegradorMarcas.slnx`
-	- `dotnet build backend/IntegradorMarcas.slnx`
-5. Ejecutar API:
-	- `dotnet run --project backend/src/IntegradorMarcas.Api`
+## Endpoints implementados
+- POST /api/justificaciones
+- GET /api/justificaciones/mias
+- GET /api/jefatura/justificaciones/pendientes
+- GET /api/jefatura/justificaciones/{justificacionId}
+- PATCH /api/jefatura/justificaciones/{justificacionId}/resolver
+- GET /api/rrhh/justificaciones
+- GET /health
 
-### Headers mock de identidad (MVP)
+## Seguridad actual (MVP)
+- Identidad por headers obligatorios:
+  - X-User-Id (int > 0)
+  - X-User-Role (ROL_FUNC, ROL_JEFE, ROL_RRHH)
+- Autorizacion por rol en capa de servicio.
+- Manejo de errores con ProblemDetails y correlationId.
 
-Enviar en cada request:
-- `X-User-Id`: identificador de usuario (int)
-- `X-User-Role`: `ROL_FUNC` o `ROL_JEFE`
+## Quickstart local
+1. Ejecutar scripts SQL base:
+	- docs/db/001_init_integra_cnp.sql
+	- docs/db/007_integra_local_bridge.sql
+	- docs/db/008_add_comentario_resolucion.sql (si aplica)
+2. Configurar backend/src/IntegradorMarcas.Api/appsettings.Development.json:
+	- ConnectionStrings:IntegraCnp
+3. Restaurar y compilar:
+	- dotnet restore backend/IntegradorMarcas.slnx
+	- dotnet build backend/IntegradorMarcas.slnx
+4. Ejecutar API:
+	- dotnet run --project backend/src/IntegradorMarcas.Api
+5. Probar salud:
+	- http://localhost:5093/health
+6. Abrir frontend:
+	- index.html
 
-### Configuracion Dev vs Prod
+## Configuracion por entorno
+- appsettings.json: base comun.
+- appsettings.Development.json: desarrollo local (Swagger habilitado).
+- appsettings.Production.json: produccion segura (Swagger deshabilitado).
 
-- `appsettings.json`: contiene defaults seguros y no sensibles.
-- `appsettings.Development.json`: contiene configuracion local de desarrollo (SQL Express local, `UseMockIdentity=true`, `Swagger:Enabled=true`).
-- `appsettings.Production.json`: fuerza flags seguras para produccion (`UseMockIdentity=false`, `Swagger:Enabled=false`) y no incluye secretos.
+En entorno no Development, la API exige ConnectionStrings:IntegraCnp y falla rapido si no existe.
 
-En produccion, las cadenas de conexion deben inyectarse por variables de entorno (o secret store del host):
-- `ASPNETCORE_ENVIRONMENT=Production`
-- `ConnectionStrings__IntegraCnp=<cadena de conexion productiva requerida>`
-- `ConnectionStrings__WizdomReadOnly=<cadena de solo lectura productiva>`
-- `ConnectionStrings__SifcnpReadOnly=<cadena de solo lectura productiva>`
+## Pruebas
+- Proyecto: backend/tests/IntegradorMarcas.Tests
+- Framework: xUnit
+- Estado actual: cobertura minima (placeholder inicial)
+- Comando:
+  - dotnet test backend/IntegradorMarcas.slnx
 
-La API valida al iniciar que `ConnectionStrings:IntegraCnp` exista en entornos no Development y falla rapido si falta.
+## Documentacion tecnica
+Portal maestro:
+- docs/README-manuales.md
 
-## Guía de Implementación (Dev → Prod)
+Documentos especializados:
+- docs/arquitectura-codigo-actual.md
+- docs/api-endpoints-reference.md
+- docs/frontend-modulos-y-flujos.md
+- docs/flujos-datos-end-to-end.md
+- docs/convenciones-codigo-y-documentacion.md
+- docs/pruebas-estrategia-y-cobertura.md
+- docs/manual-tecnico.md
+- docs/Guia_Implementacion_Dev_Prod.md
 
-Para instrucciones completas de setup, configuración de entornos, publicación y troubleshooting, consultar:
-
-**[docs/Guia_Implementacion_Dev_Prod.md](docs/Guia_Implementacion_Dev_Prod.md)**
-
-Incluye: prerrequisitos, arquitectura, orden de scripts BD, runbooks de desarrollo y publicación, variables de entorno, checklist de verificación, rollback y matriz de troubleshooting.
+## Convenciones clave
+- Backend por capas con separacion de responsabilidades.
+- SQL parametrizado y centralizado.
+- Errores de negocio via AppException + ProblemDetails.
+- Documentacion en espanol y alineada al codigo ejecutable.
 

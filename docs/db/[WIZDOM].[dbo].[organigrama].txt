@@ -1,0 +1,59 @@
+USE [WIZDOM]
+GO
+
+/****** Object:  Table [dbo].[organigrama]    Script Date: 23/04/2026 11:35:14 a. m. ******/
+SET ANSI_NULLS OFF
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[organigrama](
+	[compania] [dbo].[t_codigo_compania] NOT NULL,
+	[codigo_nodo_organigrama] [dbo].[t_codigo_nodo_organigrama] NOT NULL,
+	[nombre_nodo_organigrama] [dbo].[t_nombre] NOT NULL,
+	[compania_nodo_padre] [dbo].[t_codigo_compania] NULL,
+	[codigo_nodo_organigrama_padre] [dbo].[t_codigo_nodo_organigrama] NULL,
+	[telefono_interno] [dbo].[t_numero_telefono] NULL,
+	[telefono_directo] [dbo].[t_numero_telefono] NULL,
+	[descripcion_nodo_organigrama] [dbo].[t_descripcion_larga] NULL,
+	[nivel] [dbo].[t_nivel] NULL,
+	[estado] [dbo].[T_estado_nodo_organigrama] NULL,
+	[fecha_creacion] [dbo].[t_fecha] NULL,
+	[tstamp] [dbo].[t_tstamp] NOT NULL,
+	[jerarquia_organigrama] [dbo].[t_descripcion_corta] NULL,
+	[codigo_alterno] [dbo].[t_codigo_alterno] NULL,
+	[expandir_rep] [dbo].[t_indicador] NULL,
+	[codigo_tipo_nodo] [dbo].[T_codigo_tipo_nodo] NULL,
+	[jerarquia_tipo_nodo] [dbo].[t_descripcion_corta] NULL,
+	[restringido] [dbo].[t_indicador] NULL,
+	[codigo_jefe] [dbo].[t_codigo_jefe] NULL,
+	[regimen_vacaciones] [dbo].[t_regimen_vacaciones] NULL,
+	[categoria_contable] [dbo].[t_codigo_categoria] NULL,
+	[codigo_jornada_laboral] [dbo].[t_codigo_jornada] NULL,
+	[fecha_modificacion] [dbo].[t_fecha] NULL,
+	[usuario_modificacion] [dbo].[t_usuario] NULL,
+	[jerarquia_organigrama_alterno] [dbo].[t_descripcion_corta] NULL,
+	[catalogo_dias_feriados] [varchar](3) NULL,
+ CONSTRAINT [pk_organigrama] PRIMARY KEY CLUSTERED 
+(
+	[compania] ASC,
+	[codigo_nodo_organigrama] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[organigrama]  WITH NOCHECK ADD  CONSTRAINT [fk1_comp_org] FOREIGN KEY([compania])
+REFERENCES [dbo].[compania_rh] ([compania])
+GO
+
+ALTER TABLE [dbo].[organigrama] CHECK CONSTRAINT [fk1_comp_org]
+GO
+
+ALTER TABLE [dbo].[organigrama]  WITH CHECK ADD  CONSTRAINT [ck_nivel_organigrama] CHECK  (([nivel]>=(0)))
+GO
+
+ALTER TABLE [dbo].[organigrama] CHECK CONSTRAINT [ck_nivel_organigrama]
+GO
+
+

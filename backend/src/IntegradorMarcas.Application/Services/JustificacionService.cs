@@ -9,10 +9,12 @@ namespace IntegradorMarcas.Application.Services;
 public sealed class JustificacionService : IJustificacionService
 {
     private readonly IJustificacionRepository _repository;
+    private readonly IAuditEventRepository _auditEventRepository;
 
-    public JustificacionService(IJustificacionRepository repository)
+    public JustificacionService(IJustificacionRepository repository, IAuditEventRepository auditEventRepository)
     {
         _repository = repository;
+        _auditEventRepository = auditEventRepository;
     }
 
     public async Task<int> CreateAsync(UserContextInfo user, CreateJustificacionDto request, CancellationToken cancellationToken)
@@ -36,6 +38,19 @@ public sealed class JustificacionService : IJustificacionService
         }
 
         var justificacionId = await _repository.CreateAsync(user.UserId, request, cancellationToken);
+
+        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        {
+            UsuarioId = user.UserId,
+            NombreUsuario = $"Usuario {user.UserId}",
+            RolCodigo = user.Role,
+            TipoEventoAuditoriaId = 1,
+            DescripcionEvento = "Creacion de boleta de justificacion.",
+            ResultadoAuditoriaId = 1,
+            ReferenciaFuncional = $"Justificacion:{justificacionId}",
+            PayloadResumen = $"Detalles={request.Detalles.Count};Estado={EstadoIds.PendienteJefatura}"
+        }, cancellationToken);
+
         return justificacionId;
     }
 
@@ -82,15 +97,15 @@ public sealed class JustificacionService : IJustificacionService
             throw new AppException("Solo jefatura puede ver el detalle de boletas.", 403);
         }
 
-        var validation = await _repository.GetResolverValidationAsync(justificacionId, user.UserId, cancellationToken);
+        var validation = await _repository.GetAprobacionScopeValidationAsync(justificacionId, user.UserId, cancellationToken);
         if (!validation.Exists)
         {
             throw new AppException("No existe la boleta indicada.", 404);
         }
 
-        if (!validation.IsSubordinado)
+        if (!validation.IsInApprovalScope)
         {
-            throw new AppException("La boleta no pertenece a un subordinado directo de la jefatura autenticada.", 403);
+            throw new AppException("La boleta no pertenece al alcance de aprobacion vigente del usuario autenticado.", 403);
         }
 
         var detalle = await _repository.GetDetalleJefaturaAsync(justificacionId, user.UserId, cancellationToken);
@@ -117,9 +132,9 @@ public sealed class JustificacionService : IJustificacionService
             throw new AppException("No existe la boleta indicada.", 404);
         }
 
-        if (!validation.IsSubordinado)
+        if (!validation.IsInApprovalScope)
         {
-            throw new AppException("La boleta no pertenece a un subordinado directo de la jefatura autenticada.", 403);
+            throw new AppException("La boleta no pertenece al alcance de aprobacion vigente del usuario autenticado.", 403);
         }
 
         if (validation.EstadoId != EstadoIds.PendienteJefatura)
@@ -129,11 +144,25 @@ public sealed class JustificacionService : IJustificacionService
 
         var comentarioNormalizado = JustificacionValidator.NormalizeComentarioResolucion(request.Comentario);
         var targetEstado = accion == "APROBAR" ? EstadoIds.Aprobado : EstadoIds.Rechazado;
-        var affected = await _repository.ResolverAsync(justificacionId, user.UserId, targetEstado, comentarioNormalizado, cancellationToken);
+        var affected = await _repository.ResolverAsync(justificacionId, user.UserId, targetEstado, comentarioNormalizado, user.Role, cancellationToken);
 
         if (affected == 0)
         {
             throw new AppException("No fue posible resolver la boleta porque ya cambió de estado.", 409);
         }
+
+        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        {
+            UsuarioId = user.UserId,
+            NombreUsuario = $"Usuario {user.UserId}",
+            RolCodigo = user.Role,
+            TipoEventoAuditoriaId = targetEstado == EstadoIds.Aprobado ? 2 : 3,
+            DescripcionEvento = targetEstado == EstadoIds.Aprobado
+                ? "Resolucion de boleta aprobada."
+                : "Resolucion de boleta rechazada.",
+            ResultadoAuditoriaId = 1,
+            ReferenciaFuncional = $"Justificacion:{justificacionId}",
+            PayloadResumen = $"EstadoDestino={targetEstado};Scope={validation.ScopeSource ?? "N/A"};Delegante={validation.DeleganteUsuarioId?.ToString() ?? "N/A"}"
+        }, cancellationToken);
     }
 }

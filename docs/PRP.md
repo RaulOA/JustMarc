@@ -77,12 +77,15 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 - **Usuario:** `admin`
 - **Contraseña:** `1234`
 
-### Lo que falta (Backend + BD)
-- Conexión real a base de datos `INTEGRA_CNP` (SQL Server 2019)
-- Backend en C# (.NET) con lógica de negocio real
-- Autenticación con dominio CNP-FANAL
-- Integración con vistas de WIZDOM (ERP)
-- Integración de solo lectura con SIFCNP
+### Estado funcional actual y brechas
+- Backend base implementado en C# (.NET 8) con endpoints operativos para flujos de Funcionario, Jefatura y RRHH.
+- Conexion activa a `INTEGRA_CNP` con repositorios Dapper y validaciones de negocio.
+- Integracion frontend-backend funcional para crear, listar, consultar detalle y resolver boletas.
+
+Pendiente para evolucion de producto:
+- Autenticacion corporativa con dominio CNP-FANAL.
+- Integracion productiva con vistas de WIZDOM y lectura historica SIFCNP.
+- Dashboard administrativo con auditoria paginada, exportacion y gestion de jerarquias/delegaciones.
 
 ---
 
@@ -90,13 +93,13 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 
 | Capa | Tecnología |
 |---|---|
-| **Frontend** | HTML5, CSS3, JavaScript (actualmente prototipo estático) |
-| **Backend** | C# (.NET) — *pendiente de desarrollo* |
+| **Frontend** | HTML5, CSS3, JavaScript (dashboard funcional integrado a API) |
+| **Backend** | C# (.NET 8) con arquitectura por capas y endpoints operativos |
 | **Base de datos principal** | Microsoft SQL Server 2019 R14 (`INTEGRA_CNP`) |
 | **BD lectura ERP** | WIZDOM (vistas de solo lectura, proveedor OPTEC) |
 | **BD histórica** | SIFCNP (solo lectura, consulta histórica) |
 | **Navegadores soportados** | Chrome, Edge, Firefox |
-| **Arquitectura** | Monolítica 3 capas |
+| **Arquitectura** | Backend en capas (Api/Application/Domain/Infrastructure) + frontend estatico |
 
 ---
 
@@ -104,11 +107,12 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 
 | Rol | Código | Descripción |
 |---|---|---|
-| **Funcionario** | `ROL_FUNC` | Crea boletas de justificación y consulta su propio historial. |
-| **Jefatura** | `ROL_JEFE` | Ve justificaciones de sus subordinados directos y aprueba o rechaza. |
-| **Recursos Humanos** | `ROL_RRHH` | Consulta **todas** las justificaciones. Solo lectura. Control de planilla. |
+| **Funcionario** | `ROL_FUNC` | Crea boletas de justificación, consulta su propio historial y da seguimiento al estado de sus solicitudes. |
+| **Jefatura / Aprobador** | `ROL_JEFE` | Resuelve solicitudes según la jerarquía de aprobación activa o una delegación vigente. Su alcance ya no depende únicamente de la jefatura directa importada. |
+| **Recursos Humanos** | `ROL_RRHH` | Consulta **todas** las justificaciones para control operativo y planilla. Acceso de solo lectura, sin privilegios administrativos ni acceso a auditoría. |
+| **Administrador** | `ROL_ADMIN` | Administra jerarquías de aprobación, delegados o subaprobadores, catálogos y estructuras organizacionales de soporte. Tiene acceso exclusivo al dashboard y reportes de auditoría. |
 
-> ⚠️ El acceso estará basado estrictamente en roles. La autenticación se integrará con el dominio CNP-FANAL. Cada rol tiene visibilidad y acciones restringidas.
+> ⚠️ El acceso estará basado estrictamente en roles. La autenticación se integrará con el dominio CNP-FANAL. El rol Administrador es un actor formal del sistema y su alcance queda restringido a funciones administrativas, trazabilidad y configuración.
 
 ---
 
@@ -118,6 +122,7 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 - Poblar y sincronizar tabla de usuarios desde **vistas de solo lectura** del ERP WIZDOM.
 - Incluir funcionarios de **CNP (código 001)** y **FANAL (código 002)**.
 - Datos sincronizados: cédula, nombre completo, correo institucional, jefatura directa, unidad organizacional, compañía y rol.
+- La jefatura directa proveniente de WIZDOM se conservará como dato base de referencia, pero no como única regla de aprobación.
 
 ### RF-02 — Creación de Boleta de Justificación
 - Un `ROL_FUNC` puede crear una boleta con:
@@ -126,23 +131,47 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 - Estado inicial: **`Pendiente Jefatura`**.
 - Debe permitir agregar y eliminar líneas de detalle antes de guardar.
 
-### RF-03 — Aprobación / Rechazo por Jefatura
-- `ROL_JEFE` ve **únicamente** justificaciones de su jerarquía directa.
+### RF-03 — Aprobación / Rechazo por Jerarquía Configurada
+- Un usuario con permisos de aprobación puede ver **únicamente** las justificaciones que le correspondan según la jerarquía de aprobación activa y las delegaciones vigentes.
 - Puede **Aprobar** (estado → `Aprobado`) o **Rechazar** (estado → `Rechazado`).
-- Registra ID del aprobador y fecha de la acción.
+- La resolución debe registrar ID del aprobador efectivo, rol con el que actúa, fecha de la acción y resultado.
+- El flujo no debe quedar bloqueado cuando exista una delegación válida habilitada por Administración.
 
 ### RF-04 — Consulta por Recursos Humanos
 - `ROL_RRHH` consulta **todas** las justificaciones sin restricción de usuario.
 - Filtros por: funcionario, estado, fecha, compañía.
-- Solo consulta — RH no aprueba ni rechaza.
+- Solo consulta; RRHH no aprueba, no rechaza y no administra jerarquías, delegaciones ni auditoría.
 
 ### RF-05 — Consulta de Historial por Funcionario
 - `ROL_FUNC` consulta el historial y estado de sus propias boletas.
-- Ve: fecha de creación, estado, detalles, aprobador y fecha de resolución.
+- Ve: fecha de creación, estado, detalles, aprobador efectivo y fecha de resolución.
 
 ### RF-06 — Consulta de Registros Históricos (SIFCNP)
 - Interfaz de **solo lectura** para registros del sistema antiguo SIFCNP.
 - Sin crear, editar ni eliminar datos históricos.
+
+### RF-07 — Auditoría Persistente del Sistema
+- El sistema debe registrar en base de datos las acciones operativas y administrativas relevantes.
+- Cada pista de auditoría debe almacenar al menos: fecha y hora, identificador de usuario, nombre de usuario, rol, tipo de evento, descripción normalizada o catalogada, resultado del evento y referencia funcional cuando aplique.
+- La consulta de auditoría es exclusiva del `ROL_ADMIN`.
+- Debe existir un dashboard administrativo con visualización paginada, filtros por fecha, usuario, rol, tipo de evento y resultado, así como descarga de reportes sobre el conjunto filtrado.
+
+### RF-08 — Configuración de Jerarquía de Aprobaciones
+- El sistema debe permitir definir y mantener una jerarquía de aprobación configurable dentro de `INTEGRA_CNP`.
+- Debe soportar relaciones **verticales** y **horizontales** entre unidades, responsables o niveles aprobadores.
+- Un aprobador superior podrá visualizar y resolver solicitudes de unidades o subunidades bajo su alcance configurado.
+- La configuración de jerarquías solo podrá ser administrada por `ROL_ADMIN`.
+
+### RF-09 — Gestión de Delegados y Subaprobadores
+- El sistema debe permitir registrar delegados o subaprobadores para cubrir ausencias, recargos u otros escenarios operativos.
+- Los delegados deben heredar el mismo alcance de aprobación del delegante durante la vigencia configurada.
+- El alta, baja, habilitación y deshabilitación de delegaciones solo podrá realizarla `ROL_ADMIN`.
+- La gestión de delegados es administrativa y no forma parte del flujo ordinario de aprobación del usuario final.
+
+### RF-10 — Catálogos y Estructuras Organizacionales de Soporte
+- El sistema debe contar con catálogos y estructuras propias para representar jerarquías, niveles, delegaciones, eventos de auditoría, resultados de auditoría y estados administrativos de entidades configurables.
+- Deben existir estados de **activo/inactivo** para las entidades de configuración relevantes.
+- La lógica de jerarquía configurable, delegación y auditoría persistente **no existe hoy en WIZDOM, SIFCNP ni SICNP**; debe ser creada y administrada por el sistema en `INTEGRA_CNP`.
 
 ---
 
@@ -150,10 +179,13 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 
 | ID | Categoría | Descripción |
 |---|---|---|
-| RNF-01 | **Seguridad** | Control de acceso basado en roles. Autenticación con dominio CNP-FANAL. |
-| RNF-02 | **Rendimiento** | Consultas eficientes. Vistas de WIZDOM con impacto mínimo. Considerar sincronización batch. |
+| RNF-01 | **Seguridad** | Control de acceso basado en roles incluyendo `ROL_ADMIN`. Segregación estricta entre operaciones administrativas, operativas y de consulta. |
+| RNF-02 | **Rendimiento** | Consultas eficientes. Vistas de WIZDOM con impacto mínimo. Considerar sincronización batch y paginación obligatoria para auditoría y consultas administrativas. |
 | RNF-03 | **Compatibilidad** | Chrome, Edge y Firefox modernos. Sin instalación local. |
-| RNF-04 | **Usabilidad** | Interfaz intuitiva. Curva de aprendizaje mínima. Inspirada en el flujo del SIFCNP. |
+| RNF-04 | **Usabilidad** | Interfaz intuitiva. Curva de aprendizaje mínima. Inspirada en el flujo del SIFCNP para usuarios operativos y con dashboard diferenciado para Administración. |
+| RNF-05 | **Trazabilidad** | Toda acción crítica y administrativa debe dejar evidencia persistente, consultable y exportable. |
+| RNF-06 | **Continuidad Operativa** | Las delegaciones vigentes deben evitar bloqueos del flujo de aprobación por ausencias o cambios temporales. |
+| RNF-07 | **Configurabilidad** | La jerarquía de aprobación y las delegaciones deben ajustarse sin depender de cambios en fuentes externas ni despliegues de código. |
 
 ---
 
@@ -170,9 +202,10 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 │          CAPA DE LÓGICA DE NEGOCIO (Backend)        │
 │                    C# (.NET)                        │
 │   - Flujo de creación de justificaciones            │
-│   - Flujo de aprobación/rechazo por rol             │
-│   - Control de acceso por roles                     │
-│   - Notificación a jefatura (automática)            │
+│   - Motor de aprobación jerárquica y delegaciones   │
+│   - Módulo administrativo y dashboard de auditoría  │
+│   - Control de acceso por roles y auditoría         │
+│   - Notificaciones y trazabilidad persistente       │
 └──────┬──────────────────┬──────────────────┬────────┘
        │                  │                  │
 ┌──────▼──────┐  ┌────────▼──────┐  ┌────────▼──────┐
@@ -181,6 +214,16 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 │  (R/W)      │  │  Vistas ERP   │  │  Históricos   │
 └─────────────┘  └───────────────┘  └───────────────┘
 ```
+
+### Descripción de capas
+
+| Capa | Responsabilidad |
+|---|---|
+| **Presentación** | Renderizado de UI, formularios, listados, navegación por roles y dashboard administrativo. |
+| **Lógica de Negocio** | Validaciones, flujos de estado, motor de aprobación jerárquica, control de permisos, delegaciones, notificaciones y auditoría. |
+| **Acceso a Datos** | CRUD en `INTEGRA_CNP`, lecturas a vistas de WIZDOM y SIFCNP, y persistencia de estructuras internas de aprobación, delegación y auditoría. |
+
+> La estructura organizacional importada de WIZDOM funciona como insumo de referencia. La matriz efectiva de aprobación, las delegaciones y la auditoría persistente residen en `INTEGRA_CNP`.
 
 ---
 
@@ -193,31 +236,37 @@ Sistema web moderno, centralizado y basado en roles que reemplace la funcionalid
 
 ```
 Roles (1) ──────────────────────< Usuarios (N)
+Cat_EstadosRegistro (1) ────────< Estructuras_Organizacionales (N)
+Cat_EstadosRegistro (1) ────────< Jerarquias_Aprobacion (N)
+Cat_EstadosRegistro (1) ────────< Delegaciones_Aprobacion (N)
+Cat_TiposEventoAuditoria (1) ───< Auditoria_Eventos (N) >── Cat_ResultadosAuditoria (1)
                                       │
                     ┌─────────────────┴──────────────────┐
-                    │ (UsuarioID — solicita)              │ (AprobadorID — aprueba)
+                    │ (UsuarioID — solicita)              │ (AprobadorID — resuelve)
                     ▼                                     ▼
          Justificaciones_Encabezado ◄── Estados (1..N)
                     │
                     └────< Justificaciones_Detalle >────── Cat_TiposJustificacion
 ```
 
-### 9.2 Tabla: `Roles`
+### 9.2 Tablas Catálogo
+
+#### Tabla: `Roles`
 | Campo | Tipo | PK/FK | Nulo | Descripción |
 |---|---|---|---|---|
 | `RolID` | int | PK | NO | ID único del rol |
-| `NombreRol` | varchar(50) | — | NO | Funcionario / Jefatura / RRHH |
+| `NombreRol` | varchar(50) | — | NO | Funcionario / Jefatura / RRHH / Administrador |
 | `Usr_Registro` | varchar(50) | — | NO | Usuario que creó el registro |
 | `Fec_Registro` | datetime | — | NO | Fecha de creación |
 
-### 9.3 Tabla: `Estados`
+#### Tabla: `Estados`
 | Campo | Tipo | PK/FK | Nulo | Descripción |
 |---|---|---|---|---|
-| `EstadoID` | int | PK | NO | ID único del estado |
+| `EstadoID` | int | PK | NO | ID único del estado del flujo |
 | `Descripcion` | varchar(100) | — | NO | Pendiente Jefatura / Aprobado / Rechazado |
 | `Proceso` | varchar(50) | — | NO | `Marcas` |
 
-### 9.4 Tabla: `Cat_TiposJustificacion`
+#### Tabla: `Cat_TiposJustificacion`
 | Campo | Tipo | PK/FK | Nulo | Descripción |
 |---|---|---|---|---|
 | `TipoJustificacionID` | int | PK | NO | ID único del tipo |
@@ -225,15 +274,41 @@ Roles (1) ──────────────────────< Us
 | `Usr_Registro` | varchar(50) | — | NO | Usuario que creó el registro |
 | `Fec_Registro` | datetime | — | NO | Fecha de creación |
 
-### 9.5 Tabla: `Usuarios`
+#### Tabla: `Cat_EstadosRegistro`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `EstadoRegistroID` | int | PK | NO | ID del estado administrativo |
+| `Descripcion` | varchar(50) | — | NO | Activo / Inactivo |
+| `Usr_Registro` | varchar(50) | — | NO | Usuario que creó el registro |
+| `Fec_Registro` | datetime | — | NO | Fecha de creación |
+
+#### Tabla: `Cat_TiposEventoAuditoria`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `TipoEventoAuditoriaID` | int | PK | NO | ID del evento auditable |
+| `Descripcion` | varchar(100) | — | NO | Inicio de sesión, creación de boleta, aprobación, rechazo, alta de delegación, cambio de jerarquía, etc. |
+| `Usr_Registro` | varchar(50) | — | NO | Usuario que creó el registro |
+| `Fec_Registro` | datetime | — | NO | Fecha de creación |
+
+#### Tabla: `Cat_ResultadosAuditoria`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `ResultadoAuditoriaID` | int | PK | NO | ID del resultado |
+| `Descripcion` | varchar(50) | — | NO | Éxito / Fallo / Denegado / Reintentado |
+| `Usr_Registro` | varchar(50) | — | NO | Usuario que creó el registro |
+| `Fec_Registro` | datetime | — | NO | Fecha de creación |
+
+### 9.3 Tablas Base
+
+#### Tabla: `Usuarios`
 | Campo | Tipo | PK/FK | Nulo | Descripción |
 |---|---|---|---|---|
 | `UsuarioID` | int | PK | NO | ID único del usuario |
 | `Cedula` | varchar(20) | — | NO | Cédula del funcionario |
 | `NombreCompleto` | varchar(150) | — | NO | Nombre completo |
 | `Correo` | varchar(100) | — | NO | Correo institucional |
-| `JefaturaID` | int | FK→Usuarios | SÍ | ID de la jefatura directa (auto-referencia) |
-| `UnidadID` | int | — | NO | ID de la unidad organizacional |
+| `JefaturaID` | int | FK→Usuarios | SÍ | Jefatura directa importada como referencia |
+| `UnidadID` | int | — | NO | ID de la unidad organizacional de origen |
 | `RolID` | int | FK→Roles | NO | Rol del sistema |
 | `Compania` | varchar(10) | — | NO | `CNP` o `FANAL` |
 | `Usr_Registro` | varchar(50) | — | NO | Usuario que creó |
@@ -241,22 +316,64 @@ Roles (1) ──────────────────────< Us
 | `Usr_Modifica` | varchar(50) | — | SÍ | Último usuario que modificó |
 | `Fec_Modifica` | datetime | — | SÍ | Fecha de modificación |
 
-> 💡 `JefaturaID` es FK auto-referenciada. NULL para los niveles más altos de jerarquía.
+> 💡 `JefaturaID` se mantiene como FK auto-referenciada para referencia operativa, pero la autorización efectiva del flujo se resuelve en tablas propias de jerarquía y delegación.
 
-### 9.6 Tabla: `Justificaciones_Encabezado`
+#### Tabla: `Estructuras_Organizacionales`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `EstructuraOrganizacionalID` | int | PK | NO | ID del nodo o unidad configurable |
+| `Nombre` | varchar(150) | — | NO | Nombre de la estructura |
+| `CodigoOrigen` | varchar(50) | — | SÍ | Código externo si existe |
+| `EstructuraPadreID` | int | FK→Estructuras_Organizacionales | SÍ | Nodo padre para relaciones verticales |
+| `EstadoRegistroID` | int | FK→Cat_EstadosRegistro | NO | Activo / Inactivo |
+| `VigenciaDesde` | datetime | — | SÍ | Inicio de vigencia |
+| `VigenciaHasta` | datetime | — | SÍ | Fin de vigencia |
+
+### 9.4 Tablas de Configuración y Control
+
+#### Tabla: `Jerarquias_Aprobacion`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `JerarquiaAprobacionID` | int | PK | NO | ID de la regla jerárquica |
+| `AprobadorUsuarioID` | int | FK→Usuarios | NO | Usuario aprobador titular |
+| `EstructuraOrganizacionalID` | int | FK→Estructuras_Organizacionales | NO | Alcance configurado |
+| `NivelAprobacion` | int | — | NO | Nivel dentro del modelo jerárquico |
+| `TipoRelacion` | varchar(20) | — | NO | Horizontal / Vertical |
+| `EstadoRegistroID` | int | FK→Cat_EstadosRegistro | NO | Activo / Inactivo |
+| `VigenciaDesde` | datetime | — | NO | Inicio de vigencia |
+| `VigenciaHasta` | datetime | — | SÍ | Fin de vigencia |
+
+#### Tabla: `Delegaciones_Aprobacion`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `DelegacionAprobacionID` | int | PK | NO | ID de la delegación |
+| `DeleganteUsuarioID` | int | FK→Usuarios | NO | Jefatura o aprobador titular |
+| `DelegadoUsuarioID` | int | FK→Usuarios | NO | Delegado o subaprobador |
+| `JerarquiaAprobacionID` | int | FK→Jerarquias_Aprobacion | SÍ | Regla específica asociada |
+| `Motivo` | varchar(250) | — | SÍ | Razón de la delegación |
+| `EstadoRegistroID` | int | FK→Cat_EstadosRegistro | NO | Activo / Inactivo |
+| `VigenciaDesde` | datetime | — | NO | Inicio de vigencia |
+| `VigenciaHasta` | datetime | — | SÍ | Fin de vigencia |
+| `Usr_Registro` | varchar(50) | — | NO | Administrador que registró |
+| `Fec_Registro` | datetime | — | NO | Fecha de creación |
+
+### 9.5 Tablas de Proceso y Trazabilidad
+
+#### Tabla: `Justificaciones_Encabezado`
 | Campo | Tipo | PK/FK | Nulo | Descripción |
 |---|---|---|---|---|
 | `JustificacionID` | int | PK | NO | ID único de la justificación |
 | `UsuarioID` | int | FK→Usuarios | NO | Funcionario solicitante |
 | `MotivoGeneral` | varchar(500) | — | NO | Observación general |
-| `EstadoID` | int | FK→Estados | NO | Estado actual (1=Pendiente, 2=Aprobado, 3=Rechazado) |
+| `EstadoID` | int | FK→Estados | NO | Estado actual del flujo |
 | `FechaCreacion` | datetime | — | NO | Fecha y hora de creación |
-| `AprobadorID` | int | FK→Usuarios | SÍ | Jefatura que procesa (NULL hasta resolución) |
-| `FechaAprobacion` | datetime | — | SÍ | Fecha de aprobación/rechazo |
+| `AprobadorID` | int | FK→Usuarios | SÍ | Aprobador efectivo que resolvió |
+| `FechaAprobacion` | datetime | — | SÍ | Fecha de aprobación o rechazo |
+| `RolResolucion` | varchar(20) | — | SÍ | Rol con el que se procesó la resolución |
 | `Usr_Registro` | varchar(50) | — | NO | Usuario que creó |
 | `Fec_Registro` | datetime | — | NO | Fecha de creación |
 
-### 9.7 Tabla: `Justificaciones_Detalle`
+#### Tabla: `Justificaciones_Detalle`
 | Campo | Tipo | PK/FK | Nulo | Descripción |
 |---|---|---|---|---|
 | `DetalleID` | int | PK | NO | ID único del detalle |
@@ -266,6 +383,26 @@ Roles (1) ──────────────────────< Us
 | `ObservacionDetalle` | varchar(250) | — | SÍ | Observación específica (opcional) |
 | `Usr_Registro` | varchar(50) | — | NO | Usuario que creó |
 | `Fec_Registro` | datetime | — | NO | Fecha de creación |
+
+#### Tabla: `Auditoria_Eventos`
+| Campo | Tipo | PK/FK | Nulo | Descripción |
+|---|---|---|---|---|
+| `AuditoriaEventoID` | bigint | PK | NO | ID del evento auditado |
+| `FechaEvento` | datetime | — | NO | Fecha y hora del evento |
+| `UsuarioID` | int | FK→Usuarios | SÍ | Usuario que ejecutó la acción |
+| `NombreUsuario` | varchar(150) | — | NO | Nombre del usuario al momento del evento |
+| `RolCodigo` | varchar(20) | — | NO | Rol con el que actuó |
+| `TipoEventoAuditoriaID` | int | FK→Cat_TiposEventoAuditoria | NO | Tipo de evento |
+| `DescripcionEvento` | varchar(500) | — | NO | Descripción normalizada o catalogada |
+| `ResultadoAuditoriaID` | int | FK→Cat_ResultadosAuditoria | NO | Resultado del evento |
+| `ReferenciaFuncional` | varchar(100) | — | SÍ | ID de boleta, delegación, jerarquía u otra referencia |
+| `PayloadResumen` | varchar(1000) | — | SÍ | Resumen técnico no sensible del evento |
+
+### 9.6 Consideraciones del Modelo
+
+- `INTEGRA_CNP` almacenará sus propias estructuras de aprobación y delegación, independientes de las fuentes externas.
+- Los catálogos y estados administrativos permitirán absorber cambios organizacionales sin alterar la lógica base por código.
+- La auditoría funcional y administrativa será persistente, filtrable y consultable solo por `ROL_ADMIN`.
 
 ---
 
@@ -282,17 +419,19 @@ Roles (1) ──────────────────────< Us
       ▼
   Estado inicial: "Pendiente Jefatura" (EstadoID = 1)
       │
-      │  Sistema notifica automáticamente a la jefatura directa
+      │  Sistema determina ruta según jerarquía activa en INTEGRA_CNP
       ▼
-[JEFATURA] — solo ve subordinados directos (JefaturaID = jefaturaLogueada)
+[APROBADOR EFECTIVO]
       │
-      ├── Aprueba ──► Estado: "Aprobado" (2) + registra AprobadorID + FechaAprobacion
+      ├── Si existe delegación vigente, actúa el delegado con el mismo alcance
       │
-      └── Rechaza ──► Estado: "Rechazado" (3) + registra AprobadorID + FechaAprobacion
+      ├── Aprueba ──► Estado: "Aprobado" (2) + registra AprobadorID + FechaAprobacion + RolResolucion
+      │
+      └── Rechaza ──► Estado: "Rechazado" (3) + registra AprobadorID + FechaAprobacion + RolResolucion
                               │
                               ▼
                     [RRHH] consulta todas las justificaciones
-                    Especial atención: Aprobadas → aplicación en planilla
+                    [ADMIN] administra jerarquías, delegaciones y auditoría
 ```
 
 ### 10.2 Reglas de Negocio
@@ -301,27 +440,35 @@ Roles (1) ──────────────────────< Us
 |---|---|
 | RN-01 | Una boleta **debe tener al menos una línea de detalle** para poder guardarse. |
 | RN-02 | El estado inicial es siempre `Pendiente Jefatura` (EstadoID = 1). |
-| RN-03 | Solo `ROL_JEFE` puede cambiar el estado de una boleta. |
+| RN-03 | Solo usuarios con autorización activa de aprobación, ya sea por jerarquía configurada o delegación vigente, pueden cambiar el estado de una boleta. |
 | RN-04 | Una boleta `Aprobado` o `Rechazado` **no puede modificarse**. |
 | RN-05 | Un funcionario solo ve **sus propias** justificaciones. |
-| RN-06 | Jefatura solo ve justificaciones donde `Usuarios.JefaturaID = jefaturaActual.UsuarioID`. |
-| RN-07 | RRHH ve **todas** las justificaciones sin excepción. |
+| RN-06 | La visibilidad de jefaturas se resuelve con la matriz de `Jerarquias_Aprobacion` y `Delegaciones_Aprobacion`, no únicamente con `Usuarios.JefaturaID`. |
+| RN-07 | RRHH ve **todas** las justificaciones sin excepción, pero sin acceso a operaciones administrativas ni auditoría. |
 | RN-08 | Los datos de SIFCNP son de **solo lectura absoluta**. |
+| RN-09 | Toda resolución de boleta y toda operación administrativa genera un evento en `Auditoria_Eventos`. |
+| RN-10 | Las delegaciones o subaprobaciones solo pueden ser creadas, modificadas o desactivadas por `ROL_ADMIN`. |
+| RN-11 | La auditoría persistente solo puede ser consultada por `ROL_ADMIN`. |
+| RN-12 | La jerarquía configurable, las delegaciones y la auditoría persistente no existen hoy en las fuentes actuales; deben crearse y mantenerse dentro de `INTEGRA_CNP`. |
 
 ---
 
 ## 11. Integraciones Externas
 
 ### 11.1 WIZDOM (ERP — Solo Lectura)
-- **Propósito:** Fuente de verdad para usuarios, estructura y jefaturas.
+- **Propósito:** Fuente de verdad para usuarios, estructura de origen y jefaturas directas.
 - **Método:** Consulta a vistas de BD expuestas por WIZDOM. Sin escritura.
 - **Datos:** Cédula, nombre, correo, jefatura, unidad, compañía (CNP=001 / FANAL=002).
+- **Límite funcional:** La información de jefatura directa funciona como referencia operativa, pero **no** constituye por sí sola la lógica final de aprobaciones jerárquicas ni de delegaciones.
 - **Recomendación:** Sincronización batch periódica (no tiempo real) para no impactar el ERP.
 
 ### 11.2 SIFCNP (Sistema histórico — Solo Lectura)
 - **Propósito:** Consulta de registros anteriores a la migración.
-- **Restricción:** `SELECT` únicamente — jamás `INSERT`, `UPDATE`, `DELETE`.
+- **Restricción:** `SELECT` únicamente; jamás `INSERT`, `UPDATE` o `DELETE`.
 - **Interfaz:** Módulo separado con filtros por funcionario, fecha y tipo.
+- **Límite funcional:** SIFCNP no participa en la jerarquía de aprobación, delegaciones ni auditoría operativa del nuevo sistema.
+
+> La lógica de aprobaciones jerárquicas, delegaciones y auditoría persistente no existe hoy en WIZDOM ni en SIFCNP. Esa capacidad debe ser creada por el sistema y persistida en `INTEGRA_CNP`.
 
 ---
 
@@ -375,11 +522,18 @@ Justificacion de Marca/
 - [ ] Crear tabla `Roles` + datos semilla
 - [ ] Crear tabla `Estados` + datos semilla
 - [ ] Crear tabla `Cat_TiposJustificacion` + datos semilla
+- [ ] Crear tabla `Cat_EstadosRegistro` + datos semilla Activo/Inactivo
+- [ ] Crear tabla `Cat_TiposEventoAuditoria` + datos semilla
+- [ ] Crear tabla `Cat_ResultadosAuditoria` + datos semilla
 - [ ] Crear tabla `Usuarios` con FK a `Roles`
+- [ ] Crear tabla `Estructuras_Organizacionales`
+- [ ] Crear tabla `Jerarquias_Aprobacion`
+- [ ] Crear tabla `Delegaciones_Aprobacion`
 - [ ] Crear tabla `Justificaciones_Encabezado` con FKs
 - [ ] Crear tabla `Justificaciones_Detalle` con FKs
+- [ ] Crear tabla `Auditoria_Eventos`
 - [ ] Validar integridad referencial
-- [ ] Crear índices de rendimiento (`UsuarioID`, `EstadoID`, `JustificacionID`, `JefaturaID`)
+- [ ] Crear índices de rendimiento (`UsuarioID`, `EstadoID`, `JustificacionID`, `JefaturaID`, `FechaEvento`, `TipoEventoAuditoriaID`, `EstadoRegistroID`)
 - [ ] Ejecutar script DDL en ambiente de desarrollo
 
 ### 🔌 Integraciones
@@ -393,6 +547,7 @@ Justificacion de Marca/
 - [ ] Definir mecanismo de autenticación (dominio CNP-FANAL)
 - [ ] Implementar autenticación de usuarios
 - [ ] Implementar middleware de control de acceso por rol
+- [ ] Sembrar y validar `ROL_ADMIN`
 - [ ] Validar que cada rol accede solo a sus rutas/vistas permitidas
 
 ### ⚙️ Backend — API / Lógica de Negocio (C# .NET)
@@ -408,6 +563,10 @@ Justificacion de Marca/
 - [ ] **RF-04:** Endpoint consulta global RRHH con filtros
 - [ ] **RF-05:** Endpoint historial por funcionario
 - [ ] **RF-06:** Endpoint consulta histórica SIFCNP (solo lectura)
+- [ ] **RF-07:** Endpoint consulta paginada de auditoría con filtros y exportación
+- [ ] **RF-08:** Endpoint administración de jerarquías de aprobación
+- [ ] **RF-09:** Endpoint administración de delegados y subaprobadores
+- [ ] **RF-10:** Endpoint administración de catálogos y estructuras organizacionales
 
 ### 🖥️ Frontend — Integración con Backend
 - [ ] Conectar login con autenticación real (quitar credenciales quemadas)
@@ -415,6 +574,8 @@ Justificacion de Marca/
 - [ ] Conectar Panel Jefatura con API de aprobación/rechazo
 - [ ] Conectar Panel RRHH con API de consulta global
 - [ ] Conectar Panel SIFCNP con API de históricos
+- [ ] Incorporar dashboard administrativo con auditoría paginada, filtros y descarga de reportes
+- [ ] Incorporar pantallas de mantenimiento de jerarquías, delegaciones y catálogos
 - [ ] Mostrar nombre real del usuario logueado en topbar
 - [ ] Mostrar solo las pestañas correspondientes al rol del usuario
 - [ ] Manejo de errores y mensajes del servidor en UI
@@ -422,6 +583,9 @@ Justificacion de Marca/
 ### 🧪 Pruebas y Calidad
 - [ ] Pruebas unitarias — flujo de estados (Pendiente → Aprobado/Rechazado)
 - [ ] Pruebas de roles — verificar que cada rol solo accede a lo permitido
+- [ ] Pruebas de autorización por jerarquía configurada
+- [ ] Pruebas de delegación y subaprobación vigente
+- [ ] Pruebas de restricción de auditoría exclusiva para Administrador
 - [ ] Pruebas de integración con WIZDOM
 - [ ] Pruebas de integración con SIFCNP
 - [ ] Pruebas en Chrome, Edge y Firefox
@@ -447,21 +611,31 @@ Justificacion de Marca/
 
 ### Arquitectura de datos
 - **Patrón Encabezado-Detalle:** `Justificaciones_Encabezado` es el maestro; `Justificaciones_Detalle` son sus líneas hijas. Siempre tratarlas en la **misma transacción** al crear o eliminar.
-- **Auto-referencia en Usuarios:** `JefaturaID` apunta a otro `UsuarioID` en la misma tabla.
-  - Subordinados de una jefatura: `WHERE JefaturaID = @UsuarioActualID`
+- **Auto-referencia en Usuarios:** `JefaturaID` apunta a otro `UsuarioID` en la misma tabla, pero se usa como referencia. La autorización efectiva se resuelve mediante `Jerarquias_Aprobacion` y `Delegaciones_Aprobacion`.
 
 ### Filtros por rol (queries base)
 ```sql
 -- Funcionario: solo sus boletas
 WHERE UsuarioID = @usuarioLogueado
 
--- Jefatura: boletas de sus subordinados directos
-WHERE UsuarioID IN (
-    SELECT UsuarioID FROM Usuarios WHERE JefaturaID = @usuarioLogueado
+-- Jefatura / aprobador: boletas según jerarquía activa o delegación vigente
+WHERE EXISTS (
+    SELECT 1
+    FROM Jerarquias_Aprobacion JA
+    WHERE JA.AprobadorUsuarioID = @usuarioLogueado
+)
+OR EXISTS (
+    SELECT 1
+    FROM Delegaciones_Aprobacion DA
+    WHERE DA.DelegadoUsuarioID = @usuarioLogueado
+      AND GETDATE() BETWEEN DA.VigenciaDesde AND ISNULL(DA.VigenciaHasta, GETDATE())
 )
 
 -- RRHH: todas las boletas (sin filtro de usuario)
 -- (sin WHERE de usuario)
+
+-- Administrador: auditoría paginada y consultas administrativas
+ORDER BY FechaEvento DESC
 ```
 
 ### Reglas críticas
@@ -472,7 +646,10 @@ WHERE UsuarioID IN (
   - `3` = Rechazado
 - **Compañías:** `CNP` = código `001`, `FANAL` = código `002`.
 - **Auditoría:** Todas las tablas tienen `Usr_Registro` y `Fec_Registro`. Las principales también `Usr_Modifica` y `Fec_Modifica`.
+- **Pistas de auditoría persistentes:** Registrar fecha/hora, usuario, nombre, rol, tipo de evento, resultado y referencia funcional en `Auditoria_Eventos`.
+- **Acceso a auditoría:** Exclusivo de `ROL_ADMIN` mediante dashboard paginado, filtros y descarga de reportes.
 - Una boleta con EstadoID = 2 o 3 **no se puede modificar** (RN-04).
+- La jerarquía configurable, las delegaciones y la auditoría persistente deben construirse en `INTEGRA_CNP`; no existen hoy en las fuentes actuales.
 
 ### Estado del frontend
 El prototipo usa **datos mockeados** (quemados en HTML). Al integrar el backend:
