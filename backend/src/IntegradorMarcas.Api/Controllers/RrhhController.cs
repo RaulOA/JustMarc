@@ -41,6 +41,7 @@ public sealed class RrhhController : ControllerBase
         {
             JustificacionID = x.JustificacionID,
             MotivoGeneral = x.MotivoGeneral,
+            ComentarioResolucion = x.ComentarioResolucion,
             EstadoID = x.EstadoID,
             EstadoDescripcion = x.EstadoDescripcion,
             FechaCreacion = x.FechaCreacion,

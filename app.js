@@ -195,7 +195,6 @@ function buildApiHeaders(session, withJsonBody = false) {
 
 async function parseApiError(response) {
   let parsed;
-
   try {
     parsed = await response.clone().json();
   } catch {
@@ -207,34 +206,16 @@ async function parseApiError(response) {
     || parsed?.message
     || `Error HTTP ${response.status}`;
 
+  const correlationId = parsed?.correlationId
+    || response.headers.get('X-Correlation-Id')
+    || null;
+
   const error = new Error(message);
   error.status = response.status;
   error.payload = parsed;
+  error.correlationId = correlationId;
   return error;
 }
-  async function parseApiError(response) {
-    let parsed;
-    try {
-      parsed = await response.clone().json();
-    } catch {
-      parsed = null;
-    }
-
-    const message = parsed?.detail
-      || parsed?.title
-      || parsed?.message
-      || `Error HTTP ${response.status}`;
-
-    const correlationId = parsed?.correlationId
-      || response.headers.get('X-Correlation-Id')
-      || null;
-
-    const error = new Error(message);
-    error.status       = response.status;
-    error.payload      = parsed;
-    error.correlationId = correlationId;
-    return error;
-  }
 
 
 async function apiFetch(path, options = {}, session = getSession()) {
@@ -813,25 +794,11 @@ function renderStatusBadge(estado) {
   return '<span class="badge badge-pending">Pendiente</span>';
 }
 
+/** showNotice redirige al sistema de toasts global. */
 function showNotice(targetId, type, msg) {
-  const el = document.getElementById(targetId);
-  if (!el) return;
-  const icon = type === 'error'
-    ? 'M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm.75-4.25a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0v3z'
-    : 'M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z';
-
-  el.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
-  el.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${icon}"/></svg>${msg}`;
-  el.style.display = 'flex';
-  setTimeout(() => {
-    if (el) el.style.display = 'none';
-  }, 5000);
+  const toastType = type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'success';
+  toast(toastType, msg);
 }
-  /** showNotice redirige al sistema de toasts global. */
-  function showNotice(targetId, type, msg) {
-    const toastType = type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'success';
-    toast(toastType, msg);
-  }
 
 function formatDate(isoDate) {
   if (!isoDate) return '—';

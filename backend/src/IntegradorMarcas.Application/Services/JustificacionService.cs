@@ -24,6 +24,17 @@ public sealed class JustificacionService : IJustificacionService
 
         JustificacionValidator.ValidateCreate(request);
 
+        var tipoIds = request.Detalles
+            .Select(x => x.TipoJustificacionId)
+            .Distinct()
+            .ToArray();
+
+        var existingTipoIds = await _repository.GetExistingTipoJustificacionIdsAsync(tipoIds, cancellationToken);
+        if (existingTipoIds.Count != tipoIds.Length)
+        {
+            throw new AppException("Uno o mas TipoJustificacionID no existen en catalogo.", 400);
+        }
+
         var justificacionId = await _repository.CreateAsync(user.UserId, request, cancellationToken);
         return justificacionId;
     }
@@ -35,6 +46,7 @@ public sealed class JustificacionService : IJustificacionService
             throw new AppException("Solo un funcionario puede consultar sus boletas.", 403);
         }
 
+        JustificacionValidator.ValidateRangoFechas(filtros.Desde, filtros.Hasta);
         return await _repository.ListMineAsync(user.UserId, filtros, cancellationToken);
     }
 
@@ -115,8 +127,9 @@ public sealed class JustificacionService : IJustificacionService
             throw new AppException("RN-04: la boleta ya fue resuelta y no puede modificarse.", 409);
         }
 
+        var comentarioNormalizado = JustificacionValidator.NormalizeComentarioResolucion(request.Comentario);
         var targetEstado = accion == "APROBAR" ? EstadoIds.Aprobado : EstadoIds.Rechazado;
-        var affected = await _repository.ResolverAsync(justificacionId, user.UserId, targetEstado, request.Comentario, cancellationToken);
+        var affected = await _repository.ResolverAsync(justificacionId, user.UserId, targetEstado, comentarioNormalizado, cancellationToken);
 
         if (affected == 0)
         {

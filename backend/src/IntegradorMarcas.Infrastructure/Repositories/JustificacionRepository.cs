@@ -18,6 +18,27 @@ public sealed class JustificacionRepository : IJustificacionRepository
         _connectionFactory = connectionFactory;
     }
 
+    public async Task<IReadOnlyCollection<int>> GetExistingTipoJustificacionIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken)
+    {
+        var distinctIds = ids.Distinct().ToArray();
+        if (distinctIds.Length == 0)
+        {
+            return Array.Empty<int>();
+        }
+
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        var data = await connection.QueryAsync<int>(new CommandDefinition(
+            JustificacionesSql.GetExistingTipoJustificacionIds,
+            new
+            {
+                Ids = distinctIds
+            },
+            cancellationToken: cancellationToken));
+
+        return data.ToArray();
+    }
+
     public async Task<int> CreateAsync(int usuarioId, CreateJustificacionDto request, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
@@ -151,6 +172,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
             {
                 JustificacionId = encabezado.JustificacionID,
                 MotivoGeneral = encabezado.MotivoGeneral,
+                ComentarioResolucion = encabezado.ComentarioResolucion,
                 EstadoId = encabezado.EstadoID,
                 EstadoDescripcion = encabezado.EstadoDescripcion,
                 FechaCreacion = encabezado.FechaCreacion,
@@ -211,7 +233,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
                 JefaturaID = jefaturaId,
                 EstadoID = estadoId,
                 EstadoPendiente = EstadoIds.PendienteJefatura,
-                comentario
+                Comentario = comentario
             },
             cancellationToken: cancellationToken));
     }
@@ -220,6 +242,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
     {
         public int JustificacionID { get; set; }
         public string MotivoGeneral { get; set; } = string.Empty;
+        public string? ComentarioResolucion { get; set; }
         public int EstadoID { get; set; }
         public string EstadoDescripcion { get; set; } = string.Empty;
         public DateTime FechaCreacion { get; set; }

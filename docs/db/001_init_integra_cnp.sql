@@ -81,6 +81,7 @@ BEGIN
         JustificacionID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
         UsuarioID INT NOT NULL,
         MotivoGeneral VARCHAR(500) NOT NULL,
+        ComentarioResolucion VARCHAR(500) NULL,
         EstadoID INT NOT NULL,
         FechaCreacion DATETIME NOT NULL CONSTRAINT DF_JustifEnc_FechaCreacion DEFAULT GETDATE(),
         AprobadorID INT NULL,

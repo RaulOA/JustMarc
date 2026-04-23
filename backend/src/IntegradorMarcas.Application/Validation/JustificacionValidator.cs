@@ -53,6 +53,27 @@ public static class JustificacionValidator
         return normalized;
     }
 
+    public static string? NormalizeComentarioResolucion(string? comentario)
+    {
+        if (comentario is null)
+        {
+            return null;
+        }
+
+        var normalized = comentario.Trim();
+        if (normalized.Length == 0)
+        {
+            return null;
+        }
+
+        if (normalized.Length > 500)
+        {
+            throw new AppException("Comentario no puede exceder 500 caracteres.", 400);
+        }
+
+        return normalized;
+    }
+
     public static void ValidateRangoFechas(DateTime? desde, DateTime? hasta)
     {
         if (desde.HasValue && hasta.HasValue && desde.Value.Date > hasta.Value.Date)

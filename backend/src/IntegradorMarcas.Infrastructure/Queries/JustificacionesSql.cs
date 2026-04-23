@@ -41,6 +41,7 @@ VALUES
 SELECT
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion AS EstadoDescripcion,
     je.FechaCreacion,
@@ -58,6 +59,7 @@ WHERE
 GROUP BY
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion,
     je.FechaCreacion,
@@ -69,6 +71,7 @@ ORDER BY je.FechaCreacion DESC;";
 SELECT
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion AS EstadoDescripcion,
     je.FechaCreacion,
@@ -87,6 +90,7 @@ WHERE
 GROUP BY
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion,
     je.FechaCreacion,
@@ -98,6 +102,7 @@ ORDER BY je.FechaCreacion ASC;";
 SELECT
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion AS EstadoDescripcion,
     je.FechaCreacion,
@@ -130,6 +135,7 @@ WHERE
 GROUP BY
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion,
     je.FechaCreacion,
@@ -147,6 +153,7 @@ ORDER BY je.FechaCreacion DESC, je.JustificacionID DESC;";
 SELECT
     je.JustificacionID,
     je.MotivoGeneral,
+    je.ComentarioResolucion,
     je.EstadoID,
     e.Descripcion AS EstadoDescripcion,
     je.FechaCreacion,
@@ -195,12 +202,19 @@ FROM (SELECT @JustificacionID AS JustificacionID) seed
 LEFT JOIN dbo.Justificaciones_Encabezado je ON je.JustificacionID = seed.JustificacionID
 LEFT JOIN dbo.Usuarios u ON u.UsuarioID = je.UsuarioID;";
 
+    public const string GetExistingTipoJustificacionIds = @"
+SELECT DISTINCT
+    TipoJustificacionID
+FROM dbo.Cat_TiposJustificacion
+WHERE TipoJustificacionID IN @Ids;";
+
     public const string ResolverPendiente = @"
 UPDATE je
 SET
     je.EstadoID = @EstadoID,
     je.AprobadorID = @JefaturaID,
-    je.FechaAprobacion = GETDATE()
+    je.FechaAprobacion = GETDATE(),
+    je.ComentarioResolucion = @Comentario
 FROM dbo.Justificaciones_Encabezado je
 INNER JOIN dbo.Usuarios u ON u.UsuarioID = je.UsuarioID
 WHERE

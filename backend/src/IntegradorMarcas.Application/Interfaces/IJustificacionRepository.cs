@@ -4,6 +4,7 @@ namespace IntegradorMarcas.Application.Interfaces;
 
 public interface IJustificacionRepository
 {
+    Task<IReadOnlyCollection<int>> GetExistingTipoJustificacionIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken);
     Task<int> CreateAsync(int usuarioId, CreateJustificacionDto request, CancellationToken cancellationToken);
     Task<IReadOnlyList<JustificacionResumenDto>> ListMineAsync(int usuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken);
     Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(int jefaturaId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken);

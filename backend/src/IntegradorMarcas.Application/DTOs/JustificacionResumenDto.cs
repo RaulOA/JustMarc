@@ -4,6 +4,7 @@ public sealed class JustificacionResumenDto
 {
     public int JustificacionId { get; set; }
     public string MotivoGeneral { get; set; } = string.Empty;
+    public string? ComentarioResolucion { get; set; }
     public int EstadoId { get; set; }
     public string EstadoDescripcion { get; set; } = string.Empty;
     public DateTime FechaCreacion { get; set; }

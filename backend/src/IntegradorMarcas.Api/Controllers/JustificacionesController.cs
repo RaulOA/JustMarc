@@ -69,6 +69,7 @@ public sealed class JustificacionesController : ControllerBase
         {
             JustificacionID = x.JustificacionId,
             MotivoGeneral = x.MotivoGeneral,
+            ComentarioResolucion = x.ComentarioResolucion,
             EstadoID = x.EstadoId,
             EstadoDescripcion = x.EstadoDescripcion,
             FechaCreacion = x.FechaCreacion,

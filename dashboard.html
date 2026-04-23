@@ -284,7 +284,7 @@
 
           <div class="form-group">
             <label for="f-motivo">Motivo General <span style="color:var(--danger)">*</span></label>
-            <textarea id="f-motivo" placeholder="Describa el motivo principal de la justificación..."></textarea>
+            <textarea id="f-motivo" required maxlength="500" placeholder="Describa el motivo principal de la justificación..."></textarea>
           </div>
 
           <div class="card" style="border-style:dashed; margin-bottom:16px;">
@@ -294,7 +294,7 @@
             <div class="card-body" style="padding:14px;">
               <div class="form-group">
                 <label for="f-d-tipo">Tipo de Justificación <span style="color:var(--danger)">*</span></label>
-                <select id="f-d-tipo">
+                <select id="f-d-tipo" required>
                   <option value="">— Seleccione —</option>
                   <option value="Marca Tardía">Marca Tardía</option>
                   <option value="Omisión Marca de Entrada">Omisión Marca de Entrada</option>
@@ -306,12 +306,12 @@
 
               <div class="form-group">
                 <label for="f-d-fecha">Fecha de Marca <span style="color:var(--danger)">*</span></label>
-                <input type="date" id="f-d-fecha" />
+                <input type="date" id="f-d-fecha" required />
               </div>
 
               <div class="form-group">
                 <label for="f-d-observacion">Observación del Detalle</label>
-                <textarea id="f-d-observacion" placeholder="Opcional"></textarea>
+                <textarea id="f-d-observacion" maxlength="250" placeholder="Opcional"></textarea>
               </div>
 
               <button class="btn btn-secondary" type="button" style="width:100%; justify-content:center;" onclick="addDetailLine()">
@@ -445,7 +445,7 @@
     <div class="filter-bar">
       <div class="form-group">
         <label for="rrhh-fn">Funcionario</label>
-        <input type="text" id="rrhh-fn" placeholder="Nombre o cédula..." />
+        <input type="text" id="rrhh-fn" maxlength="150" placeholder="Nombre o cédula..." />
       </div>
       <div class="form-group">
         <label for="rrhh-estado">Estado</label>

@@ -36,6 +36,7 @@ public sealed class JefaturaController : ControllerBase
         {
             JustificacionID = x.JustificacionId,
             MotivoGeneral = x.MotivoGeneral,
+            ComentarioResolucion = x.ComentarioResolucion,
             EstadoID = x.EstadoId,
             EstadoDescripcion = x.EstadoDescripcion,
             FechaCreacion = x.FechaCreacion,
@@ -59,6 +60,7 @@ public sealed class JefaturaController : ControllerBase
             {
                 JustificacionID = result.Encabezado.JustificacionId,
                 MotivoGeneral = result.Encabezado.MotivoGeneral,
+                ComentarioResolucion = result.Encabezado.ComentarioResolucion,
                 EstadoID = result.Encabezado.EstadoId,
                 EstadoDescripcion = result.Encabezado.EstadoDescripcion,
                 FechaCreacion = result.Encabezado.FechaCreacion,
