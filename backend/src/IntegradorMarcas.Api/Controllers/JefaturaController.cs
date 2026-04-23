@@ -19,6 +19,11 @@ public sealed class JefaturaController : ControllerBase
         _userContext = userContext;
     }
 
+    /// <summary>
+    /// Lista justificaciones pendientes visibles para la jefatura autenticada.
+    /// </summary>
+    /// <param name="desde">Fecha inicial opcional para filtrar por rango de creacion.</param>
+    /// <param name="hasta">Fecha final opcional para filtrar por rango de creacion.</param>
     [HttpGet("pendientes")]
     public async Task<ActionResult<IReadOnlyList<JustificacionResumenResponse>>> ListPendientes(
         [FromQuery] DateTime? desde,
@@ -46,6 +51,9 @@ public sealed class JefaturaController : ControllerBase
         }).ToList());
     }
 
+    /// <summary>
+    /// Obtiene el detalle completo de una justificacion accesible por la jefatura actual.
+    /// </summary>
     [HttpGet("{justificacionId:int}")]
     public async Task<ActionResult<JustificacionDetalleCompletaResponse>> GetDetalle(
         int justificacionId,
@@ -101,6 +109,12 @@ public sealed class JefaturaController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Resuelve una justificacion mediante la accion indicada por la jefatura.
+    /// </summary>
+    /// <remarks>
+    /// La validacion de accion/comentario y las transiciones de estado se aplican en la capa de servicio.
+    /// </remarks>
     [HttpPatch("{justificacionId:int}/resolver")]
     public async Task<ActionResult> Resolver(
         int justificacionId,

@@ -19,6 +19,9 @@ public sealed class AdminAprobacionesController : ControllerBase
         _userContext = userContext;
     }
 
+    /// <summary>
+    /// Lista jerarquias de aprobacion con filtros administrativos opcionales.
+    /// </summary>
     [HttpGet("jerarquias")]
     public async Task<ActionResult<IReadOnlyList<AdminJerarquiaResponse>>> ListJerarquias(
         [FromQuery] int? aprobadorUsuarioId,
@@ -41,6 +44,12 @@ public sealed class AdminAprobacionesController : ControllerBase
         }).ToList());
     }
 
+    /// <summary>
+    /// Crea una jerarquia de aprobacion.
+    /// </summary>
+    /// <remarks>
+    /// Las reglas de consistencia (vigencia, duplicidad y permisos) se validan en la capa de servicio.
+    /// </remarks>
     [HttpPost("jerarquias")]
     public async Task<ActionResult<AdminJerarquiaResponse>> CreateJerarquia(
         [FromBody] CreateJerarquiaRequest request,
@@ -70,6 +79,9 @@ public sealed class AdminAprobacionesController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Cambia el estado de registro de una jerarquia de aprobacion.
+    /// </summary>
     [HttpPatch("jerarquias/{jerarquiaAprobacionId:int}/estado")]
     public async Task<ActionResult> ToggleJerarquiaEstado(
         int jerarquiaAprobacionId,
@@ -85,6 +97,9 @@ public sealed class AdminAprobacionesController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Lista delegaciones de aprobacion con filtros por delegante, delegado, estado y fecha de vigencia.
+    /// </summary>
     [HttpGet("delegaciones")]
     public async Task<ActionResult<IReadOnlyList<AdminDelegacionResponse>>> ListDelegaciones(
         [FromQuery] int? deleganteUsuarioId,
@@ -115,6 +130,12 @@ public sealed class AdminAprobacionesController : ControllerBase
         }).ToList());
     }
 
+    /// <summary>
+    /// Crea una delegacion de aprobacion.
+    /// </summary>
+    /// <remarks>
+    /// Las validaciones de vigencia y consistencia referencial se ejecutan en la capa de servicio.
+    /// </remarks>
     [HttpPost("delegaciones")]
     public async Task<ActionResult<AdminDelegacionResponse>> CreateDelegacion(
         [FromBody] CreateDelegacionRequest request,
@@ -144,6 +165,9 @@ public sealed class AdminAprobacionesController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Cambia el estado de registro de una delegacion de aprobacion.
+    /// </summary>
     [HttpPatch("delegaciones/{delegacionAprobacionId:int}/estado")]
     public async Task<ActionResult> ToggleDelegacionEstado(
         int delegacionAprobacionId,

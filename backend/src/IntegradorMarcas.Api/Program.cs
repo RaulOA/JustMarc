@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// En entornos no Development, la conexion principal es obligatoria para fallar en arranque
+// si falta configuracion critica y evitar errores diferidos en runtime.
 if (!builder.Environment.IsDevelopment())
 {
     var integraCnp = builder.Configuration.GetConnectionString("IntegraCnp");
@@ -27,6 +29,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("LocalFrontend", policy =>
     {
         policy
+            // Apertura total de origenes para entorno local/controlado; restringir en despliegues expuestos.
             .SetIsOriginAllowed(_ => true)
             .AllowAnyHeader()
             .AllowAnyMethod();
@@ -60,6 +63,11 @@ app.UseExceptionHandler(exceptionApp =>
         await Results.Problem(title: title, statusCode: statusCode).ExecuteAsync(context);
     });
 });
+
+// Manejo global de excepciones para respuestas ProblemDetails consistentes:
+// - Traduce excepciones conocidas a codigos HTTP esperados.
+// - Adjunta correlationId para trazabilidad en soporte.
+// - Registra error tecnico en BD sin propagar fallos del logger.
 app.UseExceptionHandler(exceptionApp =>
 {
     exceptionApp.Run(async context =>
@@ -106,9 +114,11 @@ app.UseExceptionHandler(exceptionApp =>
                 ));
             }
         }
-        catch { /* nunca propagar */ }
+        // El logging de error nunca debe romper la respuesta principal al cliente.
+        catch { }
 
         context.Response.StatusCode = statusCode;
+        // Exponer correlationId para cruce entre respuesta del cliente y bitacora tecnica.
         context.Response.Headers["X-Correlation-Id"] = correlationId.ToString();
 
         await Results.Problem(
@@ -130,6 +140,7 @@ app.UseHttpsRedirection();
 app.UseCors("LocalFrontend");
 app.MapControllers();
 
+// Probe operativo minimo para disponibilidad del proceso y referencia temporal UTC.
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
