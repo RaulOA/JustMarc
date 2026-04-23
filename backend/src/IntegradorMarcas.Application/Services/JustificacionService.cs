@@ -45,7 +45,49 @@ public sealed class JustificacionService : IJustificacionService
             throw new AppException("Solo jefatura puede ver pendientes.", 403);
         }
 
+        JustificacionValidator.ValidateRangoFechas(filtros.Desde, filtros.Hasta);
         return await _repository.ListPendientesJefaturaAsync(user.UserId, filtros, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListRrhhAsync(UserContextInfo user, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken)
+    {
+        if (!RolesSistema.EsRrhh(user.Role))
+        {
+            throw new AppException("Solo RRHH puede consultar boletas globales.", 403);
+        }
+
+        JustificacionValidator.ValidateRangoFechas(filtros.FechaDesde, filtros.FechaHasta);
+        JustificacionValidator.ValidateCompania(filtros.Compania);
+        JustificacionValidator.ValidateTextoBusqueda(filtros.Funcionario);
+
+        return await _repository.ListRrhhAsync(filtros, cancellationToken);
+    }
+
+    public async Task<JustificacionCompletaDto> GetDetalleJefaturaAsync(UserContextInfo user, int justificacionId, CancellationToken cancellationToken)
+    {
+        if (!RolesSistema.EsJefatura(user.Role))
+        {
+            throw new AppException("Solo jefatura puede ver el detalle de boletas.", 403);
+        }
+
+        var validation = await _repository.GetResolverValidationAsync(justificacionId, user.UserId, cancellationToken);
+        if (!validation.Exists)
+        {
+            throw new AppException("No existe la boleta indicada.", 404);
+        }
+
+        if (!validation.IsSubordinado)
+        {
+            throw new AppException("La boleta no pertenece a un subordinado directo de la jefatura autenticada.", 403);
+        }
+
+        var detalle = await _repository.GetDetalleJefaturaAsync(justificacionId, user.UserId, cancellationToken);
+        if (detalle is null)
+        {
+            throw new AppException("No existe la boleta indicada.", 404);
+        }
+
+        return detalle;
     }
 
     public async Task ResolverAsync(UserContextInfo user, int justificacionId, ResolverJustificacionDto request, CancellationToken cancellationToken)

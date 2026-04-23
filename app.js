@@ -20,6 +20,7 @@ const COMPANY_BY_PREFIX = {
 };
 
 let draftDetails = [];
+const jefaturaDetailCache = new Map();
 
 const API_CONFIG = {
   defaultBaseUrl: 'http://localhost:5093',
@@ -202,11 +203,54 @@ function normalizeApiResumen(item) {
     fechaCreacion: item?.fechaCreacion || null,
     fechaResolucion: item?.fechaAprobacion || null,
     cantidadDetalles: Number(item?.cantidadDetalles || 0),
-    funcionarioNombre: 'No disponible en API',
-    tipoPrincipal: 'No disponible en API',
-    observacionDetalle: 'No disponible en API',
+    funcionarioNombre: item?.funcionarioNombre || 'Cargando...',
+    funcionarioCedula: item?.funcionarioCedula || '',
+    compania: item?.compania || '',
+    tipoPrincipal: item?.tipoPrincipal || 'Sin detalle',
+    observacionDetalle: item?.observacionDetalle || 'Cargando detalle...',
     aprobadorLabel: item?.aprobadorID ? `ID ${item.aprobadorID}` : null
   };
+}
+
+function summarizeDetailLines(lineas) {
+  if (!Array.isArray(lineas) || lineas.length === 0) {
+    return 'Sin líneas de detalle.';
+  }
+
+  return lineas
+    .map(l => {
+      const tipo = l?.tipoJustificacionDescripcion || 'Tipo no disponible';
+      const fecha = formatDate(l?.fechaMarca);
+      const obs = l?.observacionDetalle ? ` - ${l.observacionDetalle}` : '';
+      return `${tipo} (${fecha})${obs}`;
+    })
+    .join(' | ');
+}
+
+function getRrhhEstadoIdFromUi(value) {
+  if (value === 'Pendiente') return 1;
+  if (value === 'Aprobado') return 2;
+  if (value === 'Rechazado') return 3;
+  return null;
+}
+
+function buildRrhhQueryString() {
+  const funcionario = (document.getElementById('rrhh-fn')?.value || '').trim();
+  const estadoLabel = document.getElementById('rrhh-estado')?.value || '';
+  const compania = (document.getElementById('rrhh-company')?.value || '').trim();
+  const fechaDesde = (document.getElementById('rrhh-desde')?.value || '').trim();
+  const fechaHasta = (document.getElementById('rrhh-hasta')?.value || '').trim();
+  const estadoId = getRrhhEstadoIdFromUi(estadoLabel);
+
+  const query = new URLSearchParams();
+  if (funcionario) query.set('funcionario', funcionario);
+  if (estadoId) query.set('estadoId', String(estadoId));
+  if (compania) query.set('compania', compania);
+  if (fechaDesde) query.set('fechaDesde', fechaDesde);
+  if (fechaHasta) query.set('fechaHasta', fechaHasta);
+
+  const qs = query.toString();
+  return qs ? `?${qs}` : '';
 }
 
 function mapDetailToApi(detail) {
@@ -484,18 +528,19 @@ async function renderJefaturaRequests() {
           <div class="flex gap-8">
             <button class="btn btn-sm btn-success" type="button" onclick="approveRequest(${b.id},'approve')">Aprobar</button>
             <button class="btn btn-sm btn-danger" type="button" onclick="approveRequest(${b.id},'reject')">Rechazar</button>
-            <button class="btn btn-sm btn-secondary" type="button" onclick="toggleDetail(this)">Ver detalle ▼</button>
+            <button class="btn btn-sm btn-secondary" type="button" onclick="toggleDetail(this, ${b.id})">Ver detalle ▼</button>
           </div>
         </td>
       </tr>
-      <tr class="detail-row hidden">
+      <tr class="detail-row hidden" data-boleta-id="${b.id}">
         <td colspan="6">
           <div class="detail-inner">
-            <div class="detail-field"><label>ID Boleta</label><p>${b.idPresentacion}</p></div>
-            <div class="detail-field"><label>Funcionario</label><p>${escapeHtml(b.funcionarioNombre)}</p></div>
-            <div class="detail-field"><label>Motivo general</label><p>${escapeHtml(b.motivoGeneral)}</p></div>
+            <div class="detail-field"><label>ID Boleta</label><p class="detail-id">${b.idPresentacion}</p></div>
+            <div class="detail-field"><label>Funcionario</label><p class="detail-funcionario">${escapeHtml(b.funcionarioNombre)}</p></div>
+            <div class="detail-field"><label>Motivo general</label><p class="detail-motivo">${escapeHtml(b.motivoGeneral)}</p></div>
             <div class="detail-field"><label>Líneas</label><p>${b.cantidadDetalles}</p></div>
-            <div class="detail-field" style="grid-column: 1 / -1;"><label>Detalle completo</label><p>${escapeHtml(b.observacionDetalle)}</p></div>
+            <div class="detail-field"><label>Tipo principal</label><p class="detail-tipo">${escapeHtml(b.tipoPrincipal)}</p></div>
+            <div class="detail-field" style="grid-column: 1 / -1;"><label>Detalle completo</label><p class="detail-completo">${escapeHtml(b.observacionDetalle)}</p></div>
           </div>
         </td>
       </tr>
@@ -543,7 +588,7 @@ async function approveRequest(boletaId, action) {
   }
 }
 
-function toggleDetail(btn) {
+async function toggleDetail(btn, boletaId) {
   const row = btn.closest('tr');
   const detailRow = row?.nextElementSibling;
   if (!detailRow || !detailRow.classList.contains('detail-row')) return;
@@ -551,6 +596,42 @@ function toggleDetail(btn) {
   const isHidden = detailRow.classList.contains('hidden');
   detailRow.classList.toggle('hidden', !isHidden);
   btn.textContent = isHidden ? 'Ocultar ▲' : 'Ver detalle ▼';
+
+  if (!isHidden) {
+    return;
+  }
+
+  const session = getSession();
+  if (!session || session.role !== 'ROL_JEFE') {
+    return;
+  }
+
+  const funcionarioEl = detailRow.querySelector('.detail-funcionario');
+  const tipoEl = detailRow.querySelector('.detail-tipo');
+  const detalleEl = detailRow.querySelector('.detail-completo');
+
+  try {
+    let data = jefaturaDetailCache.get(boletaId);
+    if (!data) {
+      if (detalleEl) detalleEl.textContent = 'Cargando detalle...';
+      data = await apiFetch(`/api/jefatura/justificaciones/${boletaId}`, {
+        method: 'GET',
+        headers: buildApiHeaders(session)
+      }, session);
+      jefaturaDetailCache.set(boletaId, data);
+    }
+
+    const lineas = Array.isArray(data?.detalles) ? data.detalles : [];
+    const solicitanteNombre = data?.solicitante?.nombreCompleto || 'No disponible';
+    const tipoPrincipal = lineas[0]?.tipoJustificacionDescripcion || 'Sin líneas de detalle';
+
+    if (funcionarioEl) funcionarioEl.textContent = solicitanteNombre;
+    if (tipoEl) tipoEl.textContent = tipoPrincipal;
+    if (detalleEl) detalleEl.textContent = summarizeDetailLines(lineas);
+  } catch (error) {
+    if (detalleEl) detalleEl.textContent = 'No fue posible cargar el detalle de la boleta.';
+    showNotice('j-notice', 'error', `No se pudo cargar el detalle: ${error.message}`);
+  }
 }
 
 async function renderRRHHTable() {
@@ -561,69 +642,44 @@ async function renderRRHHTable() {
   if (!session) return;
 
   if (session.role === 'ROL_RRHH') {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Sin endpoint RRHH en esta versión. Use panel Funcionario o Jefatura para datos integrados.</td></tr>';
+    const endpoint = `/api/rrhh/justificaciones${buildRrhhQueryString()}`;
+
+    try {
+      const response = await apiFetch(endpoint, {
+        method: 'GET',
+        headers: buildApiHeaders(session)
+      }, session);
+
+      const boletas = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
+      if (boletas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No hay registros disponibles.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = boletas.map(b => `
+        <tr>
+          <td>${escapeHtml(b.funcionarioNombre)}</td>
+          <td>${escapeHtml(b.compania || '—')}</td>
+          <td>${escapeHtml(b.motivoGeneral)}</td>
+          <td>${escapeHtml(b.tipoPrincipal)}</td>
+          <td>${formatDateTime(b.fechaCreacion)}</td>
+          <td>${renderStatusBadge(b.estado)}</td>
+          <td>${b.aprobadorLabel && b.fechaResolucion ? `${escapeHtml(b.aprobadorLabel)} (${formatDateTime(b.fechaResolucion)})` : '—'}</td>
+        </tr>
+      `).join('');
+    } catch (error) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No hay registros disponibles.</td></tr>';
+      showNotice('rrhh-notice', 'error', `No se pudo cargar información RRHH: ${error.message}`);
+    }
+
     return;
   }
 
-  const endpoint = session.role === 'ROL_JEFE'
-    ? '/api/jefatura/justificaciones/pendientes'
-    : '/api/justificaciones/mias';
-
-  try {
-    const response = await apiFetch(endpoint, {
-      method: 'GET',
-      headers: buildApiHeaders(session)
-    }, session);
-
-    const boletas = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
-    if (boletas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No hay registros disponibles.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = boletas.map(b => `
-      <tr>
-        <td>${escapeHtml(b.funcionarioNombre)}</td>
-        <td>${escapeHtml(session.company || 'CNP')}</td>
-        <td>${escapeHtml(b.motivoGeneral)}</td>
-        <td>${escapeHtml(b.tipoPrincipal)}</td>
-        <td>${formatDateTime(b.fechaCreacion)}</td>
-        <td>${renderStatusBadge(b.estado)}</td>
-        <td>${b.aprobadorLabel && b.fechaResolucion ? `${escapeHtml(b.aprobadorLabel)} (${formatDateTime(b.fechaResolucion)})` : '—'}</td>
-      </tr>
-    `).join('');
-  } catch (error) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No hay registros disponibles.</td></tr>';
-    showNotice('rrhh-notice', 'error', `No se pudo cargar información integrada: ${error.message}`);
-  }
+  tbody.innerHTML = '<tr><td colspan="7" class="text-muted">Vista disponible solo para rol RRHH.</td></tr>';
 }
 
 function applyRRHHFilter() {
-  const fnFilter = (document.getElementById('rrhh-fn')?.value || '').toLowerCase().trim();
-  const stFilter = document.getElementById('rrhh-estado')?.value || '';
-  const companyFilter = document.getElementById('rrhh-company')?.value || '';
-  const fromDate = document.getElementById('rrhh-desde')?.value || '';
-  const toDate = document.getElementById('rrhh-hasta')?.value || '';
-
-  const rows = document.querySelectorAll('#rrhh-tbody tr');
-  rows.forEach(row => {
-    const fn = row.cells[0]?.textContent.toLowerCase() || '';
-    const company = row.cells[1]?.textContent.trim() || '';
-    const estado = row.cells[5]?.textContent.trim() || '';
-    const fechaText = row.cells[4]?.textContent.trim() || '';
-
-    const [datePart] = fechaText.split(' ');
-    const [d, m, y] = datePart.split('/');
-    const iso = d && m && y ? `${y}-${m}-${d}` : '';
-
-    const fnMatch = !fnFilter || fn.includes(fnFilter);
-    const stMatch = !stFilter || estado.includes(stFilter);
-    const companyMatch = !companyFilter || company === companyFilter;
-    const fromMatch = !fromDate || (iso && iso >= fromDate);
-    const toMatch = !toDate || (iso && iso <= toDate);
-
-    row.style.display = fnMatch && stMatch && companyMatch && fromMatch && toMatch ? '' : 'none';
-  });
+  renderRRHHTable();
 }
 
 function resetRRHHFilter() {
@@ -631,9 +687,7 @@ function resetRRHHFilter() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.querySelectorAll('#rrhh-tbody tr').forEach(row => {
-    row.style.display = '';
-  });
+  renderRRHHTable();
 }
 
 function sifcnpSearch() {
@@ -674,9 +728,12 @@ function showNotice(targetId, type, msg) {
 
 function formatDate(isoDate) {
   if (!isoDate) return '—';
-  const [y, m, d] = isoDate.split('-');
-  if (!y || !m || !d) return '—';
-  return `${d}/${m}/${y}`;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '—';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function formatDateTime(isoDate) {

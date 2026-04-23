@@ -94,6 +94,98 @@ GROUP BY
     je.FechaAprobacion
 ORDER BY je.FechaCreacion ASC;";
 
+    public const string ListRrhhGlobal = @"
+SELECT
+    je.JustificacionID,
+    je.MotivoGeneral,
+    je.EstadoID,
+    e.Descripcion AS EstadoDescripcion,
+    je.FechaCreacion,
+    COUNT(jd.DetalleID) AS CantidadDetalles,
+    je.AprobadorID,
+    je.FechaAprobacion,
+    u.UsuarioID AS FuncionarioID,
+    u.NombreCompleto AS FuncionarioNombre,
+    u.Cedula AS FuncionarioCedula,
+    u.Compania,
+    u.JefaturaID,
+    j.NombreCompleto AS JefaturaNombre,
+    MIN(tj.Descripcion) AS TipoPrincipal
+FROM dbo.Justificaciones_Encabezado je
+INNER JOIN dbo.Estados e ON e.EstadoID = je.EstadoID
+INNER JOIN dbo.Usuarios u ON u.UsuarioID = je.UsuarioID
+LEFT JOIN dbo.Usuarios j ON j.UsuarioID = u.JefaturaID
+LEFT JOIN dbo.Justificaciones_Detalle jd ON jd.JustificacionID = je.JustificacionID
+LEFT JOIN dbo.Cat_TiposJustificacion tj ON tj.TipoJustificacionID = jd.TipoJustificacionID
+WHERE
+    (@EstadoID IS NULL OR je.EstadoID = @EstadoID)
+    AND (@Compania IS NULL OR u.Compania = @Compania)
+    AND (@FechaDesde IS NULL OR CAST(je.FechaCreacion AS DATE) >= CAST(@FechaDesde AS DATE))
+    AND (@FechaHasta IS NULL OR CAST(je.FechaCreacion AS DATE) <= CAST(@FechaHasta AS DATE))
+    AND (
+        @Funcionario IS NULL
+        OR u.NombreCompleto LIKE CONCAT('%', @Funcionario, '%')
+        OR u.Cedula LIKE CONCAT('%', @Funcionario, '%')
+    )
+GROUP BY
+    je.JustificacionID,
+    je.MotivoGeneral,
+    je.EstadoID,
+    e.Descripcion,
+    je.FechaCreacion,
+    je.AprobadorID,
+    je.FechaAprobacion,
+    u.UsuarioID,
+    u.NombreCompleto,
+    u.Cedula,
+    u.Compania,
+    u.JefaturaID,
+    j.NombreCompleto
+ORDER BY je.FechaCreacion DESC, je.JustificacionID DESC;";
+
+    public const string GetDetalleJefaturaEncabezado = @"
+SELECT
+    je.JustificacionID,
+    je.MotivoGeneral,
+    je.EstadoID,
+    e.Descripcion AS EstadoDescripcion,
+    je.FechaCreacion,
+    je.AprobadorID,
+    je.FechaAprobacion,
+    u.UsuarioID AS SolicitanteUsuarioID,
+    u.NombreCompleto AS SolicitanteNombreCompleto,
+    u.Cedula AS SolicitanteCedula,
+    u.Correo AS SolicitanteCorreo,
+    u.Compania AS SolicitanteCompania,
+    u.UnidadID AS SolicitanteUnidadID,
+    u.JefaturaID AS SolicitanteJefaturaID,
+    ua.UsuarioID AS AprobadorUsuarioID,
+    ua.NombreCompleto AS AprobadorNombreCompleto,
+    ua.Cedula AS AprobadorCedula,
+    ua.Correo AS AprobadorCorreo,
+    ua.Compania AS AprobadorCompania,
+    ua.UnidadID AS AprobadorUnidadID,
+    ua.JefaturaID AS AprobadorJefaturaID
+FROM dbo.Justificaciones_Encabezado je
+INNER JOIN dbo.Estados e ON e.EstadoID = je.EstadoID
+INNER JOIN dbo.Usuarios u ON u.UsuarioID = je.UsuarioID
+LEFT JOIN dbo.Usuarios ua ON ua.UsuarioID = je.AprobadorID
+WHERE
+    je.JustificacionID = @JustificacionID
+    AND u.JefaturaID = @JefaturaID;";
+
+    public const string GetDetalleJefaturaLineas = @"
+SELECT
+    jd.DetalleID,
+    jd.TipoJustificacionID,
+    tj.Descripcion AS TipoJustificacionDescripcion,
+    jd.FechaMarca,
+    jd.ObservacionDetalle
+FROM dbo.Justificaciones_Detalle jd
+INNER JOIN dbo.Cat_TiposJustificacion tj ON tj.TipoJustificacionID = jd.TipoJustificacionID
+WHERE jd.JustificacionID = @JustificacionID
+ORDER BY jd.FechaMarca DESC, jd.DetalleID DESC;";
+
     public const string GetResolverValidation = @"
 SELECT
     CASE WHEN je.JustificacionID IS NULL THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS [Exists],

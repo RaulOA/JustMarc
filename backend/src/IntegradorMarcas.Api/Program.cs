@@ -8,6 +8,16 @@ using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (!builder.Environment.IsDevelopment())
+{
+    var integraCnp = builder.Configuration.GetConnectionString("IntegraCnp");
+    if (string.IsNullOrWhiteSpace(integraCnp))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:IntegraCnp no esta configurada para entorno no-Development.");
+    }
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

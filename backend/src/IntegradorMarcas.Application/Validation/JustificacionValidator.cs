@@ -5,6 +5,12 @@ namespace IntegradorMarcas.Application.Validation;
 
 public static class JustificacionValidator
 {
+    private static readonly HashSet<string> CompaniasPermitidas = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CNP",
+        "FANAL"
+    };
+
     public static void ValidateCreate(CreateJustificacionDto request)
     {
         if (string.IsNullOrWhiteSpace(request.MotivoGeneral) || request.MotivoGeneral.Length > 500)
@@ -45,5 +51,34 @@ public static class JustificacionValidator
         }
 
         return normalized;
+    }
+
+    public static void ValidateRangoFechas(DateTime? desde, DateTime? hasta)
+    {
+        if (desde.HasValue && hasta.HasValue && desde.Value.Date > hasta.Value.Date)
+        {
+            throw new AppException("El rango de fechas es inválido: Desde no puede ser mayor que Hasta.", 400);
+        }
+    }
+
+    public static void ValidateCompania(string? compania)
+    {
+        if (string.IsNullOrWhiteSpace(compania))
+        {
+            return;
+        }
+
+        if (!CompaniasPermitidas.Contains(compania.Trim()))
+        {
+            throw new AppException("Compania inválida. Valores permitidos: CNP o FANAL.", 400);
+        }
+    }
+
+    public static void ValidateTextoBusqueda(string? funcionario)
+    {
+        if (!string.IsNullOrWhiteSpace(funcionario) && funcionario.Trim().Length > 150)
+        {
+            throw new AppException("El texto de búsqueda de funcionario no puede exceder 150 caracteres.", 400);
+        }
     }
 }

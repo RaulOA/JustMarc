@@ -7,5 +7,7 @@ public interface IJustificacionService
     Task<int> CreateAsync(UserContextInfo user, CreateJustificacionDto request, CancellationToken cancellationToken);
     Task<IReadOnlyList<JustificacionResumenDto>> ListMineAsync(UserContextInfo user, FiltroJustificacionesDto filtros, CancellationToken cancellationToken);
     Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(UserContextInfo user, FiltroJustificacionesDto filtros, CancellationToken cancellationToken);
+    Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListRrhhAsync(UserContextInfo user, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken);
+    Task<JustificacionCompletaDto> GetDetalleJefaturaAsync(UserContextInfo user, int justificacionId, CancellationToken cancellationToken);
     Task ResolverAsync(UserContextInfo user, int justificacionId, ResolverJustificacionDto request, CancellationToken cancellationToken);
 }
