@@ -1,98 +1,63 @@
-# Manual de Usuario - Rol Funcionario
+# Manual de Usuario para Funcionario
 
-## 1. Objetivo
-Guiar al funcionario en el registro y consulta de boletas de justificacion de marcas dentro del sistema.
+## Bienvenida y sentido de este manual
+Este manual esta pensado para acompanarle durante un dia normal de trabajo, de principio a fin, cuando necesita justificar una marca. No hace falta tener experiencia con herramientas digitales ni conocer palabras especiales. La idea es explicarle todo con calma, como si una persona companera estuviera a su lado guiando cada paso. Aqui encontrara como entrar, como registrar una justificacion de forma correcta, como revisar lo que ya envio y como cerrar su jornada con tranquilidad.
 
-## 2. Alcance
-Este manual cubre:
-- Ingreso al sistema.
-- Creacion de boletas con lineas de detalle.
-- Consulta de historial propio.
+Cuando se habla de justificar una marca, se habla de dejar por escrito el motivo de una situacion puntual relacionada con su registro de asistencia. En la practica diaria esto puede pasar por un atraso de transporte, una salida por cita medica, una actividad institucional fuera de oficina o cualquier situacion que usted deba documentar de manera formal. Este espacio le permite hacerlo de forma ordenada para que su jefatura lo revise despues.
 
-No cubre:
-- Resolucion de boletas (rol Jefatura).
-- Consulta global de todas las boletas (rol RRHH).
+## Inicio de jornada: entrar con confianza
+Al comenzar el dia, lo primero es abrir la pantalla de ingreso. Verá dos espacios para escribir sus datos de acceso. En uno coloca su usuario y en el otro su contrasena. Es importante escribirlos con calma, revisando que no haya errores de digitacion. Si al primer intento no entra, respire con tranquilidad y vuelva a revisar lo escrito. Muchas veces un pequeno error al teclear es suficiente para que no le permita continuar.
 
-## 3. Prerequisitos
-- Tener acceso al frontend (index.html y dashboard.html).
-- Contar con usuario de prueba o institucional activo.
-- Si se usa ambiente local, API encendida y base de datos operativa.
+Cuando el ingreso es correcto, usted llega a su espacio de trabajo como funcionario. Ese detalle es importante porque confirma que esta en el lugar adecuado para registrar y revisar sus propias justificaciones. Si por alguna razon nota que la pantalla no corresponde a su rol, lo mejor es salir y volver a entrar con los datos correctos. Este pequeno chequeo al inicio evita confusiones mas adelante.
 
-## 4. Acceso al sistema
-1. Abra index.html.
-2. Ingrese usuario y contrasena.
-3. Presione Ingresar.
-4. Verifique que en la barra superior aparezca Rol: FUNC.
+Una forma sencilla de iniciar bien el dia es dedicar un minuto a mirar su pantalla antes de empezar a registrar informacion. Observe con calma donde esta el area de nueva justificacion y donde se encuentra el historial. Esa breve ubicacion inicial le ahorra tiempo durante toda la jornada.
 
-Nota:
-- En ambiente de prueba, ejemplos de usuario: funcionario.ana.
+## Preparacion antes de registrar una justificacion
+Antes de escribir cualquier dato, conviene ordenar mentalmente la situacion que va a reportar. Preguntese cual fue el hecho principal y en que fechas ocurrieron los eventos que necesita detallar. Este momento de preparacion es util porque le permite escribir con claridad y evita correcciones innecesarias.
 
-## 5. Flujo principal: crear una justificacion
-### 5.1 Registrar encabezado
-1. Ir a Panel Funcionario.
-2. Completar Motivo General.
-3. Motivo General es obligatorio y maximo 500 caracteres.
+Piense en el motivo general como una explicacion corta y comprensible de lo sucedido. No necesita redactar un texto complicado. Lo que ayuda es que sea directo y humano, por ejemplo explicando que tuvo una cita medica en un horario especifico, o que hubo una situacion extraordinaria de traslado que afecto su llegada. Entre mas claro sea ese motivo, mas facil sera para su jefatura comprender el contexto.
 
-### 5.2 Agregar lineas de detalle
-1. Seleccionar Tipo de Justificacion.
-2. Elegir Fecha de Marca.
-3. (Opcional) escribir Observacion del Detalle (maximo 250).
-4. Presionar Agregar Linea.
-5. Repetir para cada marca requerida.
+Despues, recuerde que la justificacion no queda completa solo con el motivo general. Tambien debe incluir al menos un detalle con el tipo de justificacion y la fecha correspondiente. Si hubo mas de un hecho relacionado, puede agregar varios detalles, uno por uno, hasta reflejar correctamente lo ocurrido.
 
-Regla obligatoria:
-- Debe existir al menos una linea de detalle antes de registrar.
+## Registro de la justificacion durante la jornada
+Con la informacion clara, inicie en el espacio de nueva justificacion escribiendo el motivo general. Hagalo en palabras sencillas, sin abreviaturas confusas. Imagine que lo leerá una persona que no estuvo presente en lo ocurrido. Si al leerlo usted mismo siente que se entiende de inmediato, va por buen camino.
 
-### 5.3 Registrar boleta
-1. Verifique lineas agregadas en la tabla de detalle.
-2. Presione Registrar Justificacion.
-3. Espere notificacion de exito.
-4. Resultado esperado: boleta creada en estado Pendiente Jefatura.
+Luego pase al detalle. En cada detalle se selecciona el tipo de justificacion y la fecha de la marca que se esta reportando. Si desea, puede anadir una observacion para ampliar contexto en ese detalle puntual. Esta observacion no es obligatoria, pero puede ser util cuando hay algo concreto que conviene dejar anotado, como una hora aproximada o una aclaracion breve.
 
-## 6. Flujo secundario: consultar historial propio
-1. En el mismo panel, revise Mi Historial de Justificaciones.
-2. Verifique columnas: ID, motivo, cantidad de conceptos, fecha, estado y fecha de resolucion.
-3. Si no hay datos, el sistema mostrara No hay boletas registradas.
+Una vez completado ese detalle, lo agrega a la justificacion. Si necesita incluir otro evento del mismo caso, repite el mismo proceso con calma. En la vida real hay situaciones donde una misma gestion involucra mas de una marca, y esta forma de trabajo le permite registrar cada parte de manera ordenada.
 
-## 7. Reglas de negocio aplicables al rol
-- Solo Funcionario puede crear boletas propias.
-- Solo Funcionario puede consultar su historial propio.
-- Una boleta nueva siempre inicia en Pendiente Jefatura.
-- TipoJustificacionID debe existir en catalogo.
+Piense en este ejemplo cotidiano. Una persona tuvo una diligencia institucional en la manana y ademas una cita personal en la tarde, ambas relacionadas con marcas que requieren justificacion. En ese escenario, puede usar un motivo general que resuma el contexto del dia y luego agregar detalles separados por fecha y tipo para que todo quede claro y coherente.
 
-## 8. Mensajes de error comunes y que hacer
-| Caso | Mensaje comun | Que hacer |
-|---|---|---|
-| Motivo vacio | El motivo general es obligatorio. | Complete el campo Motivo General. |
-| Sin detalles | Debe agregar al menos una linea de detalle. | Agregue por lo menos una linea valida. |
-| Tipo no seleccionado | Cada detalle requiere tipo... | Seleccione tipo antes de agregar. |
-| Fecha faltante | Cada detalle requiere ... fecha | Ingrese fecha de marca. |
-| Error backend validacion | No se pudo registrar la boleta: ... | Revise el texto del error y corrija datos. |
-| Sesion de rol incorrecta | Solo el rol Funcionario puede registrar boletas. | Ingrese con un usuario de rol Funcionario. |
-| API no disponible | No fue posible conectar con la API... | Verifique backend encendido y URL base. |
+Antes de enviar definitivamente, tómese un breve momento de revision. Verifique que el motivo general este completo, que las fechas sean correctas y que no falte ningun detalle importante. Esta pausa de unos segundos suele evitar la mayor parte de los errores comunes.
 
-## 9. Errores frecuentes
-### 9.1 No se registra la boleta
-Causa:
-- Falta de datos obligatorios o error de validacion API.
-Accion:
-- Revise motivo, tipo, fecha, longitudes maximas y vuelva a intentar.
+Cuando este conforme, registra la justificacion. Si todo esta correcto, la solicitud queda enviada para revision de jefatura. Desde ese momento, su gestion pasa a un estado pendiente mientras se toma una decision.
 
-### 9.2 Historial vacio despues de registrar
-Causa:
-- Falla temporal de consulta o rol incorrecto.
-Accion:
-- Refresque la pagina y confirme que ingreso con rol Funcionario.
+## Como dar seguimiento sin complicarse
+Registrar una justificacion no es el final del proceso. Durante el mismo dia o en jornadas posteriores, usted puede revisar su historial para dar seguimiento. En ese historial aparece lo que ha enviado y en que estado se encuentra cada gestion.
 
-### 9.3 Mensaje de credenciales invalidas
-Causa:
-- Usuario/contrasena no cumple reglas minimas de login en MVP.
-Accion:
-- Verifique datos (usuario >= 3 caracteres, contrasena >= 4).
+Cuando vea una solicitud en pendiente, significa que aun esta en revision por parte de jefatura. Si luego aparece como aprobada, quiere decir que fue aceptada. Si aparece como rechazada, significa que no fue aceptada en esa revision. Esta lectura de estados le ayuda a mantenerse informado sin necesidad de estar preguntando constantemente.
 
-## 10. Buenas practicas
-- Describir el motivo general de forma concreta y verificable.
-- Agregar observaciones por linea solo cuando aporten contexto.
-- Revisar cuidadosamente fechas antes de registrar.
-- Evitar duplicar boletas para el mismo evento.
-- Dar seguimiento al estado en historial (Pendiente/Aprobado/Rechazado).
+Un escenario muy comun es registrar una justificacion y no verla de inmediato por un instante. Si eso ocurre, mantenga la calma, actualice la vista y revise nuevamente su historial. En la mayoria de casos aparece despues de refrescar. Si aun no se refleja, conviene verificar que realmente se haya completado el registro y que este usando su cuenta correcta de funcionario.
+
+Tambien puede pasar que el historial aparezca vacio al inicio de uso, sobre todo cuando una persona esta empezando a utilizar la herramienta y todavia no ha registrado gestiones. En ese caso no hay ningun problema; simplemente significa que aun no existen justificaciones previas en su cuenta.
+
+## Situaciones cotidianas y como resolverlas con tranquilidad
+Hay dias en que el trabajo avanza fluido y todo se registra en pocos minutos. Tambien hay dias con prisa, interrupciones o dudas. Este apartado le acompana en esos momentos para que sepa que hacer sin estres.
+
+Si la pantalla le indica que falta informacion, regrese al formulario y revise con paciencia. Normalmente el motivo general vacio, la falta de un detalle o una fecha sin seleccionar explican casi todos los casos. No hace falta empezar de cero; basta con completar lo que falta y volver a intentar.
+
+Si el sistema no permite ingresar desde el inicio de jornada, revise de nuevo usuario y contrasena. Es recomendable escribir ambos campos lentamente para evitar errores involuntarios. Si aun asi no entra, puede intentar unos minutos despues y, de continuar la dificultad, solicitar apoyo por el canal interno de su institucion.
+
+Si tuvo que registrar una situacion parecida a otra anterior, evite repetir texto sin revisar. Cada gestion debe representar lo ocurrido en ese dia concreto. Una redaccion precisa le protege a usted y facilita la revision posterior.
+
+Imagine otro ejemplo realista. Una funcionaria sale a una cita medica, regresa al trabajo y en la tarde registra su justificacion. Escribe un motivo general claro y agrega el detalle con la fecha correcta. Al revisar el historial ve que quedo en pendiente. Al dia siguiente revisa de nuevo y observa que ya fue resuelta. Este seguimiento simple, hecho con constancia, evita incertidumbre.
+
+## Cierre de jornada: dejar todo en orden
+Antes de terminar el dia, vale la pena hacer un cierre breve y ordenado. Revise su historial y confirme que las gestiones importantes del dia quedaron registradas. Si recuerda algun evento que no justifico todavia, aproveche ese momento para dejarlo ingresado en lugar de postergarlo.
+
+Despues de esa comprobacion final, cierre su sesion de forma normal. Este cierre es una buena practica porque protege su informacion y evita que otra persona use su cuenta por error en el mismo equipo.
+
+Cerrar la jornada con este pequeno habito da mucha tranquilidad. Usted termina el dia sabiendo que su informacion quedo al dia, que su jefatura podra revisar lo necesario y que al dia siguiente podra retomar su trabajo sin pendientes ocultos.
+
+## Mensaje final de acompanamiento
+Usar esta herramienta no tiene por que sentirse dificil. Con una rutina sencilla de ingreso, registro claro, revision del historial y cierre ordenado, cualquier funcionario puede manejar sus justificaciones con autonomia. Si en algun momento surge una duda, vuelva a este manual y recorra el proceso con calma. Lo importante no es la velocidad, sino que cada gestion quede bien hecha y refleje su realidad de trabajo.

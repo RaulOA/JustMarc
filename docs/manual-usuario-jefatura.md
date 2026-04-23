@@ -1,94 +1,67 @@
-# Manual de Usuario - Rol Jefatura
+# Manual de Usuario para Jefatura
 
-## 1. Objetivo
-Guiar a la jefatura en la revision y resolucion de boletas de subordinados directos.
+## Acompanamiento inicial para la persona jefa
+Este manual esta escrito para apoyar a quienes tienen la responsabilidad de revisar y resolver justificaciones de su equipo directo. El objetivo es que la herramienta se sienta clara y manejable durante todo el dia, incluso cuando hay muchas tareas al mismo tiempo. No necesita conocimientos informaticos para usarla bien. Lo mas importante es contar con una rutina ordenada de ingreso, revision, decision y cierre de jornada.
 
-## 2. Alcance
-Este manual cubre:
-- Consulta de bandeja de pendientes.
-- Revision de detalle de boleta.
-- Resolucion (aprobar o rechazar).
+La labor de jefatura en este espacio se concentra en dos acciones esenciales. Por un lado, revisar con atencion las solicitudes pendientes de las personas que reportan directamente a usted. Por otro lado, tomar una decision final sobre cada una, aprobando o rechazando segun el caso. Una vez que una solicitud queda resuelta, deja de aparecer como pendiente y usted puede continuar con las siguientes.
 
-No cubre:
-- Creacion de boletas (rol Funcionario).
-- Consulta global RRHH de toda la organizacion.
+## Inicio de jornada: ingreso y primera lectura del dia
+Al iniciar su jornada, ingrese con su usuario y contrasena en la pantalla de acceso. Es recomendable hacerlo con calma para evitar errores al escribir. Cuando el acceso es correcto, llegara a su area de trabajo como jefatura. Este primer paso parece simple, pero marca el tono del resto del dia, porque le confirma que esta en el espacio correcto para atender las gestiones de su equipo.
 
-## 3. Prerequisitos
-- Acceso a dashboard.html con rol de jefatura.
-- API en funcionamiento.
-- Relacion de subordinacion correctamente registrada en base de datos.
+Al entrar, dedique un momento breve a observar el panorama general. Revise si hay solicitudes pendientes y tome una idea rapida de la carga del dia. Esa vista inicial le ayuda a organizarse mentalmente. En jornadas con muchas reuniones, este chequeo temprano evita que una solicitud urgente quede sin revisar por descuido.
 
-## 4. Acceso y vista de pendientes
-1. Ingrese al sistema con usuario de jefatura (ejemplo de prueba: jefe.maria).
-2. Abra Panel Jefatura.
-3. Revise contador de pendientes y tabla de solicitudes.
+Una practica saludable es no abrir varias tareas al mismo tiempo en la misma pantalla. Avanzar solicitud por solicitud permite mantener criterio y reduce errores. Aunque parezca mas lento al principio, al final del dia suele ser mas eficiente y mas confiable.
 
-## 5. Flujo principal: revisar y resolver boletas
-### 5.1 Revisar bandeja
-1. Identifique la fila por funcionario, motivo, tipo principal y fecha.
-2. Use Ver detalle para ampliar informacion de la boleta.
+## Como revisar la bandeja de pendientes sin perder contexto
+La bandeja de pendientes es su punto de partida durante el dia. Alli se muestran las solicitudes que esperan su decision. Cada registro le da una referencia de la persona funcionaria y del motivo presentado. La recomendacion es mirar primero el conjunto y luego entrar al detalle de cada caso.
 
-### 5.2 Revisar detalle completo
-1. Presione Ver detalle.
-2. El sistema consulta el detalle completo por boleta.
-3. Revise lineas, tipo de justificacion y fechas asociadas.
+Cuando abra una solicitud especifica, lea toda la informacion disponible antes de decidir. No se apresure por querer vaciar la bandeja en pocos minutos. Una decision tomada con una lectura incompleta puede generar dudas posteriores tanto para usted como para la persona funcionaria. En cambio, una revision serena reduce retrabajo y transmite seguridad al equipo.
 
-### 5.3 Aprobar boleta
-1. Presione Aprobar en la fila correspondiente.
-2. Confirme notificacion de exito.
-3. Resultado esperado:
-   - La boleta sale de pendientes.
-   - Su estado pasa a Aprobado.
+Piense en una situacion cotidiana. Inicia la manana con varias solicitudes pendientes y al mismo tiempo debe atender llamadas y reuniones. En ese contexto, es util reservar bloques cortos de tiempo para revisar solicitudes con foco completo. Por ejemplo, revisar algunas al inicio y otras al final de la tarde. Este habito mejora la calidad de las decisiones sin recargar su atencion.
 
-### 5.4 Rechazar boleta
-1. Presione Rechazar.
-2. Confirme notificacion.
-3. Resultado esperado:
-   - La boleta sale de pendientes.
-   - Su estado pasa a Rechazado.
+## Comprender cada solicitud antes de resolver
+Al entrar al detalle de una solicitud, observe el motivo general y los detalles asociados. Esos detalles son clave para comprender en que fecha y bajo que tipo se reporta la situacion. Trate de leer la informacion como una historia breve de lo ocurrido, no como una tarea mecanica. Esa mirada humana le permite valorar mejor cada caso.
 
-Nota operativa:
-- En la UI actual, la accion de resolver envia comentario vacio por defecto.
+Si la informacion se entiende con claridad y es coherente, usted ya tiene base para resolver. Si nota algo confuso, puede dejar la solicitud para revisar un poco despues y continuar con otra. El objetivo no es acelerar a cualquier costo, sino resolver con criterio y oportunidad.
 
-## 6. Reglas de negocio aplicables al rol
-- Solo Jefatura puede ver pendientes y detalle de aprobacion.
-- Solo Jefatura puede resolver boletas.
-- Jefatura solo puede actuar sobre subordinados directos.
-- Solo boletas en estado Pendiente Jefatura pueden resolverse (RN-04).
-- Una boleta ya resuelta no puede modificarse.
+Tambien es util mantener una linea de decision consistente en el tiempo. Cuando su equipo percibe que los casos semejantes se revisan con el mismo cuidado, se fortalece la confianza en el proceso. Esta consistencia no significa rigidez, sino claridad en la forma de analizar.
 
-## 7. Mensajes de error comunes y que hacer
-| Caso | Mensaje comun | Que hacer |
-|---|---|---|
-| Rol incorrecto | Solo jefatura puede ver pendientes/resolver | Ingresar con rol Jefatura. |
-| Boleta no existe | No existe la boleta indicada. | Verificar ID y refrescar bandeja. |
-| No subordinado | no pertenece a subordinado directo | Escalar al area administradora de datos de usuarios/jefaturas. |
-| Ya resuelta | RN-04: la boleta ya fue resuelta... | No reintentar, actualizar bandeja. |
-| Concurrencia | ya cambio de estado | Refrescar pendientes y continuar con otras boletas. |
-| Error de carga detalle | No se pudo cargar el detalle... | Reintentar; si persiste, reportar con correlationId. |
+## Camino de aprobacion en una jornada real
+Cuando una solicitud corresponde y usted decide aprobarla, realiza esa accion directamente en la misma bandeja de trabajo. Al confirmarse la decision, la solicitud deja de estar pendiente y su estado cambia a aprobada. En ese momento la gestion queda cerrada desde su rol.
 
-## 8. Errores frecuentes
-### 8.1 Pendientes en cero cuando se esperaba carga
-Causa:
-- No hay subordinados directos configurados o todas las boletas ya se resolvieron.
-Accion:
-- Validar jerarquia en Usuarios.JefaturaID y estado de boletas.
+En la practica, aprobar con criterio suele ahorrar consultas posteriores y da continuidad al trabajo del equipo. Muchas personas funcionarias esperan esta resolucion para cerrar sus propios pendientes del dia, por lo que una respuesta oportuna tiene impacto positivo en la dinamica general.
 
-### 8.2 Error 403 en detalle o resolucion
-Causa:
-- Usuario no autorizado para esa boleta especifica.
-Accion:
-- Confirmar que la boleta corresponde a subordinado directo.
+Un ejemplo comun es el de una persona que reporta una justificacion por una diligencia institucional ya conocida por su jefatura. Al revisar, la informacion coincide con lo esperado y la decision de aprobar se toma con rapidez. La solicitud sale de pendientes y usted puede continuar con la siguiente gestion.
 
-### 8.3 Error 409 al resolver
-Causa:
-- Otra accion resolvio la boleta primero.
-Accion:
-- No insistir sobre la misma boleta; actualizar bandeja.
+## Camino de rechazo cuando la solicitud no corresponde
+Hay casos en los que, tras revisar, usted determina que la solicitud no puede ser aceptada. En esas situaciones, la decision es rechazar. Al igual que en la aprobacion, una vez confirmada la accion, la solicitud deja de aparecer en pendientes y queda resuelta con estado rechazado.
 
-## 9. Buenas practicas
-- Revisar detalle completo antes de resolver.
-- Resolver con criterio uniforme y trazable.
-- Evitar dejar boletas pendientes por periodos extensos.
-- Reportar incidencias incluyendo ID de boleta y correlationId si existe.
-- Coordinar con RRHH cuando se detecten patrones de inconsistencia.
+Rechazar no debe verse como una confrontacion, sino como parte natural de su rol cuando la informacion presentada no permite validar la solicitud. Lo importante es que la decision se tome despues de revisar con atencion, manteniendo un trato respetuoso y una linea de criterio clara.
+
+Un escenario cotidiano puede ser una solicitud con datos que no logran sostener lo reportado. Tras revisar con calma, usted concluye que no corresponde aprobar. La gestion se resuelve como rechazada y la bandeja se actualiza para que usted siga con los demas casos.
+
+## Situaciones comunes que generan dudas
+En el trabajo diario pueden aparecer momentos de confusion que no significan un problema grave. A veces una solicitud que esperaba revisar ya no aparece en pendientes. Esto puede ocurrir porque ya fue resuelta y por eso deja de mostrarse en esa vista. Ante ese panorama, lo recomendable es actualizar la pantalla y continuar con los casos visibles.
+
+Tambien puede suceder que intente resolver una solicitud y reciba un mensaje de que no es posible en ese momento. Cuando ocurra, conviene refrescar la bandeja y revisar de nuevo. En muchos casos se trata de un cambio reciente en el estado de la solicitud.
+
+Otro caso habitual es ingresar y no encontrar pendientes cuando usted esperaba ver algunas. Esto puede pasar en dias donde el equipo no ha enviado nuevas gestiones o cuando todas ya fueron atendidas. En ese escenario, no hay accion adicional que realizar mas alla de volver a revisar mas tarde durante la jornada.
+
+Si en algun momento la pantalla no carga como de costumbre, lo primero es mantener la calma. Actualice la vista y pruebe de nuevo. Si la situacion persiste, puede apoyarse en el canal interno de ayuda de su institucion, explicando con palabras simples en que momento ocurrio la dificultad.
+
+## Rutina recomendada para mantener orden durante el dia
+Una forma practica de trabajar como jefatura es alternar entre periodos de revision y otras responsabilidades del puesto. Revisar en bloques breves, pero constantes, evita acumulaciones al final del dia. Cuando deja pasar muchas horas sin entrar a pendientes, suele aumentar la presion y disminuir la calidad de analisis.
+
+Tambien ayuda mucho cerrar cada bloque de revision con una pausa de comprobacion. Mire nuevamente la bandeja y confirme que las decisiones realizadas ya no aparecen como pendientes. Esta pequena verificacion reduce errores y le da certeza de avance real.
+
+Durante jornadas intensas, sostener una actitud serena marca la diferencia. No se trata de resolver por velocidad, sino de resolver bien. Esa combinacion de criterio, oportunidad y orden es la que finalmente facilita la gestion para usted y para todo su equipo.
+
+## Cierre de jornada: seguridad y tranquilidad
+Antes de finalizar el dia, vuelva a su bandeja de pendientes y haga una revision final. Si queda alguna solicitud por atender y el tiempo lo permite, valore resolverla para no trasladar carga innecesaria al siguiente dia. Si decide dejar alguna para despues, al menos deje claro para usted mismo que esta pendiente y en que estado de analisis la deja.
+
+Despues de este ultimo chequeo, cierre su sesion. Este gesto simple protege su espacio de trabajo y evita que otra persona utilice su cuenta por descuido. Es un habito pequeno, pero muy importante para mantener orden y cuidado de la informacion.
+
+Terminar la jornada con la bandeja revisada y la sesion cerrada aporta tranquilidad real. Usted sabe que cumplio su rol con responsabilidad, que su equipo recibio respuesta en tiempo razonable y que al dia siguiente podra retomar desde un punto claro, sin incertidumbre acumulada.
+
+## Mensaje final para el uso diario
+La herramienta de jefatura esta pensada para apoyar decisiones del dia a dia, no para complicar su trabajo. Con una rutina sencilla de ingreso, lectura completa, decision bien pensada y cierre ordenado, puede manejar las solicitudes con confianza. Si alguna vez siente que se perdio en el proceso, vuelva a este manual y recorra la jornada desde el inicio. La claridad y la constancia son sus mejores aliadas para sostener una gestion efectiva y humana.
