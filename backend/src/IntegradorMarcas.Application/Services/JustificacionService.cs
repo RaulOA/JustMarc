@@ -19,9 +19,9 @@ public sealed class JustificacionService : IJustificacionService
 
     public async Task<int> CreateAsync(UserContextInfo user, CreateJustificacionDto request, CancellationToken cancellationToken)
     {
-        if (!RolesSistema.EsFuncionario(user.Role))
+        if (!RolesSistema.EsFuncionario(user.Role) && !RolesSistema.EsJefatura(user.Role))
         {
-            throw new AppException("Solo un funcionario puede crear boletas.", 403);
+            throw new AppException("Solo funcionario o jefatura pueden crear boletas.", 403);
         }
 
         JustificacionValidator.ValidateCreate(request);

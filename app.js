@@ -102,6 +102,9 @@ const jefaturaDetailCache = new Map();
 const JEFATURA_PAGE_SIZE = 15;
 let jefaturaCurrentPage = 1;
 let jefaturaAllPending = [];
+let jefaturaSortField = 'fechaCreacion';
+let jefaturaSortDirection = 'desc';
+let sifcnpCurrentResults = [];
 
 const API_CONFIG = {
   defaultBaseUrl: 'http://localhost:5093',
@@ -417,7 +420,7 @@ function configureRoleUI() {
 
   const allowedByRole = {
     ROL_FUNC: ['panel-funcionario', 'panel-sifcnp'],
-    ROL_JEFE: ['panel-jefatura', 'panel-sifcnp'],
+    ROL_JEFE: ['panel-funcionario', 'panel-jefatura', 'panel-sifcnp'],
     ROL_RRHH: ['panel-rrhh', 'panel-sifcnp']
   };
 
@@ -498,8 +501,8 @@ async function registerJustification() {
   const session = getSession();
   const motivo = document.getElementById('f-motivo')?.value?.trim() || '';
 
-  if (!session || session.role !== 'ROL_FUNC') {
-    showNotice('f-notice', 'error', 'Solo el rol Funcionario puede registrar boletas.');
+  if (!session || (session.role !== 'ROL_FUNC' && session.role !== 'ROL_JEFE')) {
+    showNotice('f-notice', 'error', 'Solo Funcionario o Jefatura pueden registrar boletas.');
     return;
   }
 
@@ -546,7 +549,7 @@ async function renderFuncionarioHistory() {
   if (!tbody || !session) return;
 
   if (session.role !== 'ROL_FUNC') {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Vista disponible solo para rol Funcionario.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Vista disponible solo para rol Funcionario. Jefatura puede crear boletas, pero no visualizarlas en su propio historial.</td></tr>';
     return;
   }
 
@@ -587,6 +590,8 @@ async function renderJefaturaRequests() {
   if (session.role !== 'ROL_JEFE') {
     if (countEl) countEl.textContent = '0 pendientes';
     tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Vista disponible solo para rol Jefatura.</td></tr>';
+    renderJefaturaPagination(0);
+    renderJefaturaSortUI();
     return;
   }
 
@@ -605,6 +610,7 @@ async function renderJefaturaRequests() {
       const downloadBtn = document.getElementById('jefatura-download-btn');
       if (downloadBtn) downloadBtn.style.display = 'none';
       renderJefaturaPagination(0);
+      renderJefaturaSortUI();
       return;
     }
 
@@ -612,8 +618,89 @@ async function renderJefaturaRequests() {
   } catch (error) {
     if (countEl) countEl.textContent = '0 pendientes';
     tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay solicitudes pendientes.</td></tr>';
+    renderJefaturaPagination(0);
+    renderJefaturaSortUI();
     showNotice('j-notice', 'error', `No se pudieron cargar pendientes: ${error.message}`);
   }
+}
+
+function normalizeSortText(value) {
+  return String(value ?? '').trim();
+}
+
+function normalizeSortDate(value) {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? -Infinity : time;
+}
+
+function getSortedJefaturaPending() {
+  const data = Array.isArray(jefaturaAllPending) ? [...jefaturaAllPending] : [];
+
+  if (!jefaturaSortField) {
+    return data;
+  }
+
+  const direction = jefaturaSortDirection === 'asc' ? 1 : -1;
+
+  data.sort((a, b) => {
+    let result = 0;
+
+    if (jefaturaSortField === 'fechaCreacion') {
+      result = normalizeSortDate(a?.fechaCreacion) - normalizeSortDate(b?.fechaCreacion);
+    } else {
+      const left = normalizeSortText(a?.[jefaturaSortField]);
+      const right = normalizeSortText(b?.[jefaturaSortField]);
+      result = left.localeCompare(right, 'es', { sensitivity: 'base' });
+    }
+
+    if (result === 0) {
+      const leftId = Number(a?.id || 0);
+      const rightId = Number(b?.id || 0);
+      result = leftId - rightId;
+    }
+
+    return result * direction;
+  });
+
+  return data;
+}
+
+function setJefaturaSort(field) {
+  if (!field) return;
+
+  if (jefaturaSortField === field) {
+    jefaturaSortDirection = jefaturaSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    jefaturaSortField = field;
+    jefaturaSortDirection = 'asc';
+  }
+
+  jefaturaCurrentPage = 1;
+  renderJefaturaPageView();
+}
+
+function renderJefaturaSortUI() {
+  const headers = document.querySelectorAll('#panel-jefatura th[data-sort-field]');
+  headers.forEach((header) => {
+    const field = header.getAttribute('data-sort-field') || '';
+    const indicator = header.querySelector('.jefatura-sort-indicator');
+    const isActive = field === jefaturaSortField;
+
+    if (isActive && jefaturaSortDirection === 'asc') {
+      header.setAttribute('aria-sort', 'ascending');
+      if (indicator) indicator.textContent = '▲';
+      return;
+    }
+
+    if (isActive && jefaturaSortDirection === 'desc') {
+      header.setAttribute('aria-sort', 'descending');
+      if (indicator) indicator.textContent = '▼';
+      return;
+    }
+
+    header.setAttribute('aria-sort', 'none');
+    if (indicator) indicator.textContent = '↕';
+  });
 }
 
 function renderJefaturaPageView() {
@@ -621,13 +708,29 @@ function renderJefaturaPageView() {
   const downloadBtn = document.getElementById('jefatura-download-btn');
   if (!tbody) return;
 
-  const totalPages = Math.ceil(jefaturaAllPending.length / JEFATURA_PAGE_SIZE);
-  const paginated = jefaturaAllPending.slice(
+  const sorted = getSortedJefaturaPending();
+  const totalPages = Math.ceil(sorted.length / JEFATURA_PAGE_SIZE);
+
+  if (totalPages > 0 && jefaturaCurrentPage > totalPages) {
+    jefaturaCurrentPage = totalPages;
+  }
+  if (jefaturaCurrentPage < 1) {
+    jefaturaCurrentPage = 1;
+  }
+
+  const paginated = sorted.slice(
     (jefaturaCurrentPage - 1) * JEFATURA_PAGE_SIZE,
     jefaturaCurrentPage * JEFATURA_PAGE_SIZE
   );
 
   if (downloadBtn) downloadBtn.style.display = jefaturaAllPending.length > 0 ? '' : 'none';
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay solicitudes pendientes.</td></tr>';
+    renderJefaturaPagination(0);
+    renderJefaturaSortUI();
+    return;
+  }
 
   tbody.innerHTML = paginated.map((b) => `
     <tr>
@@ -660,19 +763,29 @@ function renderJefaturaPageView() {
   `).join('');
 
   renderJefaturaPagination(totalPages);
+  renderJefaturaSortUI();
 }
 
 function renderJefaturaPagination(totalPages) {
   const container = document.getElementById('jefatura-pagination');
   if (!container) return;
-  if (totalPages <= 1) {
-    container.innerHTML = '';
+
+  if (totalPages <= 0) {
+    container.innerHTML = `
+      <button class="btn btn-sm btn-secondary" disabled>&#8249; Anterior</button>
+      <span style="padding:0 12px;font-size:.9rem;">Página 0 de 0 - Sin resultados</span>
+      <button class="btn btn-sm btn-secondary" disabled>Siguiente &#8250;</button>
+    `;
     return;
   }
+
+  const isFirstPage = jefaturaCurrentPage === 1;
+  const isLastPage = jefaturaCurrentPage === totalPages;
+
   container.innerHTML = `
-    <button class="btn btn-sm btn-secondary" onclick="jefaturaGoToPage(${jefaturaCurrentPage - 1})" ${jefaturaCurrentPage === 1 ? 'disabled' : ''}>&#8249; Anterior</button>
+    <button class="btn btn-sm btn-secondary" onclick="jefaturaGoToPage(${jefaturaCurrentPage - 1})" ${isFirstPage ? 'disabled' : ''}>&#8249; Anterior</button>
     <span style="padding:0 12px;font-size:.9rem;">Página ${jefaturaCurrentPage} de ${totalPages}</span>
-    <button class="btn btn-sm btn-secondary" onclick="jefaturaGoToPage(${jefaturaCurrentPage + 1})" ${jefaturaCurrentPage === totalPages ? 'disabled' : ''}>Siguiente &#8250;</button>
+    <button class="btn btn-sm btn-secondary" onclick="jefaturaGoToPage(${jefaturaCurrentPage + 1})" ${isLastPage ? 'disabled' : ''}>Siguiente &#8250;</button>
   `;
 }
 
@@ -836,19 +949,27 @@ const SIFCNP_MOCK_DATA = [
   { nombre: 'Andrés Quirós Herrera', cedula: '2-0267-0483', concepto: 'Salida anticipada', fecha: '05/03/2025', observacion: 'Trámite bancario institucional', estado: 'Rechazado' }
 ];
 
-function renderSifcnpMockData() {
+function renderSifcnpRows(rows) {
   const tbody = document.getElementById('sifcnp-tbody');
   if (!tbody) return;
-  tbody.innerHTML = SIFCNP_MOCK_DATA.map(row => `
-    <tr>
-      <td>${escapeHtml(row.nombre)}</td>
-      <td class="text-mono text-sm">${escapeHtml(row.cedula)}</td>
-      <td>${escapeHtml(row.concepto)}</td>
-      <td>${escapeHtml(row.fecha)}</td>
-      <td>${escapeHtml(row.observacion)}</td>
-      <td>${renderStatusBadge(row.estado)}</td>
-    </tr>
-  `).join('');
+
+  tbody.innerHTML = rows.length > 0
+    ? rows.map(row => `
+      <tr>
+        <td>${escapeHtml(row.nombre)}</td>
+        <td class="text-mono text-sm">${escapeHtml(row.cedula)}</td>
+        <td>${escapeHtml(row.concepto)}</td>
+        <td>${escapeHtml(row.fecha)}</td>
+        <td>${escapeHtml(row.observacion)}</td>
+        <td>${renderStatusBadge(row.estado)}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="6" class="text-muted">No se encontraron registros.</td></tr>';
+}
+
+function renderSifcnpMockData() {
+  sifcnpCurrentResults = [...SIFCNP_MOCK_DATA];
+  renderSifcnpRows(sifcnpCurrentResults);
 }
 
 function sifcnpSearch() {
@@ -867,18 +988,8 @@ function sifcnpSearch() {
     return matchNombre && matchDesde && matchHasta;
   });
 
-  tbody.innerHTML = filtered.length > 0
-    ? filtered.map(row => `
-      <tr>
-        <td>${escapeHtml(row.nombre)}</td>
-        <td class="text-mono text-sm">${escapeHtml(row.cedula)}</td>
-        <td>${escapeHtml(row.concepto)}</td>
-        <td>${escapeHtml(row.fecha)}</td>
-        <td>${escapeHtml(row.observacion)}</td>
-        <td>${renderStatusBadge(row.estado)}</td>
-      </tr>
-    `).join('')
-    : '<tr><td colspan="6" class="text-muted">No se encontraron registros.</td></tr>';
+  sifcnpCurrentResults = filtered;
+  renderSifcnpRows(filtered);
 }
 
 function downloadReport() {
@@ -906,6 +1017,37 @@ function downloadJefaturaReport() {
   const a = document.createElement('a');
   a.href = url;
   a.download = `Reporte_Jefatura_${today()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadSifcnpReport() {
+  if (!Array.isArray(sifcnpCurrentResults) || sifcnpCurrentResults.length === 0) {
+    showNotice('sifcnp-notice', 'warning', 'No hay registros para descargar en la vista actual.');
+    return;
+  }
+
+  const headers = ['Funcionario', 'Cedula', 'Concepto', 'Fecha', 'Observacion', 'Estado'];
+  const rows = sifcnpCurrentResults.map(row => [
+    row.nombre,
+    row.cedula,
+    row.concepto,
+    row.fecha,
+    row.observacion,
+    row.estado
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Reporte_Consulta_SIFCNP_${today()}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

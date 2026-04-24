@@ -83,6 +83,7 @@ INNER JOIN Configuracion.EstadoJustificacion e ON e.EstadoJustificacionId = je.E
 LEFT JOIN Operacion.JustificacionDetalle jd ON jd.JustificacionId = je.JustificacionId
 WHERE
     je.EstadoJustificacionId = @EstadoPendiente
+    AND je.UsuarioID <> @AprobadorUsuarioID
     AND EXISTS (
         SELECT 1
         FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
@@ -184,6 +185,7 @@ LEFT JOIN RecursosHumanos.Usuario ua ON ua.UsuarioID = je.AprobadorId
 LEFT JOIN dbo.Estructuras_Organizacionales eo ON eo.EstructuraOrganizacionalID = u.UnidadID
 WHERE
     je.JustificacionId = @JustificacionID
+    AND je.UsuarioID <> @AprobadorUsuarioID
     AND EXISTS (
         SELECT 1
         FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
@@ -217,6 +219,7 @@ OUTER APPLY (
         fa.DeleganteUsuarioId
     FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
     WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
+      AND je.UsuarioID <> @AprobadorUsuarioID
     ORDER BY CASE WHEN fa.Origen = 'Delegacion' THEN 0 ELSE 1 END
 ) scopeData;";
 
@@ -235,6 +238,7 @@ OUTER APPLY (
         fa.DeleganteUsuarioId
     FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
     WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
+      AND je.UsuarioID <> @AprobadorUsuarioID
     ORDER BY CASE WHEN fa.Origen = 'Delegacion' THEN 0 ELSE 1 END
 ) scopeData;";
 
@@ -256,6 +260,7 @@ FROM Operacion.Justificacion je
 WHERE
     je.JustificacionId = @JustificacionID
     AND je.EstadoJustificacionId = @EstadoPendiente
+    AND je.UsuarioID <> @AprobadorUsuarioID
     AND EXISTS (
         SELECT 1
         FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa

@@ -198,6 +198,35 @@
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+
+    .jefatura-sort-btn {
+      all: unset;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font: inherit;
+      color: inherit;
+    }
+
+    .jefatura-sort-btn:focus-visible {
+      outline: 2px solid var(--blue-500);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    .jefatura-sort-indicator {
+      font-size: .75rem;
+      color: var(--grey-500);
+      line-height: 1;
+      min-width: 10px;
+      text-align: center;
+    }
+
+    th[aria-sort="ascending"] .jefatura-sort-indicator,
+    th[aria-sort="descending"] .jefatura-sort-indicator {
+      color: var(--blue-700);
+    }
   </style>
 </head>
 <body>
@@ -398,11 +427,36 @@
         <table>
           <thead>
             <tr>
-              <th>Funcionario</th>
-              <th>Motivo</th>
-              <th>Tipo</th>
-              <th>Fecha</th>
-              <th>Estado</th>
+              <th aria-sort="none" data-sort-field="funcionarioNombre">
+                <button type="button" class="jefatura-sort-btn" onclick="setJefaturaSort('funcionarioNombre')" aria-label="Ordenar por funcionario">
+                  Funcionario
+                  <span class="jefatura-sort-indicator" data-sort-indicator="funcionarioNombre">&#8597;</span>
+                </button>
+              </th>
+              <th aria-sort="none" data-sort-field="motivoGeneral">
+                <button type="button" class="jefatura-sort-btn" onclick="setJefaturaSort('motivoGeneral')" aria-label="Ordenar por motivo">
+                  Motivo
+                  <span class="jefatura-sort-indicator" data-sort-indicator="motivoGeneral">&#8597;</span>
+                </button>
+              </th>
+              <th aria-sort="none" data-sort-field="tipoPrincipal">
+                <button type="button" class="jefatura-sort-btn" onclick="setJefaturaSort('tipoPrincipal')" aria-label="Ordenar por tipo">
+                  Tipo
+                  <span class="jefatura-sort-indicator" data-sort-indicator="tipoPrincipal">&#8597;</span>
+                </button>
+              </th>
+              <th aria-sort="none" data-sort-field="fechaCreacion">
+                <button type="button" class="jefatura-sort-btn" onclick="setJefaturaSort('fechaCreacion')" aria-label="Ordenar por fecha">
+                  Fecha
+                  <span class="jefatura-sort-indicator" data-sort-indicator="fechaCreacion">&#8597;</span>
+                </button>
+              </th>
+              <th aria-sort="none" data-sort-field="estado">
+                <button type="button" class="jefatura-sort-btn" onclick="setJefaturaSort('estado')" aria-label="Ordenar por estado">
+                  Estado
+                  <span class="jefatura-sort-indicator" data-sort-indicator="estado">&#8597;</span>
+                </button>
+              </th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -511,6 +565,10 @@
         <h2>Consulta Histórica — SIFCNP</h2>
         <p>Busque registros históricos de justificaciones en el sistema</p>
       </div>
+      <button class="btn btn-outline" onclick="downloadSifcnpReport()" id="sifcnp-download-btn">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        Descargar Reporte
+      </button>
     </div>
 
     <!-- Search bar -->
