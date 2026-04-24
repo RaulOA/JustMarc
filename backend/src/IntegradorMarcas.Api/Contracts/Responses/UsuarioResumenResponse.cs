@@ -9,4 +9,5 @@ public sealed class UsuarioResumenResponse
     public string Compania { get; set; } = string.Empty;
     public int UnidadID { get; set; }
     public int? JefaturaID { get; set; }
+    public string UnidadNombre { get; set; } = string.Empty;
 }

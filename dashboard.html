@@ -379,7 +379,13 @@
         <h2>Panel de Jefatura</h2>
         <p>Revise y gestione las solicitudes de justificación de su departamento</p>
       </div>
-      <span id="jefatura-pending-count" class="badge badge-pending" style="font-size:.82rem;padding:6px 14px;">0 pendientes</span>
+      <div class="flex gap-8" style="align-items:center;">
+        <span id="jefatura-pending-count" class="badge badge-pending" style="font-size:.82rem;padding:6px 14px;">0 pendientes</span>
+        <button class="btn btn-outline" onclick="downloadJefaturaReport()" id="jefatura-download-btn" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+          Descargar Reporte
+        </button>
+      </div>
     </div>
 
     <div id="j-notice" class="alert" style="display:none"></div>
@@ -404,6 +410,7 @@
         </table>
       </div>
     </div>
+    <div id="jefatura-pagination" class="flex gap-8" style="justify-content:center;padding:12px 0;"></div>
   </section>
 
   <!-- ══ PANEL RRHH ════════════════════════════════════════ -->
@@ -545,16 +552,6 @@
             </tr>
           </thead>
           <tbody id="sifcnp-tbody">
-            <tr><td>María Solano Mora</td><td class="text-mono text-sm">1-0723-0456</td><td>Ausencia</td><td>10/01/2025</td><td>Incapacidad médica verificada</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>María Solano Mora</td><td class="text-mono text-sm">1-0723-0456</td><td>Tardanza</td><td>22/11/2024</td><td>Bloqueo en Circunvalación</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Carlos Brenes Jiménez</td><td class="text-mono text-sm">2-0345-0789</td><td>Omisión de marca</td><td>03/02/2025</td><td>Sin acceso biométrico en campo</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Carlos Brenes Jiménez</td><td class="text-mono text-sm">2-0345-0789</td><td>Tardanza</td><td>15/12/2024</td><td>Desvío por obras en autopista</td><td><span class="badge badge-rejected">Rechazado</span></td></tr>
-            <tr><td>Adriana Vindas Rojas</td><td class="text-mono text-sm">1-0891-0234</td><td>Salida anticipada</td><td>28/01/2025</td><td>Consulta notarial urgente</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Luis Herrera Campos</td><td class="text-mono text-sm">3-0512-0667</td><td>Almuerzo extendido</td><td>07/02/2025</td><td>Reunión técnica de coordinación</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Patricia Ulate Soto</td><td class="text-mono text-sm">1-0654-0321</td><td>Ausencia</td><td>20/10/2024</td><td>Cuido de menor enfermo</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Roberto Alfaro Mora</td><td class="text-mono text-sm">4-0178-0995</td><td>Tardanza</td><td>09/02/2025</td><td>Demora en tren interurbano</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
-            <tr><td>Silvia Méndez Umaña</td><td class="text-mono text-sm">1-0932-0112</td><td>Omisión de marca</td><td>14/01/2025</td><td>Sistema biométrico fuera de línea</td><td><span class="badge badge-approved">Aprobado</span></td></tr>
-            <tr><td>Andrés Quirós Herrera</td><td class="text-mono text-sm">2-0267-0483</td><td>Salida anticipada</td><td>05/03/2025</td><td>Trámite bancario institucional</td><td><span class="badge badge-rejected">Rechazado</span></td></tr>
           </tbody>
         </table>
       </div>

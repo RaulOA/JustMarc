@@ -16,7 +16,7 @@ FROM Operacion.JerarquiaAprobacion
 WHERE
     (@AprobadorUsuarioID IS NULL OR AprobadorUsuarioId = @AprobadorUsuarioID)
     AND (@EstadoRegistroID IS NULL OR EstadoRegistroId = @EstadoRegistroID)
-ORDER BY JerarquiaAprobacionId DESC;"
+ORDER BY JerarquiaAprobacionId DESC;";
 
     public const string CreateJerarquia = @"
 INSERT INTO Operacion.JerarquiaAprobacion
@@ -41,7 +41,7 @@ VALUES
     @VigenciaHasta,
     @UsrRegistro
 );
-SELECT CAST(SCOPE_IDENTITY() AS INT);"
+SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
     public const string GetJerarquiaById = @"
 SELECT
@@ -54,12 +54,12 @@ SELECT
     VigenciaDesde,
     VigenciaHasta
 FROM Operacion.JerarquiaAprobacion
-WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID;"
+WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID;";
 
     public const string ToggleJerarquiaEstado = @"
 UPDATE Operacion.JerarquiaAprobacion
 SET EstadoRegistroId = @EstadoRegistroID
-WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID;"
+WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID;";
 
     public const string ListDelegaciones = @"
 SELECT
@@ -83,7 +83,7 @@ WHERE
             AND (VigenciaHasta IS NULL OR VigenciaHasta >= @VigenteEnFecha)
         )
     )
-ORDER BY DelegacionAprobacionId DESC;"
+ORDER BY DelegacionAprobacionId DESC;";
 
     public const string CreateDelegacion = @"
 INSERT INTO Operacion.DelegacionAprobacion
@@ -108,7 +108,7 @@ VALUES
     @VigenciaHasta,
     @UsrRegistro
 );
-SELECT CAST(SCOPE_IDENTITY() AS INT);"
+SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
     public const string GetDelegacionById = @"
 SELECT
@@ -121,7 +121,7 @@ SELECT
     VigenciaDesde,
     VigenciaHasta
 FROM Operacion.DelegacionAprobacion
-WHERE DelegacionAprobacionId = @DelegacionAprobacionID;"
+WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
 
     public const string ToggleDelegacionEstado = @"
 UPDATE Operacion.DelegacionAprobacion

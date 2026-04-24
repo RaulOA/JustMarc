@@ -17,7 +17,7 @@ VALUES
     @EstadoID,
     @UsrRegistro
 );
-SELECT CAST(SCOPE_IDENTITY() AS INT)"
+SELECT CAST(SCOPE_IDENTITY() AS INT)";
 
     public const string InsertDetalle = @"
 INSERT INTO Operacion.JustificacionDetalle
@@ -35,7 +35,7 @@ VALUES
     @FechaMarca,
     @ObservacionDetalle,
     @UsrRegistro
-);"
+);";
 
     public const string ListMine = @"
 SELECT
@@ -65,7 +65,7 @@ GROUP BY
     je.FechaCreacion,
     je.AprobadorId,
     je.FechaAprobacion
-ORDER BY je.FechaCreacion DESC;"
+ORDER BY je.FechaCreacion DESC;";
 
     public const string ListPendientesJefatura = @"
 SELECT
@@ -85,7 +85,7 @@ WHERE
     je.EstadoJustificacionId = @EstadoPendiente
     AND EXISTS (
         SELECT 1
-        FROM Operacion.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+        FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
         WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
     )
     AND (@Desde IS NULL OR CAST(je.FechaCreacion AS DATE) >= CAST(@Desde AS DATE))
@@ -99,7 +99,7 @@ GROUP BY
     je.FechaCreacion,
     je.AprobadorId,
     je.FechaAprobacion
-ORDER BY je.FechaCreacion ASC;"
+ORDER BY je.FechaCreacion ASC;";
 
     public const string ListRrhhGlobal = @"
 SELECT
@@ -150,7 +150,7 @@ GROUP BY
     u.Compania,
     u.JefaturaId,
     j.NombreCompleto
-ORDER BY je.FechaCreacion DESC, je.JustificacionId DESC;"
+ORDER BY je.FechaCreacion DESC, je.JustificacionId DESC;";
 
     public const string GetDetalleJefaturaEncabezado = @"
 SELECT
@@ -169,6 +169,7 @@ SELECT
     u.Compania AS SolicitanteCompania,
     u.UnidadId AS SolicitanteUnidadID,
     u.JefaturaId AS SolicitanteJefaturaID,
+    eo.Nombre AS SolicitanteUnidadNombre,
     ua.UsuarioID AS AprobadorUsuarioID,
     ua.NombreCompleto AS AprobadorNombreCompleto,
     ua.Cedula AS AprobadorCedula,
@@ -180,13 +181,14 @@ FROM Operacion.Justificacion je
 INNER JOIN Configuracion.EstadoJustificacion e ON e.EstadoJustificacionId = je.EstadoJustificacionId
 INNER JOIN RecursosHumanos.Usuario u ON u.UsuarioID = je.UsuarioID
 LEFT JOIN RecursosHumanos.Usuario ua ON ua.UsuarioID = je.AprobadorId
+LEFT JOIN dbo.Estructuras_Organizacionales eo ON eo.EstructuraOrganizacionalID = u.UnidadID
 WHERE
     je.JustificacionId = @JustificacionID
     AND EXISTS (
         SELECT 1
-        FROM Operacion.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+        FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
         WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
-    );"
+    );";
 
     public const string GetDetalleJefaturaLineas = @"
 SELECT
@@ -198,7 +200,7 @@ SELECT
 FROM Operacion.JustificacionDetalle jd
 INNER JOIN Configuracion.TipoJustificacion tj ON tj.TipoJustificacionId = jd.TipoJustificacionId
 WHERE jd.JustificacionId = @JustificacionID
-ORDER BY jd.FechaMarca DESC, jd.JustificacionDetalleId DESC;"
+ORDER BY jd.FechaMarca DESC, jd.JustificacionDetalleId DESC;";
 
     public const string GetResolverValidation = @"
 SELECT
@@ -213,10 +215,10 @@ OUTER APPLY (
     SELECT TOP 1
         fa.Origen AS ScopeSource,
         fa.DeleganteUsuarioId
-    FROM Operacion.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+    FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
     WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
     ORDER BY CASE WHEN fa.Origen = 'Delegacion' THEN 0 ELSE 1 END
-) scopeData;"
+) scopeData;";
 
     public const string GetAprobacionScopeValidation = @"
 SELECT
@@ -231,16 +233,16 @@ OUTER APPLY (
     SELECT TOP 1
         fa.Origen AS ScopeSource,
         fa.DeleganteUsuarioId
-    FROM Operacion.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+    FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
     WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
     ORDER BY CASE WHEN fa.Origen = 'Delegacion' THEN 0 ELSE 1 END
-) scopeData;"
+) scopeData;";
 
     public const string GetExistingTipoJustificacionIds = @"
 SELECT DISTINCT
     TipoJustificacionId
 FROM Configuracion.TipoJustificacion
-WHERE TipoJustificacionId IN @Ids;"
+WHERE TipoJustificacionId IN @Ids;";
 
     public const string ResolverPendiente = @"
 UPDATE je
@@ -256,7 +258,7 @@ WHERE
     AND je.EstadoJustificacionId = @EstadoPendiente
     AND EXISTS (
         SELECT 1
-        FROM Operacion.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+        FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
         WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
     );";
 }

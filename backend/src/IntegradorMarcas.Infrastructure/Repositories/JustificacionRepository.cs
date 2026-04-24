@@ -187,7 +187,8 @@ public sealed class JustificacionRepository : IJustificacionRepository
                 Correo = encabezado.SolicitanteCorreo,
                 Compania = encabezado.SolicitanteCompania,
                 UnidadId = encabezado.SolicitanteUnidadID,
-                JefaturaId = encabezado.SolicitanteJefaturaID
+                JefaturaId = encabezado.SolicitanteJefaturaID,
+                UnidadNombre = encabezado.SolicitanteUnidadNombre ?? string.Empty
             },
             Aprobador = encabezado.AprobadorUsuarioID.HasValue
                 ? new UsuarioResumenDto
@@ -272,6 +273,7 @@ public sealed class JustificacionRepository : IJustificacionRepository
         public string SolicitanteCompania { get; set; } = string.Empty;
         public int SolicitanteUnidadID { get; set; }
         public int? SolicitanteJefaturaID { get; set; }
+        public string? SolicitanteUnidadNombre { get; set; }
         public int? AprobadorUsuarioID { get; set; }
         public string? AprobadorNombreCompleto { get; set; }
         public string? AprobadorCedula { get; set; }

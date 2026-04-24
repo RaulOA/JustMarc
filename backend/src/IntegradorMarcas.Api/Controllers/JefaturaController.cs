@@ -84,7 +84,8 @@ public sealed class JefaturaController : ControllerBase
                 Correo = result.Solicitante.Correo,
                 Compania = result.Solicitante.Compania,
                 UnidadID = result.Solicitante.UnidadId,
-                JefaturaID = result.Solicitante.JefaturaId
+                JefaturaID = result.Solicitante.JefaturaId,
+                UnidadNombre = result.Solicitante.UnidadNombre
             },
             Aprobador = result.Aprobador is null
                 ? null

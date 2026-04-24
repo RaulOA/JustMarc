@@ -99,6 +99,9 @@ const COMPANY_BY_PREFIX = {
 
 let draftDetails = [];
 const jefaturaDetailCache = new Map();
+const JEFATURA_PAGE_SIZE = 15;
+let jefaturaCurrentPage = 1;
+let jefaturaAllPending = [];
 
 const API_CONFIG = {
   defaultBaseUrl: 'http://localhost:5093',
@@ -106,9 +109,9 @@ const API_CONFIG = {
 };
 
 const MOCK_USER_DIRECTORY = {
-  'funcionario.ana': { userId: 10, role: 'ROL_FUNC' },
-  'jefe.maria': { userId: 20, role: 'ROL_JEFE' },
-  'rrhh.carlos': { userId: 30, role: 'ROL_RRHH' }
+  'funcionario.ana': { userId: 4, role: 'ROL_FUNC' },
+  'jefe.maria': { userId: 3, role: 'ROL_JEFE' },
+  'rrhh.carlos': { userId: 6, role: 'ROL_RRHH' }
 };
 
 const JUSTIFICACION_TIPO_IDS = {
@@ -409,7 +412,8 @@ function configureRoleUI() {
   const userEl = document.getElementById('current-user');
   const roleEl = document.getElementById('current-role');
   if (userEl) userEl.textContent = session.username;
-  if (roleEl) roleEl.textContent = session.role.replace('ROL_', '');
+  const ROLE_LABELS = { ROL_FUNC: 'Funcionario', ROL_JEFE: 'Jefatura', ROL_RRHH: 'Recursos Humanos' };
+  if (roleEl) roleEl.textContent = ROLE_LABELS[session.role] ?? session.role.replace('ROL_', '');
 
   const allowedByRole = {
     ROL_FUNC: ['panel-funcionario', 'panel-sifcnp'],
@@ -592,47 +596,91 @@ async function renderJefaturaRequests() {
       headers: buildApiHeaders(session)
     }, session);
 
-    const pending = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
-    if (countEl) countEl.textContent = `${pending.length} pendientes`;
+    jefaturaAllPending = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
+    if (countEl) countEl.textContent = `${jefaturaAllPending.length} pendientes`;
+    jefaturaCurrentPage = 1;
 
-    if (pending.length === 0) {
+    if (jefaturaAllPending.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay solicitudes pendientes.</td></tr>';
+      const downloadBtn = document.getElementById('jefatura-download-btn');
+      if (downloadBtn) downloadBtn.style.display = 'none';
+      renderJefaturaPagination(0);
       return;
     }
 
-    tbody.innerHTML = pending.map((b) => `
-      <tr>
-        <td><strong>${escapeHtml(b.funcionarioNombre)}</strong></td>
-        <td>${escapeHtml(b.motivoGeneral)}</td>
-        <td>${escapeHtml(b.tipoPrincipal)}</td>
-        <td>${formatDateTime(b.fechaCreacion)}</td>
-        <td class="row-status">${renderStatusBadge(b.estado)}</td>
-        <td>
-          <div class="flex gap-8">
-            <button class="btn btn-sm btn-success" type="button" onclick="approveRequest(${b.id},'approve')">Aprobar</button>
-            <button class="btn btn-sm btn-danger" type="button" onclick="approveRequest(${b.id},'reject')">Rechazar</button>
-            <button class="btn btn-sm btn-secondary" type="button" onclick="toggleDetail(this, ${b.id})">Ver detalle ▼</button>
-          </div>
-        </td>
-      </tr>
-      <tr class="detail-row hidden" data-boleta-id="${b.id}">
-        <td colspan="6">
-          <div class="detail-inner">
-            <div class="detail-field"><label>ID Boleta</label><p class="detail-id">${b.idPresentacion}</p></div>
-            <div class="detail-field"><label>Funcionario</label><p class="detail-funcionario">${escapeHtml(b.funcionarioNombre)}</p></div>
-            <div class="detail-field"><label>Motivo general</label><p class="detail-motivo">${escapeHtml(b.motivoGeneral)}</p></div>
-            <div class="detail-field"><label>Líneas</label><p>${b.cantidadDetalles}</p></div>
-            <div class="detail-field"><label>Tipo principal</label><p class="detail-tipo">${escapeHtml(b.tipoPrincipal)}</p></div>
-            <div class="detail-field" style="grid-column: 1 / -1;"><label>Detalle completo</label><p class="detail-completo">${escapeHtml(b.observacionDetalle)}</p></div>
-          </div>
-        </td>
-      </tr>
-    `).join('');
+    renderJefaturaPageView();
   } catch (error) {
     if (countEl) countEl.textContent = '0 pendientes';
     tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay solicitudes pendientes.</td></tr>';
     showNotice('j-notice', 'error', `No se pudieron cargar pendientes: ${error.message}`);
   }
+}
+
+function renderJefaturaPageView() {
+  const tbody = document.getElementById('jefatura-tbody');
+  const downloadBtn = document.getElementById('jefatura-download-btn');
+  if (!tbody) return;
+
+  const totalPages = Math.ceil(jefaturaAllPending.length / JEFATURA_PAGE_SIZE);
+  const paginated = jefaturaAllPending.slice(
+    (jefaturaCurrentPage - 1) * JEFATURA_PAGE_SIZE,
+    jefaturaCurrentPage * JEFATURA_PAGE_SIZE
+  );
+
+  if (downloadBtn) downloadBtn.style.display = jefaturaAllPending.length > 0 ? '' : 'none';
+
+  tbody.innerHTML = paginated.map((b) => `
+    <tr>
+      <td><strong>${escapeHtml(b.funcionarioNombre)}</strong></td>
+      <td>${escapeHtml(b.motivoGeneral)}</td>
+      <td>${escapeHtml(b.tipoPrincipal)}</td>
+      <td>${formatDateTime(b.fechaCreacion)}</td>
+      <td class="row-status">${renderStatusBadge(b.estado)}</td>
+      <td>
+        <div class="flex gap-8">
+          <button class="btn btn-sm btn-success" type="button" onclick="approveRequest(${b.id},'approve')">Aprobar</button>
+          <button class="btn btn-sm btn-danger" type="button" onclick="approveRequest(${b.id},'reject')">Rechazar</button>
+          <button class="btn btn-sm btn-secondary" type="button" onclick="toggleDetail(this, ${b.id})">Ver detalle ▼</button>
+        </div>
+      </td>
+    </tr>
+    <tr class="detail-row hidden" data-boleta-id="${b.id}">
+      <td colspan="6">
+        <div class="detail-inner">
+          <div class="detail-field"><label>ID Boleta</label><p class="detail-id">${b.idPresentacion}</p></div>
+          <div class="detail-field"><label>Funcionario</label><p class="detail-funcionario">${escapeHtml(b.funcionarioNombre)}</p></div>
+          <div class="detail-field"><label>Motivo general</label><p class="detail-motivo">${escapeHtml(b.motivoGeneral)}</p></div>
+          <div class="detail-field"><label>Líneas</label><p>${b.cantidadDetalles}</p></div>
+          <div class="detail-field"><label>Tipo principal</label><p class="detail-tipo">${escapeHtml(b.tipoPrincipal)}</p></div>
+          <div class="detail-field"><label>Dependencia / Unidad</label><p class="detail-unidad">—</p></div>
+          <div class="detail-field" style="grid-column: 1 / -1;"><label>Detalle completo</label><p class="detail-completo">${escapeHtml(b.observacionDetalle)}</p></div>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  renderJefaturaPagination(totalPages);
+}
+
+function renderJefaturaPagination(totalPages) {
+  const container = document.getElementById('jefatura-pagination');
+  if (!container) return;
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <button class="btn btn-sm btn-secondary" onclick="jefaturaGoToPage(${jefaturaCurrentPage - 1})" ${jefaturaCurrentPage === 1 ? 'disabled' : ''}>&#8249; Anterior</button>
+    <span style="padding:0 12px;font-size:.9rem;">Página ${jefaturaCurrentPage} de ${totalPages}</span>
+    <button class="btn btn-sm btn-secondary" onclick="jefaturaGoToPage(${jefaturaCurrentPage + 1})" ${jefaturaCurrentPage === totalPages ? 'disabled' : ''}>Siguiente &#8250;</button>
+  `;
+}
+
+function jefaturaGoToPage(page) {
+  const totalPages = Math.ceil(jefaturaAllPending.length / JEFATURA_PAGE_SIZE);
+  if (page < 1 || page > totalPages) return;
+  jefaturaCurrentPage = page;
+  renderJefaturaPageView();
 }
 
 async function approveRequest(boletaId, action) {
@@ -708,9 +756,11 @@ async function toggleDetail(btn, boletaId) {
     const solicitanteNombre = data?.solicitante?.nombreCompleto || 'No disponible';
     const tipoPrincipal = lineas[0]?.tipoJustificacionDescripcion || 'Sin líneas de detalle';
 
+    const unidadEl = detailRow.querySelector('.detail-unidad');
     if (funcionarioEl) funcionarioEl.textContent = solicitanteNombre;
     if (tipoEl) tipoEl.textContent = tipoPrincipal;
     if (detalleEl) detalleEl.textContent = summarizeDetailLines(lineas);
+    if (unidadEl) unidadEl.textContent = data?.solicitante?.unidadNombre || 'No disponible';
   } catch (error) {
     if (detalleEl) detalleEl.textContent = 'No fue posible cargar el detalle de la boleta.';
     showNotice('j-notice', 'error', `No se pudo cargar el detalle: ${error.message}`);
@@ -773,19 +823,93 @@ function resetRRHHFilter() {
   renderRRHHTable();
 }
 
+const SIFCNP_MOCK_DATA = [
+  { nombre: 'María Solano Mora', cedula: '1-0723-0456', concepto: 'Ausencia', fecha: '10/01/2025', observacion: 'Incapacidad médica verificada', estado: 'Aprobado' },
+  { nombre: 'María Solano Mora', cedula: '1-0723-0456', concepto: 'Tardanza', fecha: '22/11/2024', observacion: 'Bloqueo en Circunvalación', estado: 'Aprobado' },
+  { nombre: 'Carlos Brenes Jiménez', cedula: '2-0345-0789', concepto: 'Omisión de marca', fecha: '03/02/2025', observacion: 'Sin acceso biométrico en campo', estado: 'Aprobado' },
+  { nombre: 'Carlos Brenes Jiménez', cedula: '2-0345-0789', concepto: 'Tardanza', fecha: '15/12/2024', observacion: 'Desvío por obras en autopista', estado: 'Rechazado' },
+  { nombre: 'Adriana Vindas Rojas', cedula: '1-0891-0234', concepto: 'Salida anticipada', fecha: '28/01/2025', observacion: 'Consulta notarial urgente', estado: 'Aprobado' },
+  { nombre: 'Luis Herrera Campos', cedula: '3-0512-0667', concepto: 'Almuerzo extendido', fecha: '07/02/2025', observacion: 'Reunión técnica de coordinación', estado: 'Aprobado' },
+  { nombre: 'Patricia Ulate Soto', cedula: '1-0654-0321', concepto: 'Ausencia', fecha: '20/10/2024', observacion: 'Cuido de menor enfermo', estado: 'Aprobado' },
+  { nombre: 'Roberto Alfaro Mora', cedula: '4-0178-0995', concepto: 'Tardanza', fecha: '09/02/2025', observacion: 'Demora en tren interurbano', estado: 'Pendiente' },
+  { nombre: 'Silvia Méndez Umaña', cedula: '1-0932-0112', concepto: 'Omisión de marca', fecha: '14/01/2025', observacion: 'Sistema biométrico fuera de línea', estado: 'Aprobado' },
+  { nombre: 'Andrés Quirós Herrera', cedula: '2-0267-0483', concepto: 'Salida anticipada', fecha: '05/03/2025', observacion: 'Trámite bancario institucional', estado: 'Rechazado' }
+];
+
+function renderSifcnpMockData() {
+  const tbody = document.getElementById('sifcnp-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = SIFCNP_MOCK_DATA.map(row => `
+    <tr>
+      <td>${escapeHtml(row.nombre)}</td>
+      <td class="text-mono text-sm">${escapeHtml(row.cedula)}</td>
+      <td>${escapeHtml(row.concepto)}</td>
+      <td>${escapeHtml(row.fecha)}</td>
+      <td>${escapeHtml(row.observacion)}</td>
+      <td>${renderStatusBadge(row.estado)}</td>
+    </tr>
+  `).join('');
+}
+
 function sifcnpSearch() {
   const query = (document.getElementById('sifcnp-query')?.value || '').toLowerCase().trim();
+  const desde = document.getElementById('sifcnp-desde')?.value || '';
+  const hasta = document.getElementById('sifcnp-hasta')?.value || '';
   const tbody = document.getElementById('sifcnp-tbody');
   if (!tbody) return;
 
-  Array.from(tbody.rows).forEach(row => {
-    const fn = row.cells[0]?.textContent.toLowerCase() || '';
-    row.style.display = !query || fn.includes(query) ? '' : 'none';
+  const filtered = SIFCNP_MOCK_DATA.filter(row => {
+    const parts = row.fecha.split('/');
+    const isoFecha = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : '';
+    const matchNombre = !query || row.nombre.toLowerCase().includes(query);
+    const matchDesde = !desde || isoFecha >= desde;
+    const matchHasta = !hasta || isoFecha <= hasta;
+    return matchNombre && matchDesde && matchHasta;
   });
+
+  tbody.innerHTML = filtered.length > 0
+    ? filtered.map(row => `
+      <tr>
+        <td>${escapeHtml(row.nombre)}</td>
+        <td class="text-mono text-sm">${escapeHtml(row.cedula)}</td>
+        <td>${escapeHtml(row.concepto)}</td>
+        <td>${escapeHtml(row.fecha)}</td>
+        <td>${escapeHtml(row.observacion)}</td>
+        <td>${renderStatusBadge(row.estado)}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="6" class="text-muted">No se encontraron registros.</td></tr>';
 }
 
 function downloadReport() {
   showNotice('rrhh-notice', 'success', `Reporte generado: Reporte_Justificaciones_${today()}.xlsx`);
+}
+
+function downloadJefaturaReport() {
+  if (jefaturaAllPending.length === 0) {
+    showNotice('j-notice', 'warning', 'No hay datos pendientes para descargar.');
+    return;
+  }
+  const headers = ['Funcionario', 'Motivo', 'Tipo', 'Fecha', 'Estado'];
+  const rows = jefaturaAllPending.map(b => [
+    b.funcionarioNombre,
+    b.motivoGeneral,
+    b.tipoPrincipal,
+    formatDateTime(b.fechaCreacion),
+    b.estado
+  ]);
+  const csvContent = [headers, ...rows]
+    .map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Reporte_Jefatura_${today()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function renderStatusBadge(estado) {
@@ -850,6 +974,7 @@ function initDashboardPage() {
   renderFuncionarioHistory();
   renderJefaturaRequests();
   renderRRHHTable();
+  renderSifcnpMockData();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
