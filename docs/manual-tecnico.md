@@ -55,13 +55,17 @@ Referencias:
 
 ### 6.1 Prerrequisitos
 - .NET SDK 8.x
-- SQL Server 2019+
+- SQL Server 2022+
 - Navegador moderno
 
-### 6.2 Scripts SQL minimos
-1. docs/db/001_init_integra_cnp.sql
-2. docs/db/007_integra_local_bridge.sql
-3. docs/db/008_add_comentario_resolucion.sql (si aplica)
+### 6.2 Scripts SQL — Setup canónico (orden obligatorio)
+1. docs/db/001_integra_marcas_base_inicial.sql (base inicial con esquemas, tablas, catálogos)
+2. docs/db/002_integra_marcas_objetos.sql (función de aprobadores + 4 vistas de integración)
+
+> Ambos scripts son **completamente idempotentes**. Ver referencia histórica y cambios de nomenclatura en [docs/db/ARCHIVOS_OBSOLETOS.md](docs/db/ARCHIVOS_OBSOLETOS.md)
+
+Referencia de nomenclatura estándar:
+- [docs/db/Convenciones_Nomeclatura_BD.md](docs/db/Convenciones_Nomeclatura_BD.md)
 
 ### 6.3 Comandos
 ```powershell

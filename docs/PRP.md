@@ -96,7 +96,7 @@ Pendiente para evolucion de producto:
 | **Frontend** | HTML5, CSS3, JavaScript (dashboard funcional integrado a API) |
 | **Backend** | C# (.NET 8) con arquitectura por capas y endpoints operativos |
 | **Base de datos principal** | Microsoft SQL Server 2019 R14 (`INTEGRA_CNP`) |
-| **BD lectura ERP** | WIZDOM (vistas de solo lectura, proveedor OPTEC) |
+| **BD lectura ERP** | WIZDOM (fuente canonica: `dbo.empleado`, solo lectura) |
 | **BD histórica** | SIFCNP (solo lectura, consulta histórica) |
 | **Navegadores soportados** | Chrome, Edge, Firefox |
 | **Arquitectura** | Backend en capas (Api/Application/Domain/Infrastructure) + frontend estatico |
@@ -119,9 +119,13 @@ Pendiente para evolucion de producto:
 ## 6. Requerimientos Funcionales
 
 ### RF-01 — Gestión de Usuarios
-- Poblar y sincronizar tabla de usuarios desde **vistas de solo lectura** del ERP WIZDOM.
-- Incluir funcionarios de **CNP (código 001)** y **FANAL (código 002)**.
+- Poblar y sincronizar tabla de usuarios desde `WIZDOM.dbo.empleado` (solo lectura) como fuente primaria.
+- Incluir funcionarios de CNP/FANAL mediante mapeo canonico de compania en bridge (`1/001 -> CNP`, `2/002 -> FANAL`).
 - Datos sincronizados: cédula, nombre completo, correo institucional, jefatura directa, unidad organizacional, compañía y rol.
+- Reglas obligatorias de normalizacion de origen:
+  - `numero_identificacion` se preserva como texto (sin conversion numerica).
+  - fechas centinela `00:00.0` se transforman a `NULL`.
+  - placeholders (`NULL`, `N/T`, `N/A`, `.`, `-`, `--`) se tratan como `NULL` logico por campo.
 - La jefatura directa proveniente de WIZDOM se conservará como dato base de referencia, pero no como única regla de aprobación.
 
 ### RF-02 — Creación de Boleta de Justificación
@@ -229,8 +233,14 @@ Pendiente para evolucion de producto:
 
 ## 9. Modelo de Base de Datos
 
-> **Base de datos:** `INTEGRA_CNP` | **Motor:** SQL Server 2019 R14 | **Normalización:** 3FN  
-> Ver script completo en: `docs/db/INTEGRA_CNP_DDL.sql`
+> **Base de datos:** `INTEGRA_CNP` | **Motor:** SQL Server 2022 | **Normalización:** 3FN  
+> 
+> **Setup canónico en dos scripts:**
+> - `docs/db/001_integra_marcas_base_inicial.sql` — Base inicial con esquemas, tablas, catálogos y datos semilla (ejecutar primero)
+> - `docs/db/002_integra_marcas_objetos.sql` — Función de aprobadores y 4 vistas de integración de solo lectura (ejecutar segundo)
+>
+> Ver detalle de consolidación en: `docs/db/ARCHIVOS_OBSOLETOS.md`
+> Ver convenciones de nomenclatura en: `docs/db/Convenciones_Nomeclatura_BD.md`
 
 ### 9.1 Diagrama de Relaciones
 
@@ -484,7 +494,11 @@ Justificacion de Marca/
 ├── docs/
 │   ├── PRP.md                  ← Este documento
 │   └── db/
-│       └── INTEGRA_CNP_DDL.sql ← Script DDL completo de la BD
+│       ├── 001_integra_marcas_base_inicial.sql ← Base inicial (ejecutar primero)
+│       ├── 002_integra_marcas_objetos.sql ← Objetos e integración (ejecutar segundo)
+│       ├── ARCHIVOS_OBSOLETOS.md ← Referencia histórica de scripts consolidados
+│       ├── Convenciones_Nomeclatura_BD.md ← Estándares de nomenclatura
+│       ├── flujos-datos-end-to-end.md ← Flujos de datos
 │
 ├── MARCAS_Análisis-Y-Diseño_SI_vr_1-1_Firmado 1 1.pdf  ← Documento fuente
 ├── Inicial.md                  ← Instrucciones originales del prototipo

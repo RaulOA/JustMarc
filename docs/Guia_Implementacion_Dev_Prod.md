@@ -52,10 +52,10 @@
 
 ### Acceso a bases de datos externas (solo lectura)
 
-| Base de datos | Propósito | Scripts asociados |
+| Base de datos | Propósito | Vistas asociadas |
 |---|---|---|
-| `WIZDOM` | Marcas físicas de empleados | `docs/db/002_extract_wizdom_readonly.sql`, `005_extract_wizdom_targeted_min.sql` |
-| `SIFCNP` | Histórico de justificaciones | `docs/db/003_extract_sifcnp_readonly.sql`, `006_extract_sifcnp_targeted_min.sql` |
+| `WIZDOM` | Fuente de funcionarios (`dbo.empleado`, `dbo.organigrama`) | `Integracion.v_EmpleadoWizdom`, `Integracion.v_OrganigramaWizdom` (en 002) |
+| `SIFCNP` | Histórico de justificaciones | `Integracion.v_JustificacionEncabezadoSifcnp`, `Integracion.v_JustificacionDetalleSifcnp` (en 002) |
 
 > En desarrollo local, las cadenas `WizdomReadOnly` y `SifcnpReadOnly` pueden apuntar a instancias locales de prueba o dejarse vacías si no se activa el puente de datos.
 
@@ -75,12 +75,13 @@
         |  TCP/IP  →  Server=<IP_VM_BD>,1433
         v
 [VM de Base de Datos — servidor SQL]
-  SQL Server 2019+
+  SQL Server 2022
   Base: INTEGRA_CNP
-   ├── dbo.*  (dominio: Justificaciones, Usuarios, Roles, Estados)
-   ├── stg.*  (staging datos externos)
-   ├── bridge.* (vistas puente locales)
-   └── ext.*  (placeholders, activar cuando se conecte a externas)
+   ├── Configuracion.* (catálogos: Rol, Estados, Tipos, etc.)
+   ├── RecursosHumanos.* (Usuario, EstructuraOrganizacional)
+   ├── Operacion.* (Justificacion, Detalle, Jerarquias, Delegaciones)
+   ├── Auditoria.* (EventoAuditoria, ErrorApi)
+   └── Integracion.* (v_EmpleadoWizdom, v_OrganigramaWizdom, v_JustificacionEncabezadoSifcnp, v_JustificacionDetalleSifcnp)
         ^  lectura futura (cadena de conexión separada)
         |
 [VM / Servidor WIZDOM]      [VM / Servidor SIFCNP]
@@ -105,38 +106,39 @@
 
 Ejecutar los scripts **en este orden exacto** en SSMS, conectado al servidor objetivo:
 
-### 3.1 Entorno Development (local)
+### 3.1 Todos los entornos (Development, Staging, Production)
 
 ```
-Paso 1: docs/db/001_init_integra_cnp.sql
-Paso 2: docs/db/007_integra_local_bridge.sql
+Paso 1 (Obligatorio): docs/db/001_integra_marcas_base_inicial.sql
+Paso 2 (Obligatorio): docs/db/002_integra_marcas_objetos.sql
 ```
 
 **¿Qué hace cada script?**
 
-- `001_init_integra_cnp.sql` — Crea la base de datos `INTEGRA_CNP` si no existe y define todas las tablas del dominio: `Roles`, `Estados`, `Cat_TiposJustificacion`, `Usuarios`, `Justificaciones_Encabezado`, `Justificaciones_Detalle`. Incluye datos semilla básicos. Es **idempotente** (usa `IF NOT EXISTS`).
-- `007_integra_local_bridge.sql` — Verifica que `INTEGRA_CNP` exista (falla rápido con error descriptivo si no). Crea los esquemas `stg`, `bridge`, `ext` y las estructuras de staging para WIZDOM y SIFCNP.
+- **001_integra_marcas_base_inicial.sql** — Crea la base de datos `INTEGRA_CNP` si no existe. Define esquemas funcionales (Configuracion, RecursosHumanos, Operacion, Auditoria, Integracion). Crea todas las tablas internas con nomenclatura estandarizada y datos semilla. Es **completamente idempotente** (IF NOT EXISTS en todos los objetos).
 
-### 3.2 Entorno Production
+- **002_integra_marcas_objetos.sql** — Requiere que 001 se haya ejecutado. Define la función `Operacion.fn_AprobadoresVigentesPorSolicitante`, crea 4 vistas de solo lectura sobre WIZDOM y SIFCNP en el esquema `Integracion`, y proporciona un procedimiento opcional de sincronización histórica.
 
-```
-Paso 1: docs/db/001_init_integra_cnp.sql
-Paso 2: docs/db/004_extract_integra_cnp_readonly.sql   ← usuario readonly para reportes (si aplica)
-Paso 3: docs/db/007_integra_local_bridge.sql
-```
-
-> Los scripts `002`, `003`, `005`, `006` son para extraer datos desde WIZDOM/SIFCNP hacia staging. Ejecutarlos únicamente si se va a activar el puente de datos o poblar `stg.*` en producción.
-
-### 3.3 Validación post-script
+### 3.2 Validación post-script
 
 ```sql
 USE INTEGRA_CNP;
-SELECT TABLE_SCHEMA, TABLE_NAME
-FROM INFORMATION_SCHEMA.TABLES
-ORDER BY TABLE_SCHEMA, TABLE_NAME;
+SELECT SCHEMA_NAME(schema_id) AS Esquema, name AS Objeto
+FROM sys.objects
+WHERE type IN ('U', 'V', 'FN', 'P')
+ORDER BY SCHEMA_NAME(schema_id), name;
 ```
 
-Debe listar tablas en esquemas `dbo`, `stg`, `bridge` y `ext`.
+Debe listar tablas en esquemas `Configuracion`, `RecursosHumanos`, `Operacion`, `Auditoria` e `Integracion`.
+
+### 3.3 Referencia histórica
+
+Scripts antiguos consolidados en estos dos (ver [docs/db/ARCHIVOS_OBSOLETOS.md](docs/db/ARCHIVOS_OBSOLETOS.md) para detalle):
+- Archivos 002–006: exploración/extracción (solo referencia)
+- Archivo 007: integra_local_bridge (esquemas stg/bridge/ext reemplazados por vistas)
+- Archivo 008: comentario_resolucion (integrado en 001)
+- Archivo 009: admin_hierarchy (integrado en 001)
+- Archivo 010: normalization (vistas finales en 002)
 
 ---
 

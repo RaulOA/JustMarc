@@ -22,7 +22,7 @@ public sealed class ErrorLogRepository : IErrorLogRepository
             await connection.OpenAsync();
 
             const string sql = """
-                INSERT INTO dbo.ApiErrorLog
+                INSERT INTO Auditoria.ErrorApi
                     (CorrelationID, HttpMethod, Endpoint, StatusCode, TipoError, Mensaje, StackTrace,
                      UsuarioID, RolUsuario, Entorno, Ip, UserAgent)
                 VALUES
