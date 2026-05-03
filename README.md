@@ -243,6 +243,53 @@ npx http-server -p 5500
 4. Levantar frontend en puerto 5500.
 5. Probar login MVP por rol y llamadas a API con headers requeridos.
 
+## 13) Ejecutar desde VS Code
+
+El proyecto incluye configuracion para ejecutar y depurar sin escribir comandos manuales en terminal.
+
+Archivos de soporte:
+- .vscode/tasks.json: tareas de restauracion, build, run, test, cobertura y frontend.
+- .vscode/launch.json: perfiles de depuracion para API, adjuntar proceso, tests y stack frontend+API.
+- .vscode/extensions.json: extensiones recomendadas para .NET, API y SQL.
+
+### Tareas disponibles (Terminal > Run Task)
+- restore: restaura paquetes NuGet del backend.
+- build-api: compila la API en Debug.
+- run-api: ejecuta la API sin recompilar.
+- test: ejecuta pruebas del proyecto de tests.
+- test-coverage: ejecuta pruebas con cobertura OpenCover.
+- serve-frontend: levanta servidor HTTP local en puerto 8000.
+- clean: limpia artefactos de compilacion Debug.
+- build-and-run-api: compila y luego ejecuta la API.
+- start-full-stack: build + API + frontend en un solo click.
+
+### Perfiles de depuracion (Run and Debug)
+- Debug API (.NET): compila, levanta API y abre Swagger automaticamente.
+- Attach to Process: adjunta el depurador a un proceso dotnet en ejecucion.
+- Debug Tests: perfil para depurar binario de pruebas.
+- Frontend Browser: inicia servidor frontend y abre http://localhost:8000/index.html.
+- Full Stack Debug (API + Frontend): inicia depuracion de API + frontend desde Run and Debug.
+- Frontend + API: ejecuta la secuencia build-and-run-api y abre el frontend en http://localhost:8000.
+
+### Inicio en un click
+1. Terminal > Run Task > start-full-stack
+2. Run and Debug > Full Stack Debug (API + Frontend) > F5
+
+### Extensiones recomendadas
+1. ms-dotnettools.csharp
+2. ms-dotnettools.vscode-dotnet-runtime
+3. humao.rest-client
+4. Swagger.swaggerviewer
+5. ms-mssql.mssql
+6. esbenp.prettier-vscode
+
+### Atajos clave
+- Ctrl+Shift+B: ejecutar tarea de build por defecto (build-api).
+- Ctrl+Shift+P -> Tasks: Run Task: ejecutar cualquier tarea manualmente.
+- F5: iniciar depuracion con el perfil seleccionado.
+- Shift+F5: detener depuracion.
+- Ctrl+Shift+D: abrir panel Run and Debug.
+
 
 ## 12) Comportamiento de Sesión: Timeout por Inactividad (5 minutos)
 
