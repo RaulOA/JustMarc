@@ -5,10 +5,10 @@ public static class JustificacionesSql
     public const string InsertEncabezado = @"
 INSERT INTO Operacion.Justificacion
 (
-    UsuarioID,
+    UsuarioId,
     MotivoGeneral,
     EstadoJustificacionId,
-    Usr_Registro
+    CreadoPor
 )
 VALUES
 (
@@ -26,7 +26,7 @@ INSERT INTO Operacion.JustificacionDetalle
     TipoJustificacionId,
     FechaMarca,
     ObservacionDetalle,
-    Usr_Registro
+    CreadoPor
 )
 VALUES
 (

@@ -5,6 +5,7 @@ using IntegradorMarcas.Application.Services;
 using IntegradorMarcas.Infrastructure.Data;
 using IntegradorMarcas.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,19 @@ if (!builder.Environment.IsDevelopment())
 }
 
 builder.Services.AddControllers();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(e => e.Value?.Errors.Count > 0)
+            .SelectMany(e => e.Value!.Errors.Select(err =>
+                string.IsNullOrEmpty(err.ErrorMessage) ? err.Exception?.Message ?? "Error de validación" : err.ErrorMessage))
+            .ToList();
+
+        throw new AppException(string.Join("; ", errors), 400);
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
@@ -46,23 +60,6 @@ builder.Services.AddScoped<IUserContext, HeaderUserContext>();
 builder.Services.AddScoped<IErrorLogRepository, ErrorLogRepository>();
 
 var app = builder.Build();
-
-app.UseExceptionHandler(exceptionApp =>
-{
-    exceptionApp.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error;
-        var (statusCode, title) = exception switch
-        {
-            AppException appException => (appException.StatusCode, appException.Message),
-            KeyNotFoundException keyNotFoundException => (StatusCodes.Status404NotFound, keyNotFoundException.Message),
-            _ => (StatusCodes.Status500InternalServerError, "Error interno del servidor")
-        };
-
-        context.Response.StatusCode = statusCode;
-        await Results.Problem(title: title, statusCode: statusCode).ExecuteAsync(context);
-    });
-});
 
 // Manejo global de excepciones para respuestas ProblemDetails consistentes:
 // - Traduce excepciones conocidas a codigos HTTP esperados.
@@ -138,6 +135,14 @@ if (swaggerEnabled)
 
 app.UseHttpsRedirection();
 app.UseCors("LocalFrontend");
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Response.StatusCode == 404 && !context.Response.HasStarted)
+    {
+        throw new AppException("Endpoint no encontrado", 404);
+    }
+});
 app.MapControllers();
 
 // Probe operativo minimo para disponibilidad del proceso y referencia temporal UTC.
