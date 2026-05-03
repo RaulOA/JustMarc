@@ -103,6 +103,22 @@ public sealed class JustificacionRepository : IJustificacionRepository
         return data.ToList();
     }
 
+    public async Task<IReadOnlyList<JustificacionDetalleLineaDto>> ListMineLineasAsync(int usuarioId, int justificacionId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        var data = await connection.QueryAsync<JustificacionDetalleLineaDto>(new CommandDefinition(
+            JustificacionesSql.ListMineLineas,
+            new
+            {
+                UsuarioID = usuarioId,
+                JustificacionID = justificacionId
+            },
+            cancellationToken: cancellationToken));
+
+        return data.ToList();
+    }
+
     public async Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(int aprobadorUsuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
@@ -129,6 +145,26 @@ public sealed class JustificacionRepository : IJustificacionRepository
             JustificacionesSql.ListRrhhGlobal,
             new
             {
+                filtros.EstadoId,
+                filtros.Compania,
+                Funcionario = string.IsNullOrWhiteSpace(filtros.Funcionario) ? null : filtros.Funcionario.Trim(),
+                filtros.FechaDesde,
+                filtros.FechaHasta
+            },
+            cancellationToken: cancellationToken));
+
+        return data.ToList();
+    }
+
+    public async Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(int? usuarioId, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        var data = await connection.QueryAsync<RrhhJustificacionResumenDto>(new CommandDefinition(
+            JustificacionesSql.ListHistorico,
+            new
+            {
+                UsuarioID = usuarioId,
                 filtros.EstadoId,
                 filtros.Compania,
                 Funcionario = string.IsNullOrWhiteSpace(filtros.Funcionario) ? null : filtros.Funcionario.Trim(),

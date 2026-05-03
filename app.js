@@ -108,11 +108,15 @@ const COMPANY_BY_PREFIX = {
 let draftDetails = [];
 const jefaturaDetailCache = new Map();
 const JEFATURA_PAGE_SIZE = 15;
+const FUNCIONARIO_HISTORY_PAGE_SIZE = 10;
 let jefaturaCurrentPage = 1;
 let jefaturaAllPending = [];
 let jefaturaSortField = 'fechaCreacion';
 let jefaturaSortDirection = 'desc';
 let sifcnpCurrentResults = [];
+let funcionarioHistoryAll = [];
+let funcionarioHistoryVisibleCount = FUNCIONARIO_HISTORY_PAGE_SIZE;
+const funcionarioHistoryDetailCache = new Map();
 
 const API_CONFIG = {
   defaultBaseUrl: 'http://localhost:5093',
@@ -212,10 +216,33 @@ function getTimeUntilTimeout() {
   return Math.max(0, Math.round(timeRemaining));
 }
 
+function getApiBaseUrlFromQuery() {
+  if (typeof window === 'undefined') return '';
+
+  try {
+    const apiBaseUrl = new URLSearchParams(window.location.search).get('api') || '';
+    const normalized = apiBaseUrl.trim().replace(/\/$/, '');
+    return /^https?:\/\//i.test(normalized) ? normalized : '';
+  } catch {
+    return '';
+  }
+}
+
+function syncApiBaseUrlOverride() {
+  const fromQuery = getApiBaseUrlFromQuery();
+  if (!fromQuery) return;
+
+  sessionStorage.setItem(STORAGE_KEYS.apiBaseUrl, fromQuery);
+  if (typeof window !== 'undefined') {
+    window.SJM_API_BASE_URL = fromQuery;
+  }
+}
+
 function getApiBaseUrl() {
+  const fromQuery = getApiBaseUrlFromQuery();
   const fromWindow = typeof window !== 'undefined' ? window.SJM_API_BASE_URL : '';
   const fromSession = sessionStorage.getItem(STORAGE_KEYS.apiBaseUrl) || '';
-  const selected = String(fromWindow || fromSession || API_CONFIG.defaultBaseUrl).trim();
+  const selected = String(fromQuery || fromWindow || fromSession || API_CONFIG.defaultBaseUrl).trim();
   return selected.replace(/\/$/, '');
 }
 
@@ -354,6 +381,7 @@ function normalizeApiResumen(item) {
     id: item?.justificacionID ?? 0,
     idPresentacion: presentBoletaId(item?.justificacionID),
     motivoGeneral: item?.motivoGeneral || 'Sin motivo disponible',
+    comentarioResolucion: item?.comentarioResolucion || null,
     estado: mapEstadoDescripcion(item?.estadoID, item?.estadoDescripcion),
     fechaCreacion: item?.fechaCreacion || null,
     fechaResolucion: item?.fechaAprobacion || null,
@@ -362,9 +390,30 @@ function normalizeApiResumen(item) {
     funcionarioCedula: item?.funcionarioCedula || '',
     compania: item?.compania || '',
     tipoPrincipal: item?.tipoPrincipal || 'Sin detalle',
-    observacionDetalle: item?.observacionDetalle || 'Cargando detalle...',
+    observacionDetalle: item?.observacionDetalle || '—',
     aprobadorLabel: item?.aprobadorID ? `ID ${item.aprobadorID}` : null
   };
+}
+
+// Mitigacion temporal acotada al detalle de historial del funcionario.
+function normalizeMojibakeTemporaryForHistoryDetail(value) {
+  if (typeof value !== 'string' || !/[ÃÂ�]/.test(value)) {
+    return value;
+  }
+
+  let normalized = value;
+  const replacements = [
+    ['Ã¡', 'á'], ['Ã©', 'é'], ['Ã­', 'í'], ['Ã³', 'ó'], ['Ãº', 'ú'],
+    ['Ã', 'Á'], ['Ã‰', 'É'], ['Ã', 'Í'], ['Ã“', 'Ó'], ['Ãš', 'Ú'],
+    ['Ã±', 'ñ'], ['Ã‘', 'Ñ'], ['Ã¼', 'ü'], ['Ãœ', 'Ü'],
+    ['Â¿', '¿'], ['Â¡', '¡'], ['Â°', '°'], ['Â', '']
+  ];
+
+  replacements.forEach(([wrong, right]) => {
+    normalized = normalized.replaceAll(wrong, right);
+  });
+
+  return normalized.replaceAll('�', '');
 }
 
 function summarizeDetailLines(lineas) {
@@ -660,7 +709,7 @@ function configureRoleUI() {
   const allowedByRole = {
     ROL_FUNC: ['panel-funcionario', 'panel-sifcnp'],
     ROL_JEFE: ['panel-funcionario', 'panel-jefatura', 'panel-sifcnp'],
-    ROL_RRHH: ['panel-rrhh', 'panel-sifcnp']
+    ROL_RRHH: ['panel-funcionario', 'panel-rrhh', 'panel-sifcnp']
   };
 
   const allowedTabs = allowedByRole[session.role] || ['panel-sifcnp'];
@@ -673,6 +722,21 @@ function configureRoleUI() {
   const fallback = allowedTabs[0];
   const target = savedTab && allowedTabs.includes(savedTab) ? savedTab : fallback;
   switchTab(target);
+  configureSifcnpScopeUI(session);
+}
+
+function configureSifcnpScopeUI(session) {
+  const funcionarioGroup = document.getElementById('sifcnp-funcionario-group');
+  const scopeNote = document.getElementById('sifcnp-scope-note');
+  if (!funcionarioGroup || !scopeNote) return;
+
+  const isFuncionario = session?.role === 'ROL_FUNC';
+  funcionarioGroup.classList.toggle('hidden', isFuncionario);
+  scopeNote.classList.toggle('hidden', !isFuncionario);
+
+  if (isFuncionario) {
+    scopeNote.textContent = 'Mostrando solo sus registros historicos.';
+  }
 }
 
 function switchTab(tabId) {
@@ -787,8 +851,11 @@ async function renderFuncionarioHistory() {
   const tbody = document.getElementById('funcionario-history-body');
   if (!tbody || !session) return;
 
-  if (session.role !== 'ROL_FUNC') {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Vista disponible solo para rol Funcionario. Jefatura puede crear boletas, pero no visualizarlas en su propio historial.</td></tr>';
+  if (session.role !== 'ROL_FUNC' && session.role !== 'ROL_JEFE' && session.role !== 'ROL_RRHH') {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Vista disponible para Funcionario, Jefatura y RRHH.</td></tr>';
+    funcionarioHistoryAll = [];
+    funcionarioHistoryVisibleCount = FUNCIONARIO_HISTORY_PAGE_SIZE;
+    renderFuncionarioHistoryFooter();
     return;
   }
 
@@ -798,26 +865,136 @@ async function renderFuncionarioHistory() {
       headers: buildApiHeaders(session)
     }, session);
 
-    const mine = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
-    if (mine.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay boletas registradas.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = mine.map(b => `
-      <tr>
-        <td class="text-mono text-sm">${b.idPresentacion}</td>
-        <td>${escapeHtml(b.motivoGeneral)}</td>
-        <td>${b.cantidadDetalles}</td>
-        <td>${formatDateTime(b.fechaCreacion)}</td>
-        <td>${renderStatusBadge(b.estado)}</td>
-        <td>${b.fechaResolucion ? formatDateTime(b.fechaResolucion) : '—'}</td>
-      </tr>
-    `).join('');
+    funcionarioHistoryAll = Array.isArray(response) ? response.map(normalizeApiResumen) : [];
+    funcionarioHistoryVisibleCount = FUNCIONARIO_HISTORY_PAGE_SIZE;
+    renderFuncionarioHistoryPage();
   } catch (error) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No hay boletas registradas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No hay boletas registradas.</td></tr>';
+    funcionarioHistoryAll = [];
+    funcionarioHistoryVisibleCount = FUNCIONARIO_HISTORY_PAGE_SIZE;
+    renderFuncionarioHistoryFooter();
     showNotice('f-notice', 'error', `No se pudo cargar el historial: ${error.message}`);
   }
+}
+
+function renderFuncionarioHistoryPage() {
+  const tbody = document.getElementById('funcionario-history-body');
+  if (!tbody) return;
+
+  if (funcionarioHistoryAll.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No hay boletas registradas.</td></tr>';
+    renderFuncionarioHistoryFooter();
+    return;
+  }
+
+  const visibleItems = funcionarioHistoryAll.slice(0, funcionarioHistoryVisibleCount);
+
+  tbody.innerHTML = visibleItems.map(b => `
+    <tr>
+      <td class="text-mono text-sm">${b.idPresentacion}</td>
+      <td>${formatDateTime(b.fechaCreacion)}</td>
+      <td>${renderStatusBadge(b.estado)}</td>
+      <td>
+        <button class="btn btn-sm btn-secondary" type="button" onclick="toggleFuncionarioHistoryDetail(this, ${b.id})">Ver detalle ▼</button>
+      </td>
+    </tr>
+    <tr class="detail-row hidden" data-func-hist-id="${b.id}">
+      <td colspan="4">
+        <div class="detail-inner">
+          <div class="detail-field"><label>Motivo general</label><p>${escapeHtml(b.motivoGeneral)}</p></div>
+          ${renderComentarioResolucionDetalle(b)}
+          <div class="detail-field" style="grid-column: 1 / -1;">
+            <label>Detalle por líneas</label>
+            <div class="funcionario-history-lines text-sm text-muted" data-func-hist-lines="${b.id}">Cargando detalle...</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  renderFuncionarioHistoryFooter();
+}
+
+function renderComentarioResolucionDetalle(item) {
+  const isResuelto = item.estado === ESTADOS.APROBADO || item.estado === ESTADOS.RECHAZADO;
+  if (!isResuelto) {
+    return '';
+  }
+
+  if (!item.comentarioResolucion) {
+    return '<div class="detail-field" style="grid-column: 1 / -1;"><label>Comentario de resolución</label><p>—</p></div>';
+  }
+
+  return `<div class="detail-field" style="grid-column: 1 / -1;"><label>Comentario de resolución</label><p>${escapeHtml(item.comentarioResolucion)}</p></div>`;
+}
+
+async function toggleFuncionarioHistoryDetail(btn, justificacionId) {
+  const row = btn.closest('tr');
+  const detailRow = row?.nextElementSibling;
+  if (!detailRow || !detailRow.classList.contains('detail-row')) return;
+
+  const isHidden = detailRow.classList.contains('hidden');
+  detailRow.classList.toggle('hidden', !isHidden);
+  btn.textContent = isHidden ? 'Ocultar ▲' : 'Ver detalle ▼';
+
+  if (!isHidden) {
+    return;
+  }
+
+  const container = detailRow.querySelector(`[data-func-hist-lines="${justificacionId}"]`);
+  if (!container) {
+    return;
+  }
+
+  if (funcionarioHistoryDetailCache.has(justificacionId)) {
+    container.innerHTML = funcionarioHistoryDetailCache.get(justificacionId);
+    return;
+  }
+
+  try {
+    const session = getSession();
+    if (!session) return;
+
+    const response = await apiFetch(`/api/justificaciones/${justificacionId}/lineas`, {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
+
+    const lineas = Array.isArray(response) ? response : [];
+    const html = lineas.length > 0
+      ? lineas.map((linea, idx) => {
+          const tipoRaw = linea.tipoJustificacionDescripcion || 'Sin tipo';
+          const fecha = formatDate(linea.fechaMarca);
+          const observacionRaw = linea.observacionDetalle || '—';
+          const tipo = escapeHtml(normalizeMojibakeTemporaryForHistoryDetail(tipoRaw));
+          const observacion = escapeHtml(normalizeMojibakeTemporaryForHistoryDetail(observacionRaw));
+          return `<div style="margin-bottom:8px;"><strong>Línea ${idx + 1}:</strong> Tipo: ${tipo} | Fecha de marca: ${fecha} | Observación: ${observacion}</div>`;
+        }).join('')
+      : '<div>No hay líneas de detalle registradas.</div>';
+
+    funcionarioHistoryDetailCache.set(justificacionId, html);
+    container.innerHTML = html;
+  } catch (error) {
+    container.innerHTML = '<div>No fue posible cargar las líneas de detalle.</div>';
+  }
+}
+
+function renderFuncionarioHistoryFooter() {
+  const summaryEl = document.getElementById('funcionario-history-summary');
+  const loadMoreBtn = document.getElementById('funcionario-history-load-more');
+  if (!summaryEl || !loadMoreBtn) return;
+
+  const total = funcionarioHistoryAll.length;
+  const showing = Math.min(funcionarioHistoryVisibleCount, total);
+  summaryEl.textContent = `Mostrando ${showing} de ${total}`;
+
+  const hasMore = showing < total;
+  loadMoreBtn.style.display = hasMore ? '' : 'none';
+}
+
+function loadMoreFuncionarioHistory() {
+  funcionarioHistoryVisibleCount += FUNCIONARIO_HISTORY_PAGE_SIZE;
+  renderFuncionarioHistoryPage();
 }
 
 async function renderJefaturaRequests() {
@@ -1175,19 +1352,6 @@ function resetRRHHFilter() {
   renderRRHHTable();
 }
 
-const SIFCNP_MOCK_DATA = [
-  { nombre: 'María Solano Mora', cedula: '1-0723-0456', concepto: 'Ausencia', fecha: '10/01/2025', observacion: 'Incapacidad médica verificada', estado: 'Aprobado' },
-  { nombre: 'María Solano Mora', cedula: '1-0723-0456', concepto: 'Tardanza', fecha: '22/11/2024', observacion: 'Bloqueo en Circunvalación', estado: 'Aprobado' },
-  { nombre: 'Carlos Brenes Jiménez', cedula: '2-0345-0789', concepto: 'Omisión de marca', fecha: '03/02/2025', observacion: 'Sin acceso biométrico en campo', estado: 'Aprobado' },
-  { nombre: 'Carlos Brenes Jiménez', cedula: '2-0345-0789', concepto: 'Tardanza', fecha: '15/12/2024', observacion: 'Desvío por obras en autopista', estado: 'Rechazado' },
-  { nombre: 'Adriana Vindas Rojas', cedula: '1-0891-0234', concepto: 'Salida anticipada', fecha: '28/01/2025', observacion: 'Consulta notarial urgente', estado: 'Aprobado' },
-  { nombre: 'Luis Herrera Campos', cedula: '3-0512-0667', concepto: 'Almuerzo extendido', fecha: '07/02/2025', observacion: 'Reunión técnica de coordinación', estado: 'Aprobado' },
-  { nombre: 'Patricia Ulate Soto', cedula: '1-0654-0321', concepto: 'Ausencia', fecha: '20/10/2024', observacion: 'Cuido de menor enfermo', estado: 'Aprobado' },
-  { nombre: 'Roberto Alfaro Mora', cedula: '4-0178-0995', concepto: 'Tardanza', fecha: '09/02/2025', observacion: 'Demora en tren interurbano', estado: 'Pendiente' },
-  { nombre: 'Silvia Méndez Umaña', cedula: '1-0932-0112', concepto: 'Omisión de marca', fecha: '14/01/2025', observacion: 'Sistema biométrico fuera de línea', estado: 'Aprobado' },
-  { nombre: 'Andrés Quirós Herrera', cedula: '2-0267-0483', concepto: 'Salida anticipada', fecha: '05/03/2025', observacion: 'Trámite bancario institucional', estado: 'Rechazado' }
-];
-
 function renderSifcnpRows(rows) {
   const tbody = document.getElementById('sifcnp-tbody');
   if (!tbody) return;
@@ -1206,29 +1370,51 @@ function renderSifcnpRows(rows) {
     : '<tr><td colspan="6" class="text-muted">No se encontraron registros.</td></tr>';
 }
 
-function renderSifcnpMockData() {
-  sifcnpCurrentResults = [...SIFCNP_MOCK_DATA];
-  renderSifcnpRows(sifcnpCurrentResults);
-}
+async function renderSifcnpHistorico() {
+  const session = getSession();
+  if (!session) return;
 
-function sifcnpSearch() {
-  const query = (document.getElementById('sifcnp-query')?.value || '').toLowerCase().trim();
+  const query = (document.getElementById('sifcnp-query')?.value || '').trim();
   const desde = document.getElementById('sifcnp-desde')?.value || '';
   const hasta = document.getElementById('sifcnp-hasta')?.value || '';
   const tbody = document.getElementById('sifcnp-tbody');
   if (!tbody) return;
 
-  const filtered = SIFCNP_MOCK_DATA.filter(row => {
-    const parts = row.fecha.split('/');
-    const isoFecha = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : '';
-    const matchNombre = !query || row.nombre.toLowerCase().includes(query);
-    const matchDesde = !desde || isoFecha >= desde;
-    const matchHasta = !hasta || isoFecha <= hasta;
-    return matchNombre && matchDesde && matchHasta;
-  });
+  const params = new URLSearchParams();
+  if (query && session.role !== 'ROL_FUNC') params.set('funcionario', query);
+  if (desde) params.set('fechaDesde', desde);
+  if (hasta) params.set('fechaHasta', hasta);
 
-  sifcnpCurrentResults = filtered;
-  renderSifcnpRows(filtered);
+  const endpoint = `/api/justificaciones/historico${params.toString() ? `?${params.toString()}` : ''}`;
+
+  try {
+    const response = await apiFetch(endpoint, {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
+
+    const rows = Array.isArray(response)
+      ? response.map(item => ({
+        nombre: item?.funcionarioNombre || 'No disponible',
+        cedula: item?.funcionarioCedula || '—',
+        concepto: item?.tipoPrincipal || 'Sin detalle',
+        fecha: formatDate(item?.fechaCreacion),
+        observacion: item?.motivoGeneral || '—',
+        estado: mapEstadoDescripcion(item?.estadoID, item?.estadoDescripcion)
+      }))
+      : [];
+
+    sifcnpCurrentResults = rows;
+    renderSifcnpRows(rows);
+  } catch (error) {
+    sifcnpCurrentResults = [];
+    renderSifcnpRows([]);
+    showNotice('sifcnp-notice', 'error', `No se pudo cargar el historico: ${error.message}`);
+  }
+}
+
+function sifcnpSearch() {
+  renderSifcnpHistorico();
 }
 
 function downloadReport() {
@@ -1356,10 +1542,12 @@ function initDashboardPage() {
   renderFuncionarioHistory();
   renderJefaturaRequests();
   renderRRHHTable();
-  renderSifcnpMockData();
+  renderSifcnpHistorico();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  syncApiBaseUrlOverride();
+
   if (document.getElementById('username')) {
     initLoginPage();
   }

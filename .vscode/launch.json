@@ -5,7 +5,7 @@
       "name": "Debug API (.NET)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build-api",
+      "preLaunchTask": "prepare-full-stack-debug",
       "program": "${workspaceFolder}/backend/src/IntegradorMarcas.Api/bin/Debug/net8.0/IntegradorMarcas.Api.dll",
       "args": [],
       "cwd": "${workspaceFolder}/backend/src/IntegradorMarcas.Api",
@@ -13,7 +13,7 @@
       "serverReadyAction": {
         "action": "openExternally",
         "pattern": "Now listening on:\\s+(https?://\\S+)",
-        "uriFormat": "$1/swagger"
+        "uriFormat": "http://localhost:8000/index.html?api=%s"
       },
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
@@ -56,7 +56,7 @@
       "name": "Frontend + API",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build-and-run-api",
+        "preLaunchTask": "prepare-full-stack-debug",
       "program": "${workspaceFolder}/backend/src/IntegradorMarcas.Api/bin/Debug/net8.0/IntegradorMarcas.Api.dll",
       "args": [],
       "cwd": "${workspaceFolder}/backend/src/IntegradorMarcas.Api",
@@ -64,7 +64,7 @@
       "serverReadyAction": {
         "action": "openExternally",
         "pattern": "Now listening on:\\s+(https?://\\S+)",
-        "uriFormat": "http://localhost:8000"
+        "uriFormat": "http://localhost:8000/index.html?api=%s"
       },
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
@@ -76,7 +76,7 @@
   "compounds": [
     {
       "name": "Full Stack Debug (API + Frontend)",
-      "configurations": ["Debug API (.NET)", "Frontend Browser"],
+      "configurations": ["Debug API (.NET)"],
       "stopAll": true
     }
   ]

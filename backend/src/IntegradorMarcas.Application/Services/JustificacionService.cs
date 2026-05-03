@@ -56,9 +56,9 @@ public sealed class JustificacionService : IJustificacionService
 
     public async Task<IReadOnlyList<JustificacionResumenDto>> ListMineAsync(UserContextInfo user, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
     {
-        if (!RolesSistema.EsFuncionario(user.Role))
+        if (!RolesSistema.EsFuncionario(user.Role) && !RolesSistema.EsJefatura(user.Role) && !RolesSistema.EsRrhh(user.Role))
         {
-            throw new AppException("Solo un funcionario puede consultar sus boletas.", 403);
+            throw new AppException("Solo funcionario, jefatura o RRHH pueden consultar sus boletas.", 403);
         }
 
         JustificacionValidator.ValidateRangoFechas(filtros.Desde, filtros.Hasta);
@@ -76,6 +76,22 @@ public sealed class JustificacionService : IJustificacionService
         return await _repository.ListPendientesJefaturaAsync(user.UserId, filtros, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<JustificacionDetalleLineaDto>> ListMineLineasAsync(UserContextInfo user, int justificacionId, CancellationToken cancellationToken)
+    {
+        if (!RolesSistema.EsFuncionario(user.Role) && !RolesSistema.EsJefatura(user.Role) && !RolesSistema.EsRrhh(user.Role))
+        {
+            throw new AppException("No tiene permisos para consultar este detalle.", 403);
+        }
+
+        if (justificacionId <= 0)
+        {
+            throw new AppException("El identificador de la boleta no es válido.", 400);
+        }
+
+        var lineas = await _repository.ListMineLineasAsync(user.UserId, justificacionId, cancellationToken);
+        return lineas;
+    }
+
     public async Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListRrhhAsync(UserContextInfo user, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken)
     {
         if (!RolesSistema.EsRrhh(user.Role))
@@ -88,6 +104,30 @@ public sealed class JustificacionService : IJustificacionService
         JustificacionValidator.ValidateTextoBusqueda(filtros.Funcionario);
 
         return await _repository.ListRrhhAsync(filtros, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(UserContextInfo user, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken)
+    {
+        if (!RolesSistema.EsFuncionario(user.Role) && !RolesSistema.EsJefatura(user.Role) && !RolesSistema.EsRrhh(user.Role))
+        {
+            throw new AppException("No tiene permisos para consultar historico.", 403);
+        }
+
+        JustificacionValidator.ValidateRangoFechas(filtros.FechaDesde, filtros.FechaHasta);
+        JustificacionValidator.ValidateCompania(filtros.Compania);
+        JustificacionValidator.ValidateTextoBusqueda(filtros.Funcionario);
+
+        var usuarioIdScope = RolesSistema.EsFuncionario(user.Role) ? user.UserId : (int?)null;
+        var filtrosScoped = new FiltroRrhhJustificacionesDto
+        {
+            Funcionario = usuarioIdScope.HasValue ? null : filtros.Funcionario,
+            EstadoId = filtros.EstadoId,
+            Compania = filtros.Compania,
+            FechaDesde = filtros.FechaDesde,
+            FechaHasta = filtros.FechaHasta
+        };
+
+        return await _repository.ListHistoricoAsync(usuarioIdScope, filtrosScoped, cancellationToken);
     }
 
     public async Task<JustificacionCompletaDto> GetDetalleJefaturaAsync(UserContextInfo user, int justificacionId, CancellationToken cancellationToken)

@@ -1,392 +1,330 @@
 # Justificacion de Marca
 
-Guia practica para levantar el proyecto localmente (frontend + backend + base de datos) en Windows.
+Guia corta de onboarding para levantar y probar el proyecto en pocos minutos.
 
-## 1) Resumen del proyecto
+## Que es esta app
 
-Aplicacion para gestionar justificaciones de marca con:
-- Frontend estatico (HTML/CSS/JS) para login MVP, dashboard y flujo por rol.
-- Backend .NET 8 (API REST) con arquitectura por capas.
-- Base de datos SQL Server con scripts versionados en docs/db.
+Aplicacion para gestionar justificaciones de marca.
 
-## 2) Arquitectura
+- Frontend estatico: login y dashboard por rol.
+- Backend .NET 8: API REST con autenticacion por headers.
+- SQL Server: scripts en docs/db para esquema y datos base.
 
-### Frontend
-- Archivos en la raiz del workspace:
-  - index.html
-  - dashboard.html
-  - app.js
-  - style.css
-- No usa bundler ni package manager.
-- Consume la API por defecto en http://localhost:5093.
+## Mapa rapido de arquitectura
 
-### Backend
-- Solucion: backend/IntegradorMarcas.slnx
-- API: backend/src/IntegradorMarcas.Api
-- Capas:
-  - Application: reglas de negocio y casos de uso.
-  - Domain: entidades y contratos de dominio.
-  - Infrastructure: acceso a datos, repositorios y SQL.
-- Tests: backend/tests/IntegradorMarcas.Tests
+- Frontend: index.html, dashboard.html, app.js, style.css.
+- API: backend/src/IntegradorMarcas.Api.
+- Application: backend/src/IntegradorMarcas.Application.
+- Domain: backend/src/IntegradorMarcas.Domain.
+- Infrastructure: backend/src/IntegradorMarcas.Infrastructure.
+- Tests: backend/tests/IntegradorMarcas.Tests.
+- SQL docs/scripts: docs/db.
 
-## 3) Prerrequisitos
+## Prerrequisitos
 
-Instalar:
-- Windows 10/11
-- .NET SDK 8.x
-- SQL Server (Express o Developer)
-- Opcional para servir frontend por HTTP:
-  - Python 3.x, o
-  - Node.js
+- Windows 10/11.
+- .NET SDK 8.
+- SQL Server (Express o Developer).
+- Python 3 (opcional, para servir frontend por tarea).
+- VS Code con extension REST Client (humao.rest-client) para archivos .http.
 
 Verificacion rapida:
 
 ~~~powershell
 dotnet --version
 python --version
-node --version
 ~~~
 
-## 4) Configuracion de base de datos
+## Checklist de primer arranque
 
-Conexion esperada en desarrollo (backend/src/IntegradorMarcas.Api/appsettings.Development.json):
+1. Abrir esta carpeta en VS Code.
+2. Ejecutar task build-api.
+3. Ejecutar task run-api.
+4. Verificar health: http://localhost:5093/health.
+5. Abrir Swagger: http://localhost:5093/swagger.
+6. Opcional UI: ejecutar task serve-frontend y abrir http://localhost:8000/index.html.
+7. Opcional API quick test: abrir el archivo .http y correr GET /health.
 
-~~~json
-"ConnectionStrings": {
-  "IntegraCnp": "Server=localhost\\SQLEXPRESS;Database=INTEGRA_CNP;Trusted_Connection=True;TrustServerCertificate=True;"
-}
-~~~
+## Inicio en un click desde VS Code
 
-Si tu instancia SQL no es localhost\\SQLEXPRESS, ajusta la cadena de conexion.
+Ruta recomendada (sin comandos manuales):
 
-### Orden recomendado de scripts (desarrollo local)
+1. Terminal > Run Task > start-full-stack.
+2. Si quieres depurar: Run and Debug > Full Stack Debug (API + Frontend) > F5.
 
-Ejecutar en este orden:
-1. docs/db/001_integra_marcas_base_inicial.sql
-2. docs/db/002_integra_marcas_objetos.sql
-3. docs/db/004_seed_esquema_correcto.sql
-4. docs/db/005_fix_errorapi_schema.sql
+Esto usa tareas y perfiles ya incluidos en .vscode/tasks.json y .vscode/launch.json.
 
-Notas:
-- No usar docs/db/003_integra_marcas_seed_demo.sql en el flujo principal actual (usa objetos legacy dbo que no coinciden con el esquema principal).
-- docs/db/fix_fn_aprobadores.sql solo aplica si ya existe dbo.fn_AprobadoresVigentesPorSolicitante y necesitas corregirla.
-- El script 002 crea vistas a WIZDOM/SIFCNP. Si no existen esas bases en local, esa parte puede fallar.
-
-## 5) Backend: restaurar, compilar y ejecutar
-
-Desde la raiz del workspace:
+Fallback por terminal (si no usas Tasks):
 
 ~~~powershell
-dotnet restore backend/IntegradorMarcas.slnx
-dotnet build backend/IntegradorMarcas.slnx
+# 1) Restaurar dependencias backend
+dotnet restore backend/
+
+# 2) Compilar API
+dotnet build backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --configuration Debug
+
+# 3) Ejecutar API
+dotnet run --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --no-build
+
+# 4) (Opcional) Servir frontend estatico en :8000
+python -m http.server 8000 --directory .
 ~~~
 
-Ejecutar API:
+## Usar Swagger rapido
+
+1. Levantar la API.
+2. Abrir http://localhost:5093/swagger.
+3. Ejecutar GET /health.
+4. Para endpoints de negocio, enviar headers:
+   - X-User-Id: 6
+   - X-User-Role: ROL_RRHH
+5. Si responde 401, revisar ambos headers.
+
+Nota: Swagger esta activo en Development con Swagger:Enabled=true.
+
+## Usar REST Client (.http)
+
+Archivo listo para usar:
+
+- backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.http
+
+Flujo minimo:
+
+1. Instalar extension humao.rest-client (si falta).
+2. Levantar la API.
+3. Abrir el archivo .http.
+4. Seleccionar entorno local en REST Client.
+5. Ejecutar GET /health.
+6. Ejecutar GET /api/rrhh/justificaciones.
+
+Variables ya configuradas en .vscode/settings.json:
+
+- apiBaseUrl: http://localhost:5093
+- userId: 6
+- userRole: ROL_RRHH
+
+## Setup minimo de base de datos
+
+1. Revisar conexion en backend/src/IntegradorMarcas.Api/appsettings.Development.json:
+   - ConnectionStrings:IntegraCnp (default: localhost\\SQLEXPRESS, DB INTEGRA_CNP).
+2. Ejecutar scripts en este orden:
+   - docs/db/001_integra_marcas_base_inicial.sql
+   - docs/db/002_integra_marcas_objetos.sql
+   - docs/db/004_seed_esquema_correcto.sql
+   - docs/db/005_fix_errorapi_schema.sql
+   - docs/db/006_fix_mojibake_historial_textos.sql (si ves textos como OmisiÃ³n)
+3. Si no tienes bases externas WIZDOM/SIFCNP, la parte de vistas del script 002 puede fallar en local.
+
+## Pre-check de BD para pase a Produccion (BD ya creada)
+
+Contexto: la base de datos de Produccion ya existe en un servidor dedicado de BD (distinto al servidor IIS de la app).
+
+Antes de generar Release y publicar, validar este checklist corto:
+
+### 1) Datos de conexion confirmados con DBA
+
+Tener confirmados estos valores:
+
+- Servidor/instancia SQL de Produccion.
+- Nombre de la base (por ejemplo INTEGRA_CNP).
+- Tipo de autenticacion (SQL o integrada).
+- Usuario tecnico de la app y su password (si aplica).
+- Puerto SQL habilitado (normalmente 1433 o el definido por infraestructura).
+
+### 2) Permisos del usuario tecnico
+
+Validar que el usuario de la app tenga permisos reales sobre los objetos que usa la API.
+
+Minimo esperado:
+
+- SELECT/INSERT/UPDATE sobre tablas del esquema funcional.
+- Acceso al esquema Auditoria y tabla de errores (ErrorApi).
+- Permiso de ejecucion sobre SP o funciones requeridas (si existen).
+
+### 3) Conectividad desde el servidor de app (IIS) hacia el servidor SQL
+
+Desde el servidor donde corre IIS, validar red hacia SQL:
 
 ~~~powershell
-dotnet run --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj
+Test-NetConnection <SQL_HOST_O_IP> -Port <SQL_PORT>
 ~~~
 
-URLs esperadas en Development:
-- http://localhost:5093
-- https://localhost:7129
+Si falla, no continuar con el pase: revisar firewall/rutas con infraestructura.
 
-Endpoints utiles:
-- GET /health
-- GET /swagger (si Swagger:Enabled=true)
+### 4) Configuracion Production en la app
 
-## 6) Frontend: ejecutar
+Revisar que la cadena de conexion de Produccion este correcta en uno de estos lugares:
 
-### Opcion A: abrir archivo directamente
-Abrir index.html en el navegador.
+- backend/src/IntegradorMarcas.Api/appsettings.Production.json
+- Variable de entorno en IIS (recomendado): ConnectionStrings__IntegraCnp
 
-### Opcion B (recomendada): servidor HTTP local
-Con Python:
+Recomendacion: en Produccion usar variable de entorno en IIS para no dejar credenciales en archivo.
+
+### 5) Validacion final antes del Release
+
+1. Confirmar ASPNETCORE_ENVIRONMENT=Production en IIS.
+2. Confirmar que la app apunta al SQL de Produccion (no localhost/SQLEXPRESS).
+3. Hacer smoke test de API:
+   - GET /health
+   - Un endpoint de negocio con headers (X-User-Id y X-User-Role)
+4. Revisar logs iniciales de arranque y errores de SQL en Event Viewer.
+
+Si este checklist esta OK, recien ahi generar Release y hacer pase a Produccion.
+
+Para el pase de aplicacion en IIS productivo (sin VS Code ni SDK en servidor), seguir: **Despliegue a Produccion en IIS (Windows Server 2022, sin herramientas de desarrollo)**.
+
+## Despliegue a Produccion en IIS (Windows Server 2022, sin herramientas de desarrollo)
+
+Supuesto explicito: el servidor IIS de Produccion **no** tiene VS Code ni .NET SDK.
+
+> [!WARNING]
+> En el servidor IIS de Produccion NO se ejecutan comandos dotnet de SDK (restore/build/publish/run).
+> Todo build/publish se realiza en una maquina de CI o build separada.
+> El servidor productivo solo aloja artefactos Release publicados.
+
+### 1) Acciones en maquina de Build/Publish
+
+Precondiciones:
+
+1. Windows con .NET SDK 8 instalado.
+2. Codigo fuente actualizado.
+
+Comandos (desde la raiz del repo):
 
 ~~~powershell
-python -m http.server 5500
+dotnet restore backend/
+dotnet build backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj -c Release
+dotnet publish backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj -c Release -o .\artifacts\IntegradorMarcas.Api
 ~~~
 
-Con Node.js:
+Resultado esperado:
+
+1. Carpeta .\artifacts\IntegradorMarcas.Api con IntegradorMarcas.Api.dll, web.config y dependencias.
+2. Esa carpeta es el unico artefacto que se copia al servidor IIS.
+
+### 2) Acciones en servidor IIS de Produccion
+
+Preparacion del servidor (una sola vez):
+
+1. Habilitar rol IIS en Windows Server 2022.
+2. Instalar ASP.NET Core Hosting Bundle x64 compatible con .NET 8.
+3. Ejecutar iisreset despues de instalar el Hosting Bundle.
+
+Despliegue:
+
+1. Crear carpeta del sitio, por ejemplo C:\inetpub\IntegradorMarcas.Api.
+2. Copiar el contenido publicado desde .\artifacts\IntegradorMarcas.Api (sin recompilar en servidor).
+
+Configuracion IIS:
+
+1. Crear Application Pool:
+   - Nombre: IntegradorMarcasApiPool
+   - .NET CLR: No Managed Code
+   - Pipeline: Integrated
+2. Crear sitio IIS:
+   - Nombre: IntegradorMarcas.Api
+   - Physical path: C:\inetpub\IntegradorMarcas.Api
+   - Binding: http o https segun infraestructura
+3. Asignar el sitio al pool IntegradorMarcasApiPool.
+
+Variables de entorno (sitio o app pool):
+
+1. ASPNETCORE_ENVIRONMENT=Production
+2. ConnectionStrings__IntegraCnp=<cadena SQL produccion>
+
+Permisos:
+
+1. Dar lectura/ejecucion en la carpeta del sitio al identity del pool: IIS AppPool\IntegradorMarcasApiPool.
+
+Validacion minima post-despliegue:
+
+1. GET /health responde 200.
+2. Un endpoint de negocio responde con headers requeridos (X-User-Id, X-User-Role).
+
+Do/Don't rapido:
+
+- Do: publicar en Release en maquina de build y copiar artefactos ya publicados.
+- Do: definir ASPNETCORE_ENVIRONMENT=Production y cadena de conexion por variable de entorno.
+- Don't: instalar SDK o usar dotnet restore/build/publish/run en el servidor IIS.
+- Don't: editar codigo en el servidor productivo.
+
+Logs y diagnostico:
+
+1. Event Viewer > Windows Logs > Application.
+2. stdout de ASP.NET Core si web.config tiene habilitado stdoutLogEnabled.
+
+## Validacion local de IIS (no productivo)
+
+Objetivo: publicar solo la API en IIS local para validar un entorno tipo produccion.
+
+### 1) Requisitos del servidor local
+
+1. IIS habilitado en Windows.
+2. ASP.NET Core Hosting Bundle instalado (misma version mayor de .NET que la app: .NET 8).
+3. Puerto libre para el sitio (ejemplo: 8080).
+
+### 2) Publicar la API
+
+Desde la raiz del proyecto:
 
 ~~~powershell
-npx http-server -p 5500
+dotnet publish backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj -c Release -o C:\inetpub\IntegradorMarcas.Api
 ~~~
 
-Abrir:
-- http://localhost:5500/index.html
+Esto genera los archivos listos para IIS en C:\inetpub\IntegradorMarcas.Api.
 
-## 7) Uso practico de Swagger
+### 3) Configurar IIS
 
-Prerrequisitos:
-- API levantada en Development.
-- `Swagger:Enabled=true` en la configuracion activa (en Development ya viene activo).
+1. Abrir Administrador de IIS.
+2. Crear un Application Pool nuevo:
+   - Name: IntegradorMarcasApiPool
+   - .NET CLR version: No Managed Code
+   - Managed pipeline mode: Integrated
+3. Crear un sitio nuevo:
+   - Site name: IntegradorMarcas.Api
+   - Physical path: C:\inetpub\IntegradorMarcas.Api
+   - Binding: http, puerto 8080 (o el que uses)
+4. Asignar el sitio al pool IntegradorMarcasApiPool.
 
-Levantar API:
+### 4) Variables de entorno en IIS (modo Production)
 
-~~~powershell
-dotnet run --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj
-~~~
+En el sitio de IIS, agregar variable de entorno:
 
-URLs utiles:
-- http://localhost:5093/swagger
-- https://localhost:7129/swagger
-- http://localhost:5093/swagger/index.html
-- https://localhost:7129/swagger/index.html
-- http://localhost:5093/swagger/v1/swagger.json
-- https://localhost:7129/swagger/v1/swagger.json
+- ASPNETCORE_ENVIRONMENT = Production
 
-Uso de headers en solicitudes de negocio (Try it out):
-- X-User-Id: entero positivo
-- X-User-Role: ROL_FUNC | ROL_JEFE | ROL_RRHH | ROL_ADMIN
+Nota: la app ya tiene appsettings.Production.json.
 
-Ejemplos por rol:
-- Funcionario: X-User-Id=100, X-User-Role=ROL_FUNC
-- Jefatura: X-User-Id=200, X-User-Role=ROL_JEFE
-- RRHH: X-User-Id=300, X-User-Role=ROL_RRHH
-- Admin: X-User-Id=400, X-User-Role=ROL_ADMIN
+### 5) Permisos de carpeta
 
-Flujo rapido de validacion:
-1. Abrir Swagger.
-2. Probar GET /health (sin headers de usuario).
-3. Probar GET /api/justificaciones/mias con rol funcionario.
-4. Probar GET /api/jefatura/justificaciones/pendientes con rol jefatura.
-5. Probar GET /api/rrhh/justificaciones con rol RRHH.
+Dar permisos de lectura/ejecucion sobre C:\inetpub\IntegradorMarcas.Api al usuario del Application Pool (IIS AppPool\IntegradorMarcasApiPool).
 
-Si faltan/son invalidos los headers, la API responde 401.
+### 6) Verificacion rapida
 
-## 8) Pruebas creadas
+1. Reiniciar el sitio en IIS.
+2. Abrir:
+   - http://localhost:8080/health
+3. Si responde OK, el despliegue quedo funcionando.
 
-Proyecto:
-- backend/tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj
+### 7) Si no levanta en IIS
 
-Pruebas actuales:
-- Archivo: backend/tests/IntegradorMarcas.Tests/UnitTest1.cs
-  - Nombre: UnitTest1.Test1
-  - Tipo: unitaria (placeholder)
-  - Proposito: base minima del proyecto de pruebas.
-- Archivo: backend/tests/IntegradorMarcas.Tests/ErrorLogIntegrationTests.cs
-  - Nombre: ErrorLogIntegrationTests.LogAsync_DebeInsertarRegistroEnAuditoriaErrorApi
-  - Tipo: integracion (Trait Category=Integration)
-  - Proposito: validar que ErrorLogRepository.LogAsync inserta en Auditoria.ErrorApi.
+1. Revisar Event Viewer (Application).
+2. Revisar stdout logs de ASP.NET Core si estan habilitados en web.config.
+3. Confirmar Hosting Bundle instalado.
+4. Confirmar que el Application Pool usa No Managed Code.
 
-Comandos (copiar/pegar):
+## Top 5 troubleshooting
 
-~~~powershell
-# Ejecutar todas las pruebas
-dotnet test backend/tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj -v minimal
+1. API no levanta
+   - Correr restore y build-api; confirmar SDK .NET 8.
 
-# Ejecutar solo integracion
-dotnet test backend/tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj --filter "Category=Integration"
+2. 401 en endpoints
+   - Enviar X-User-Id y X-User-Role validos.
 
-# Ejecutar una prueba/clase especifica
-dotnet test backend/tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj --filter "FullyQualifiedName~ErrorLogIntegrationTests"
+3. Swagger no abre
+   - Validar primero http://localhost:5093/health y luego /swagger.
 
-# Ejecutar con cobertura
-dotnet test backend/tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj --collect:"XPlat Code Coverage"
-~~~
+4. REST Client no resuelve variables
+   - Seleccionar entorno local y revisar .vscode/settings.json.
 
-Incidencia conocida actual:
-- Error de compilacion CS0103 en backend/tests/IntegradorMarcas.Tests/ErrorLogIntegrationTests.cs.
-- Causa: se referencia cleanupSql y no esta definido.
-- Impacto: cualquier comando dotnet test falla antes de ejecutar los casos hasta corregir esa referencia.
-
-## 9) Troubleshooting
-
-### 401 en API
-Revisar:
-- Que envies X-User-Id con entero positivo.
-- Que envies X-User-Role valido.
-
-### 403 en endpoints
-Revisar rol vs endpoint:
-- Acciones de jefatura requieren ROL_JEFE.
-- Listado global RRHH requiere ROL_RRHH.
-
-### Error frontend: no conecta con API
-Revisar:
-- API levantada en http://localhost:5093.
-- URL base de frontend alineada al puerto real.
-- Si cambiaste puerto, actualizar app.js o variable global/sessionStorage que usa el frontend.
-
-### Error SQL por objetos faltantes
-Si aparecen errores con objetos dbo legacy (funciones/tablas), validar compatibilidad de scripts ejecutados y evitar mezclar seeds legacy con el esquema moderno sin estrategia.
-
-### Error de logging en Auditoria.ErrorApi
-Si no ejecutaste docs/db/005_fix_errorapi_schema.sql, pueden fallar inserciones de logs por desalineacion de columnas.
-
-## 10) Comandos utiles (copiar/pegar)
-
-~~~powershell
-# Restaurar y compilar backend
-dotnet restore backend/IntegradorMarcas.slnx
-dotnet build backend/IntegradorMarcas.slnx
-
-# Ejecutar API
-dotnet run --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj
-
-# Ejecutar tests
-dotnet test backend/tests/IntegradorMarcas.Tests/IntegradorMarcas.Tests.csproj -v minimal
-
-# Servir frontend con Python
-python -m http.server 5500
-
-# Servir frontend con Node
-npx http-server -p 5500
-~~~
-
-## 11) Flujo rapido recomendado
-
-1. Ejecutar SQL en orden: 001 -> 002 -> 004 -> 005.
-2. Compilar backend.
-3. Levantar API.
-4. Levantar frontend en puerto 5500.
-5. Probar login MVP por rol y llamadas a API con headers requeridos.
-
-## 13) Ejecutar desde VS Code
-
-El proyecto incluye configuracion para ejecutar y depurar sin escribir comandos manuales en terminal.
-
-Archivos de soporte:
-- .vscode/tasks.json: tareas de restauracion, build, run, test, cobertura y frontend.
-- .vscode/launch.json: perfiles de depuracion para API, adjuntar proceso, tests y stack frontend+API.
-- .vscode/extensions.json: extensiones recomendadas para .NET, API y SQL.
-
-### Tareas disponibles (Terminal > Run Task)
-- restore: restaura paquetes NuGet del backend.
-- build-api: compila la API en Debug.
-- run-api: ejecuta la API sin recompilar.
-- test: ejecuta pruebas del proyecto de tests.
-- test-coverage: ejecuta pruebas con cobertura OpenCover.
-- serve-frontend: levanta servidor HTTP local en puerto 8000.
-- clean: limpia artefactos de compilacion Debug.
-- build-and-run-api: compila y luego ejecuta la API.
-- start-full-stack: build + API + frontend en un solo click.
-
-### Perfiles de depuracion (Run and Debug)
-- Debug API (.NET): compila, levanta API y abre Swagger automaticamente.
-- Attach to Process: adjunta el depurador a un proceso dotnet en ejecucion.
-- Debug Tests: perfil para depurar binario de pruebas.
-- Frontend Browser: inicia servidor frontend y abre http://localhost:8000/index.html.
-- Full Stack Debug (API + Frontend): inicia depuracion de API + frontend desde Run and Debug.
-- Frontend + API: ejecuta la secuencia build-and-run-api y abre el frontend en http://localhost:8000.
-
-### Inicio en un click
-1. Terminal > Run Task > start-full-stack
-2. Run and Debug > Full Stack Debug (API + Frontend) > F5
-
-### Extensiones recomendadas
-1. ms-dotnettools.csharp
-2. ms-dotnettools.vscode-dotnet-runtime
-3. humao.rest-client
-4. Swagger.swaggerviewer
-5. ms-mssql.mssql
-6. esbenp.prettier-vscode
-
-### Atajos clave
-- Ctrl+Shift+B: ejecutar tarea de build por defecto (build-api).
-- Ctrl+Shift+P -> Tasks: Run Task: ejecutar cualquier tarea manualmente.
-- F5: iniciar depuracion con el perfil seleccionado.
-- Shift+F5: detener depuracion.
-- Ctrl+Shift+D: abrir panel Run and Debug.
-
-
-## 12) Comportamiento de Sesión: Timeout por Inactividad (5 minutos)
-
-### Descripción general
-El sistema implementa un cierre automático de sesión después de 5 minutos de inactividad del usuario. Esto incluye:
-- **Monitoreo de actividad**: El frontend rastrea toda actividad del usuario (movimiento del ratón, clics, toques, desplazamientos, pulsaciones de teclado).
-- **Temporizador automático**: La sesión se cierra automáticamente si no hay actividad durante 5 minutos.
-- **Advertencia preventiva**: Se muestra un modal de advertencia a los 4:30 minutos indicando que la sesión expirará en 30 segundos.
-- **Validación del lado del servidor**: El endpoint `/api/session/status` permite validar si la sesión es válida.
-
-### Comportamiento del usuario
-
-**Escenario 1: Usuario activo**
-1. Usuario inicia sesión exitosamente.
-2. Si el usuario interactúa (escribe, hace clic, mueve el ratón), el temporizador se reinicia.
-3. La sesión permanece activa mientras haya actividad dentro de la ventana de 5 minutos.
-
-**Escenario 2: Usuario inactivo (sin interacción)**
-1. Usuario inicia sesión y no hace clic, ni escribe, ni mueve el ratón durante 5 minutos.
-2. A los 4:30 minutos: aparece un modal de advertencia con un contador regresivo mostrando "30 segundos".
-3. El usuario puede:
-   - **Hacer clic en "Permanecer Conectado"**: El modal se cierra, el temporizador se reinicia y el usuario continúa trabajando.
-   - **Hacer clic en "Cerrar Sesión"**: La sesión se cierra inmediatamente.
-   - **No hacer clic**: A los 5:00 minutos exactos, la sesión se cierra automáticamente y el usuario es redirigido a la pantalla de login.
-
-**Escenario 3: Usuario redirigido automáticamente**
-- Si la sesión se cierra por timeout o si el usuario intenta hacer una solicitud a la API después de que la sesión haya expirado:
-  - Se muestra un toast/notificación: "Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente."
-  - El usuario es redirigido a la página de inicio de sesión (index.html).
-
-### Implementación técnica
-
-**Frontend (JavaScript en app.js)**
-- Funciones de monitoreo:
-  - `initIdleMonitor()`: Inicia el rastreo de eventos de actividad del usuario.
-  - `resetIdleTimer()`: Reinicia el temporizador de inactividad cuando hay actividad.
-  - `isSessionExpired()`: Verifica si la sesión ha expirado.
-- Funciones de temporizador:
-  - `startSessionExpiryTimer()`: Inicia el temporizador principal (verifica cada 30 segundos).
-  - `startFinalCountdown()`: Inicia el temporizador final (verifica cada segundo cuando quedan <30s).
-- Modal de advertencia:
-  - `showSessionWarningModal()`: Muestra el modal de advertencia.
-  - `updateWarningCountdown()`: Actualiza el contador de segundos en el modal.
-  - `handleStayLoggedIn()`: Reinicia la sesión cuando el usuario hace clic en "Permanecer Conectado".
-  - `handleLogoutNow()`: Cierra la sesión inmediatamente.
-
-**Backend (C# en SessionController.cs)**
-- `GET /api/session/status`: Valida que los headers de autenticación (X-User-Id, X-User-Role) sean válidos.
-  - Responde con 200 OK si la sesión es válida.
-  - Responde con 401 Unauthorized si falta algún header o son inválidos.
-- `POST /api/session/logout`: Endpoint para cerrar la sesión (puede ampliarse en el futuro para invalidación de tokens).
-
-### Configuración
-
-**Tiempos configurables** (en app.js, líneas ~115-120):
-```javascript
-const SESSION_CONFIG = {
-  INACTIVITY_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutos (300,000 ms)
-  WARNING_TIME_MS: 4.5 * 60 * 1000,      // 4:30 (270,000 ms)
-  CHECK_INTERVAL_MS: 30 * 1000,          // Verificar cada 30 segundos
-  FINAL_CHECK_INTERVAL_MS: 1 * 1000      // Verificar cada 1 segundo en los últimos 30s
-};
-```
-
-### Eventos monitoreados
-
-El sistema rastrea los siguientes eventos de usuario para considerar actividad:
-- `mousemove`: Movimiento del ratón
-- `keypress`: Pulsación de teclado
-- `click`: Clic del ratón
-- `touchstart`: Toque en pantalla (dispositivos móviles)
-- `scroll`: Desplazamiento de página
-
-**Nota**: El movimiento del ratón sobre ciertos elementos (ej: tooltips, modales) puede no reiniciar el temporizador dependiendo de la lógica del navegador.
-
-### Almacenamiento local
-
-La información de sesión se almacena en `sessionStorage`:
-- `sjm_session`: Objeto JSON con `isAuth`, `username`, `role`, `company`, `apiBaseUrl`.
-- `sjm_lastActivity`: Timestamp ISO de la última actividad del usuario (se actualiza constantemente).
-
-Al cerrar sesión (manual o por timeout), se limpian ambas claves.
-
-### Verificación en el navegador
-
-Para verificar el comportamiento:
-
-1. **Abrir la consola del navegador** (F12).
-2. **Iniciar sesión** en el dashboard.
-3. **Sin hacer nada**: esperar 4:30 minutos.
-4. **Resultado esperado**: Aparece un modal con "Sesión por Expirar" mostrando un contador regresivo de 30 segundos.
-5. **Opción A**: Haga clic en "Permanecer Conectado" → modal se cierra y sesión continúa.
-6. **Opción B**: Espere hasta que se agoten los 30 segundos → sesión se cierra automáticamente y es redirigido a login.
-
-### Futuras mejoras
-
-- Integración de tokens JWT con expiración sincronizada en servidor.
-- Endpoint opcional `/api/session/refresh` para extender sesiones sin logout.
-- Logging de eventos de timeout en auditoría para análisis de patrones de uso.
-- Configuración de timeouts diferentes por rol de usuario.
+5. Frontend no conecta a API
+   - Confirmar API en :5093 y frontend en :8000; revisar URL base en app.js.

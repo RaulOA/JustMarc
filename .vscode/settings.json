@@ -1,3 +1,13 @@
 {
-    "chat.promptFilesRecommendations": {}
+    "chat.promptFilesRecommendations": {},
+    "rest-client.environmentVariables": {
+        "$shared": {
+            "apiBaseUrl": "http://localhost:5093",
+            "userId": "6",
+            "userRole": "ROL_RRHH"
+        },
+        "local": {
+            "apiBaseUrl": "http://localhost:5093"
+        }
+    }
 }

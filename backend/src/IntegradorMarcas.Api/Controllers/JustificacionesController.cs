@@ -69,6 +69,7 @@ public sealed class JustificacionesController : ControllerBase
         {
             JustificacionID = x.JustificacionId,
             MotivoGeneral = x.MotivoGeneral,
+            ObservacionDetalle = x.ObservacionDetalle,
             ComentarioResolucion = x.ComentarioResolucion,
             EstadoID = x.EstadoId,
             EstadoDescripcion = x.EstadoDescripcion,
@@ -76,6 +77,64 @@ public sealed class JustificacionesController : ControllerBase
             CantidadDetalles = x.CantidadDetalles,
             AprobadorID = x.AprobadorId,
             FechaAprobacion = x.FechaAprobacion
+        }).ToList());
+    }
+
+    [HttpGet("{justificacionId:int}/lineas")]
+    public async Task<ActionResult<IReadOnlyList<JustificacionDetalleLineaResponse>>> ListMineLineas(
+        int justificacionId,
+        CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        var result = await _service.ListMineLineasAsync(user, justificacionId, cancellationToken);
+
+        return Ok(result.Select(d => new JustificacionDetalleLineaResponse
+        {
+            DetalleID = d.DetalleID,
+            TipoJustificacionID = d.TipoJustificacionID,
+            TipoJustificacionDescripcion = d.TipoJustificacionDescripcion,
+            FechaMarca = d.FechaMarca,
+            ObservacionDetalle = d.ObservacionDetalle
+        }).ToList());
+    }
+
+    [HttpGet("historico")]
+    public async Task<ActionResult<IReadOnlyList<RrhhJustificacionResumenResponse>>> ListHistorico(
+        [FromQuery] string? funcionario,
+        [FromQuery] int? estadoId,
+        [FromQuery] string? compania,
+        [FromQuery] DateTime? fechaDesde,
+        [FromQuery] DateTime? fechaHasta,
+        CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        var result = await _service.ListHistoricoAsync(user, new FiltroRrhhJustificacionesDto
+        {
+            Funcionario = funcionario,
+            EstadoId = estadoId,
+            Compania = compania,
+            FechaDesde = fechaDesde,
+            FechaHasta = fechaHasta
+        }, cancellationToken);
+
+        return Ok(result.Select(x => new RrhhJustificacionResumenResponse
+        {
+            JustificacionID = x.JustificacionID,
+            MotivoGeneral = x.MotivoGeneral,
+            ComentarioResolucion = x.ComentarioResolucion,
+            EstadoID = x.EstadoID,
+            EstadoDescripcion = x.EstadoDescripcion,
+            FechaCreacion = x.FechaCreacion,
+            CantidadDetalles = x.CantidadDetalles,
+            AprobadorID = x.AprobadorID,
+            FechaAprobacion = x.FechaAprobacion,
+            FuncionarioID = x.FuncionarioID,
+            FuncionarioNombre = x.FuncionarioNombre,
+            FuncionarioCedula = x.FuncionarioCedula,
+            Compania = x.Compania,
+            JefaturaID = x.JefaturaID,
+            JefaturaNombre = x.JefaturaNombre,
+            TipoPrincipal = x.TipoPrincipal
         }).ToList());
     }
 }

@@ -1,6 +1,17 @@
-@IntegradorMarcas.Api_HostAddress = http://localhost:5093
+@apiHostAddress = {{apiBaseUrl}}
 
-GET {{IntegradorMarcas.Api_HostAddress}}/weatherforecast/
+GET {{apiHostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+GET {{apiHostAddress}}/health
+Accept: application/json
+
+###
+# Ejemplo con headers de identidad requeridos por varios endpoints de negocio.
+GET {{apiHostAddress}}/api/rrhh/justificaciones
+X-User-Id: {{userId}}
+X-User-Role: {{userRole}}
 Accept: application/json
 
 ###

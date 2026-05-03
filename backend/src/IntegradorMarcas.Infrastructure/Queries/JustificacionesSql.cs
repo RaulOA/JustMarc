@@ -41,6 +41,7 @@ VALUES
 SELECT
     je.JustificacionId,
     je.MotivoGeneral,
+    STRING_AGG(NULLIF(LTRIM(RTRIM(jd.ObservacionDetalle)), ''), ' | ') AS ObservacionDetalle,
     je.ComentarioResolucion,
     je.EstadoJustificacionId,
     e.Descripcion AS EstadoDescripcion,
@@ -66,6 +67,21 @@ GROUP BY
     je.AprobadorId,
     je.FechaAprobacion
 ORDER BY je.FechaCreacion DESC;";
+
+    public const string ListMineLineas = @"
+SELECT
+    jd.JustificacionDetalleId AS DetalleID,
+    jd.TipoJustificacionId AS TipoJustificacionID,
+    tj.Descripcion AS TipoJustificacionDescripcion,
+    jd.FechaMarca,
+    jd.ObservacionDetalle
+FROM Operacion.JustificacionDetalle jd
+INNER JOIN Operacion.Justificacion je ON je.JustificacionId = jd.JustificacionId
+INNER JOIN Configuracion.TipoJustificacion tj ON tj.TipoJustificacionId = jd.TipoJustificacionId
+WHERE
+    jd.JustificacionId = @JustificacionID
+    AND je.UsuarioID = @UsuarioID
+ORDER BY jd.JustificacionDetalleId ASC;";
 
     public const string ListPendientesJefatura = @"
 SELECT
@@ -128,6 +144,58 @@ LEFT JOIN Operacion.JustificacionDetalle jd ON jd.JustificacionId = je.Justifica
 LEFT JOIN Configuracion.TipoJustificacion tj ON tj.TipoJustificacionId = jd.TipoJustificacionId
 WHERE
     (@EstadoID IS NULL OR je.EstadoJustificacionId = @EstadoID)
+    AND (@Compania IS NULL OR u.Compania = @Compania)
+    AND (@FechaDesde IS NULL OR CAST(je.FechaCreacion AS DATE) >= CAST(@FechaDesde AS DATE))
+    AND (@FechaHasta IS NULL OR CAST(je.FechaCreacion AS DATE) <= CAST(@FechaHasta AS DATE))
+    AND (
+        @Funcionario IS NULL
+        OR u.NombreCompleto LIKE CONCAT('%', @Funcionario, '%')
+        OR u.Cedula LIKE CONCAT('%', @Funcionario, '%')
+    )
+GROUP BY
+    je.JustificacionId,
+    je.MotivoGeneral,
+    je.ComentarioResolucion,
+    je.EstadoJustificacionId,
+    e.Descripcion,
+    je.FechaCreacion,
+    je.AprobadorId,
+    je.FechaAprobacion,
+    u.UsuarioID,
+    u.NombreCompleto,
+    u.Cedula,
+    u.Compania,
+    u.JefaturaId,
+    j.NombreCompleto
+ORDER BY je.FechaCreacion DESC, je.JustificacionId DESC;";
+
+    public const string ListHistorico = @"
+SELECT
+    je.JustificacionId,
+    je.MotivoGeneral,
+    je.ComentarioResolucion,
+    je.EstadoJustificacionId,
+    e.Descripcion AS EstadoDescripcion,
+    je.FechaCreacion,
+    COUNT(jd.JustificacionDetalleId) AS CantidadDetalles,
+    je.AprobadorId,
+    je.FechaAprobacion,
+    u.UsuarioID AS FuncionarioID,
+    u.NombreCompleto AS FuncionarioNombre,
+    u.Cedula AS FuncionarioCedula,
+    u.Compania,
+    u.JefaturaId,
+    j.NombreCompleto AS JefaturaNombre,
+    MIN(tj.Descripcion) AS TipoPrincipal
+FROM Operacion.Justificacion je
+INNER JOIN Configuracion.EstadoJustificacion e ON e.EstadoJustificacionId = je.EstadoJustificacionId
+INNER JOIN RecursosHumanos.Usuario u ON u.UsuarioID = je.UsuarioID
+LEFT JOIN RecursosHumanos.Usuario j ON j.UsuarioID = u.JefaturaId
+LEFT JOIN Operacion.JustificacionDetalle jd ON jd.JustificacionId = je.JustificacionId
+LEFT JOIN Configuracion.TipoJustificacion tj ON tj.TipoJustificacionId = jd.TipoJustificacionId
+WHERE
+    (@UsuarioID IS NULL OR u.UsuarioID = @UsuarioID)
+    AND (@EstadoID IS NULL OR je.EstadoJustificacionId = @EstadoID)
     AND (@Compania IS NULL OR u.Compania = @Compania)
     AND (@FechaDesde IS NULL OR CAST(je.FechaCreacion AS DATE) >= CAST(@FechaDesde AS DATE))
     AND (@FechaHasta IS NULL OR CAST(je.FechaCreacion AS DATE) <= CAST(@FechaHasta AS DATE))
