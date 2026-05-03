@@ -156,7 +156,12 @@ public sealed class JustificacionRepository : IJustificacionRepository
         return data.ToList();
     }
 
-    public async Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(int? usuarioId, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(
+        int? usuarioId,
+        int? aprobadorUsuarioId,
+        bool excluirPropiosEnScopeAprobador,
+        FiltroRrhhJustificacionesDto filtros,
+        CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
 
@@ -165,6 +170,8 @@ public sealed class JustificacionRepository : IJustificacionRepository
             new
             {
                 UsuarioID = usuarioId,
+                AprobadorUsuarioID = aprobadorUsuarioId,
+                ExcluirPropiosEnScopeAprobador = excluirPropiosEnScopeAprobador,
                 filtros.EstadoId,
                 filtros.Compania,
                 Funcionario = string.IsNullOrWhiteSpace(filtros.Funcionario) ? null : filtros.Funcionario.Trim(),

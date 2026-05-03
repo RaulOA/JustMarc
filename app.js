@@ -1234,7 +1234,7 @@ async function approveRequest(boletaId, action) {
 
     showNotice(
       'j-notice',
-      action === 'approve' ? 'success' : 'error',
+      'success',
       action === 'approve'
         ? `Boleta ${presentBoletaId(boletaId)} aprobada.`
         : `Boleta ${presentBoletaId(boletaId)} rechazada.`

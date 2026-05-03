@@ -10,7 +10,12 @@ public interface IJustificacionRepository
     Task<IReadOnlyList<JustificacionDetalleLineaDto>> ListMineLineasAsync(int usuarioId, int justificacionId, CancellationToken cancellationToken);
     Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(int aprobadorUsuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken);
     Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListRrhhAsync(FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken);
-    Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(int? usuarioId, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken);
+    Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(
+        int? usuarioId,
+        int? aprobadorUsuarioId,
+        bool excluirPropiosEnScopeAprobador,
+        FiltroRrhhJustificacionesDto filtros,
+        CancellationToken cancellationToken);
     Task<JustificacionCompletaDto?> GetDetalleJefaturaAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken);
     Task<AprobacionScopeValidationDto> GetAprobacionScopeValidationAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken);
     Task<ResolverValidationDto> GetResolverValidationAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken);

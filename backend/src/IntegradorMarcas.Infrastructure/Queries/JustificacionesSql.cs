@@ -195,6 +195,19 @@ LEFT JOIN Operacion.JustificacionDetalle jd ON jd.JustificacionId = je.Justifica
 LEFT JOIN Configuracion.TipoJustificacion tj ON tj.TipoJustificacionId = jd.TipoJustificacionId
 WHERE
     (@UsuarioID IS NULL OR u.UsuarioID = @UsuarioID)
+    AND (
+        @AprobadorUsuarioID IS NULL
+        OR EXISTS (
+            SELECT 1
+            FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+            WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
+        )
+    )
+    AND (
+        @ExcluirPropiosEnScopeAprobador = 0
+        OR @AprobadorUsuarioID IS NULL
+        OR je.UsuarioID <> @AprobadorUsuarioID
+    )
     AND (@EstadoID IS NULL OR je.EstadoJustificacionId = @EstadoID)
     AND (@Compania IS NULL OR u.Compania = @Compania)
     AND (@FechaDesde IS NULL OR CAST(je.FechaCreacion AS DATE) >= CAST(@FechaDesde AS DATE))

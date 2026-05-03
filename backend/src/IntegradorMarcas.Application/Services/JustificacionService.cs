@@ -117,17 +117,27 @@ public sealed class JustificacionService : IJustificacionService
         JustificacionValidator.ValidateCompania(filtros.Compania);
         JustificacionValidator.ValidateTextoBusqueda(filtros.Funcionario);
 
-        var usuarioIdScope = RolesSistema.EsFuncionario(user.Role) ? user.UserId : (int?)null;
+        var esFuncionario = RolesSistema.EsFuncionario(user.Role);
+        var esJefatura = RolesSistema.EsJefatura(user.Role);
+
+        var usuarioIdScope = esFuncionario ? user.UserId : (int?)null;
+        var aprobadorUsuarioIdScope = esJefatura ? user.UserId : (int?)null;
+        var excluirPropiosEnScopeAprobador = esJefatura;
         var filtrosScoped = new FiltroRrhhJustificacionesDto
         {
-            Funcionario = usuarioIdScope.HasValue ? null : filtros.Funcionario,
+            Funcionario = esFuncionario ? null : filtros.Funcionario,
             EstadoId = filtros.EstadoId,
             Compania = filtros.Compania,
             FechaDesde = filtros.FechaDesde,
             FechaHasta = filtros.FechaHasta
         };
 
-        return await _repository.ListHistoricoAsync(usuarioIdScope, filtrosScoped, cancellationToken);
+        return await _repository.ListHistoricoAsync(
+            usuarioIdScope,
+            aprobadorUsuarioIdScope,
+            excluirPropiosEnScopeAprobador,
+            filtrosScoped,
+            cancellationToken);
     }
 
     public async Task<JustificacionCompletaDto> GetDetalleJefaturaAsync(UserContextInfo user, int justificacionId, CancellationToken cancellationToken)

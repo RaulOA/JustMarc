@@ -26,6 +26,8 @@ public sealed class JustificacionServiceHistoricoTests
         }, CancellationToken.None);
 
         Assert.Equal(4, repository.LastHistoricoUsuarioId);
+        Assert.Null(repository.LastHistoricoAprobadorUsuarioId);
+        Assert.False(repository.LastHistoricoExcluirPropiosEnScopeAprobador);
         Assert.NotNull(repository.LastHistoricoFiltros);
         Assert.Null(repository.LastHistoricoFiltros!.Funcionario);
     }
@@ -48,8 +50,34 @@ public sealed class JustificacionServiceHistoricoTests
         }, CancellationToken.None);
 
         Assert.Null(repository.LastHistoricoUsuarioId);
+        Assert.Null(repository.LastHistoricoAprobadorUsuarioId);
+        Assert.False(repository.LastHistoricoExcluirPropiosEnScopeAprobador);
         Assert.NotNull(repository.LastHistoricoFiltros);
         Assert.Equal("Ana", repository.LastHistoricoFiltros!.Funcionario);
+    }
+
+    [Fact]
+    public async Task ListHistoricoAsync_RolJefatura_AplicaScopeAprobadorYExcluyePropios()
+    {
+        var repository = new FakeJustificacionRepository();
+        var service = new JustificacionService(repository, new FakeAuditEventRepository());
+        var user = new UserContextInfo
+        {
+            UserId = 3,
+            Role = RolesSistema.RolJefe
+        };
+
+        await service.ListHistoricoAsync(user, new FiltroRrhhJustificacionesDto
+        {
+            Funcionario = "Luis",
+            Compania = "CNP"
+        }, CancellationToken.None);
+
+        Assert.Null(repository.LastHistoricoUsuarioId);
+        Assert.Equal(3, repository.LastHistoricoAprobadorUsuarioId);
+        Assert.True(repository.LastHistoricoExcluirPropiosEnScopeAprobador);
+        Assert.NotNull(repository.LastHistoricoFiltros);
+        Assert.Equal("Luis", repository.LastHistoricoFiltros!.Funcionario);
     }
 
     private sealed class FakeAuditEventRepository : IAuditEventRepository
@@ -63,6 +91,8 @@ public sealed class JustificacionServiceHistoricoTests
     private sealed class FakeJustificacionRepository : IJustificacionRepository
     {
         public int? LastHistoricoUsuarioId { get; private set; }
+        public int? LastHistoricoAprobadorUsuarioId { get; private set; }
+        public bool LastHistoricoExcluirPropiosEnScopeAprobador { get; private set; }
         public FiltroRrhhJustificacionesDto? LastHistoricoFiltros { get; private set; }
 
         public Task<IReadOnlyCollection<int>> GetExistingTipoJustificacionIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken)
@@ -80,6 +110,11 @@ public sealed class JustificacionServiceHistoricoTests
             throw new NotImplementedException();
         }
 
+        public Task<IReadOnlyList<JustificacionDetalleLineaDto>> ListMineLineasAsync(int usuarioId, int justificacionId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<IReadOnlyList<JustificacionResumenDto>> ListPendientesJefaturaAsync(int aprobadorUsuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
@@ -90,9 +125,16 @@ public sealed class JustificacionServiceHistoricoTests
             throw new NotImplementedException();
         }
 
-        public Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(int? usuarioId, FiltroRrhhJustificacionesDto filtros, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<RrhhJustificacionResumenDto>> ListHistoricoAsync(
+            int? usuarioId,
+            int? aprobadorUsuarioId,
+            bool excluirPropiosEnScopeAprobador,
+            FiltroRrhhJustificacionesDto filtros,
+            CancellationToken cancellationToken)
         {
             LastHistoricoUsuarioId = usuarioId;
+            LastHistoricoAprobadorUsuarioId = aprobadorUsuarioId;
+            LastHistoricoExcluirPropiosEnScopeAprobador = excluirPropiosEnScopeAprobador;
             LastHistoricoFiltros = filtros;
             return Task.FromResult<IReadOnlyList<RrhhJustificacionResumenDto>>(Array.Empty<RrhhJustificacionResumenDto>());
         }
