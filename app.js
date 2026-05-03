@@ -83,7 +83,15 @@ function toast(type, message, opts = {}) {
 const STORAGE_KEYS = {
   session: 'sjm_session',
   activeTab: 'sjm_activeTab',
-  apiBaseUrl: 'sjm_api_base_url'
+  apiBaseUrl: 'sjm_api_base_url',
+  lastActivity: 'sjm_lastActivity'
+};
+
+const SESSION_CONFIG = {
+  INACTIVITY_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes
+  WARNING_TIME_MS: 4.5 * 60 * 1000,       // 4:30 warn before timeout
+  CHECK_INTERVAL_MS: 30 * 1000,           // Check every 30 seconds
+  FINAL_CHECK_INTERVAL_MS: 1 * 1000       // Check every 1 second in final 30 seconds
 };
 
 const ESTADOS = {
@@ -150,6 +158,58 @@ function getSession() {
 
 function setSession(session) {
   sessionStorage.setItem(STORAGE_KEYS.session, JSON.stringify(session));
+  // Initialize last activity timestamp when session is set
+  if (session?.isAuth) {
+    setLastActivity();
+  }
+}
+
+/**
+ * Get the timestamp (ISO string) of the last user activity.
+ * If not set, assumes just logged in, so return current time.
+ */
+function getLastActivity() {
+  const stored = sessionStorage.getItem(STORAGE_KEYS.lastActivity);
+  if (stored) {
+    try {
+      return new Date(stored);
+    } catch {
+      return new Date();
+    }
+  }
+  return new Date();
+}
+
+/**
+ * Update the last activity timestamp to now.
+ */
+function setLastActivity() {
+  sessionStorage.setItem(STORAGE_KEYS.lastActivity, new Date().toISOString());
+}
+
+/**
+ * Check if the session has expired due to inactivity.
+ */
+function isSessionExpired() {
+  const session = getSession();
+  if (!session?.isAuth) return true;
+
+  const lastActivity = getLastActivity();
+  const now = new Date();
+  const inactivityMs = now - lastActivity;
+
+  return inactivityMs > SESSION_CONFIG.INACTIVITY_TIMEOUT_MS;
+}
+
+/**
+ * Get milliseconds remaining until session timeout.
+ */
+function getTimeUntilTimeout() {
+  const lastActivity = getLastActivity();
+  const now = new Date();
+  const inactivityMs = now - lastActivity;
+  const timeRemaining = SESSION_CONFIG.INACTIVITY_TIMEOUT_MS - inactivityMs;
+  return Math.max(0, Math.round(timeRemaining));
 }
 
 function getApiBaseUrl() {
@@ -225,6 +285,12 @@ async function parseApiError(response) {
 
 
 async function apiFetch(path, options = {}, session = getSession()) {
+  // Check if session has expired before making the request
+  if (isSessionExpired()) {
+    handleLogout('Sesión expirada por inactividad. Por favor, inicie sesión nuevamente.');
+    throw new Error('Session expired');
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_CONFIG.timeoutMs);
 
@@ -402,10 +468,183 @@ function requireAuth() {
   }
 }
 
-function handleLogout() {
+function handleLogout(reason) {
   sessionStorage.removeItem(STORAGE_KEYS.session);
   sessionStorage.removeItem(STORAGE_KEYS.activeTab);
-  window.location.href = 'index.html';
+  sessionStorage.removeItem(STORAGE_KEYS.lastActivity);
+
+  if (reason) {
+    toast('warning', reason, {
+      title: 'Sesión finalizada',
+      duration: 6000
+    });
+    // Give a moment for the toast to display before navigating
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 500);
+  } else {
+    window.location.href = 'index.html';
+  }
+}
+
+/* ── Session Inactivity Timeout (5 minutes) ─────────────────── */
+
+/**
+ * Initialize idle activity monitoring.
+ * Listens for user activity and resets the inactivity timer.
+ */
+function initIdleMonitor() {
+  const events = ['mousemove', 'keypress', 'click', 'touchstart', 'scroll'];
+
+  events.forEach(event => {
+    document.addEventListener(event, resetIdleTimer, { passive: true });
+  });
+}
+
+/**
+ * Reset the idle timer by updating last activity timestamp.
+ */
+function resetIdleTimer() {
+  setLastActivity();
+  // Hide warning modal if it's showing
+  hideSessionWarningModal();
+}
+
+/**
+ * Check session validity on page load.
+ * If session has expired, logout with a message.
+ */
+function checkSessionValidityOnLoad() {
+  const session = getSession();
+  if (!session?.isAuth) return;
+
+  if (isSessionExpired()) {
+    handleLogout('Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente.');
+  }
+}
+
+/**
+ * Start the session expiry timer.
+ * Checks for inactivity every 30 seconds.
+ * Shows warning at 4:30 and logs out at 5:00.
+ */
+function startSessionExpiryTimer() {
+  let lastWarningShown = false;
+  let logoutTriggered = false;
+
+  const mainInterval = setInterval(() => {
+    if (!getSession()?.isAuth) {
+      clearInterval(mainInterval);
+      return;
+    }
+
+    const timeRemaining = getTimeUntilTimeout();
+
+    // If less than 30 seconds remaining, check every second
+    if (timeRemaining <= 30 * 1000 && timeRemaining > 0) {
+      clearInterval(mainInterval);
+      startFinalCountdown();
+      return;
+    }
+
+    // Show warning at 4:30 (within 30 seconds of 5 min mark)
+    if (timeRemaining <= 30 * 1000 && !lastWarningShown && timeRemaining > 0) {
+      lastWarningShown = true;
+      showSessionWarningModal();
+    }
+
+    // Logout if timeout reached
+    if (timeRemaining <= 0 && !logoutTriggered) {
+      logoutTriggered = true;
+      clearInterval(mainInterval);
+      handleLogout('Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente.');
+    }
+  }, SESSION_CONFIG.CHECK_INTERVAL_MS);
+}
+
+/**
+ * Start the final countdown timer (checks every second).
+ * Called when less than 30 seconds remain.
+ */
+function startFinalCountdown() {
+  let logoutTriggered = false;
+
+  const finalInterval = setInterval(() => {
+    if (!getSession()?.isAuth) {
+      clearInterval(finalInterval);
+      return;
+    }
+
+    const timeRemaining = getTimeUntilTimeout();
+
+    // Update warning modal countdown display
+    updateWarningCountdown(timeRemaining);
+
+    // Show warning modal if not visible
+    if (timeRemaining > 0 && !document.getElementById('session-warning-modal')?.classList.contains('active')) {
+      showSessionWarningModal();
+    }
+
+    // Logout if timeout reached
+    if (timeRemaining <= 0 && !logoutTriggered) {
+      logoutTriggered = true;
+      clearInterval(finalInterval);
+      hideSessionWarningModal();
+      handleLogout('Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente.');
+    }
+  }, SESSION_CONFIG.FINAL_CHECK_INTERVAL_MS);
+}
+
+/**
+ * Show the session warning modal.
+ */
+function showSessionWarningModal() {
+  const modal = document.getElementById('session-warning-modal');
+  if (!modal) return;
+
+  modal.classList.add('active');
+  updateWarningCountdown(getTimeUntilTimeout());
+
+  // Focus on the "Stay Logged In" button for accessibility
+  const stayBtn = modal.querySelector('.session-warning-btn-stay');
+  if (stayBtn) stayBtn.focus();
+}
+
+/**
+ * Hide the session warning modal.
+ */
+function hideSessionWarningModal() {
+  const modal = document.getElementById('session-warning-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+/**
+ * Update the countdown display in the warning modal.
+ */
+function updateWarningCountdown(msRemaining) {
+  const secondsRemaining = Math.ceil(msRemaining / 1000);
+  const countdownEl = document.getElementById('session-warning-countdown');
+  if (countdownEl) {
+    countdownEl.textContent = secondsRemaining;
+  }
+}
+
+/**
+ * Handle "Stay Logged In" button click in warning modal.
+ */
+function handleStayLoggedIn() {
+  hideSessionWarningModal();
+  resetIdleTimer();
+  // Restart the session expiry timer
+  startSessionExpiryTimer();
+}
+
+/**
+ * Handle "Logout Now" button click in warning modal.
+ */
+function handleLogoutNow() {
+  hideSessionWarningModal();
+  handleLogout();
 }
 
 function configureRoleUI() {
@@ -1111,6 +1350,7 @@ function initLoginPage() {
 
 function initDashboardPage() {
   requireAuth();
+  checkSessionValidityOnLoad();
   configureRoleUI();
   renderDraftDetails();
   renderFuncionarioHistory();
@@ -1126,5 +1366,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (document.querySelector('.topbar')) {
     initDashboardPage();
+    // Initialize session timeout monitoring on all authenticated pages
+    initIdleMonitor();
+    startSessionExpiryTimer();
   }
 });

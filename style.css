@@ -412,3 +412,148 @@ tbody td {
   .filter-bar { flex-direction: column; }
   .filter-bar .form-group { min-width: 100%; }
 }
+
+/* ── Session Warning Modal ───────────────────────────────── */
+.session-warning-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-main);
+}
+
+.session-warning-modal.active {
+  display: flex;
+}
+
+.session-warning-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  animation: fadeIn 300ms ease forwards;
+}
+
+.session-warning-content {
+  position: relative;
+  z-index: 1001;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 420px;
+  width: 90%;
+  animation: slideUp 300ms ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.session-warning-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--grey-200);
+}
+
+.session-warning-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--blue-800);
+  margin: 0 0 4px;
+}
+
+.session-warning-header p {
+  font-size: 0.875rem;
+  color: var(--grey-600);
+  margin: 0;
+}
+
+.session-warning-body {
+  padding: 24px;
+}
+
+.session-warning-timer {
+  text-align: center;
+}
+
+.session-warning-timer-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+#session-warning-countdown {
+  font-size: 3rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--warning);
+  line-height: 1;
+}
+
+.session-warning-timer-label {
+  font-size: 0.875rem;
+  color: var(--grey-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.session-warning-message {
+  font-size: 0.875rem;
+  color: var(--grey-700);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.session-warning-buttons {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--grey-200);
+}
+
+.session-warning-buttons .btn {
+  flex: 1;
+  justify-content: center;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+}
+
+.session-warning-btn-stay {
+  background: var(--blue-600);
+  color: var(--white);
+}
+
+.session-warning-btn-stay:hover {
+  background: var(--blue-700);
+  box-shadow: var(--shadow-sm);
+}
+
+.session-warning-btn-logout {
+  background: var(--grey-100);
+  color: var(--grey-800);
+  border: 1px solid var(--grey-200);
+}
+
+.session-warning-btn-logout:hover {
+  background: var(--grey-200);
+}

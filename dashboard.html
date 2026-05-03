@@ -618,6 +618,37 @@
 
 </main>
 
+<!-- ══ SESSION TIMEOUT WARNING MODAL ═════════════════════ -->
+<div id="session-warning-modal" class="session-warning-modal">
+  <div class="session-warning-overlay"></div>
+  <div class="session-warning-content">
+    <div class="session-warning-header">
+      <h2>Sesión por Expirar</h2>
+      <p>Está inactivo. Su sesión se cerrará pronto.</p>
+    </div>
+    <div class="session-warning-body">
+      <div class="session-warning-timer">
+        <div class="session-warning-timer-display">
+          <span id="session-warning-countdown">30</span>
+          <span class="session-warning-timer-label">segundos</span>
+        </div>
+        <p class="session-warning-message">
+          Haga clic en "Permanecer conectado" para continuar usando la aplicación,
+          o "Cerrar sesión" para salir de forma segura.
+        </p>
+      </div>
+    </div>
+    <div class="session-warning-buttons">
+      <button type="button" class="btn btn-primary session-warning-btn-stay" onclick="handleStayLoggedIn()">
+        Permanecer Conectado
+      </button>
+      <button type="button" class="btn btn-secondary session-warning-btn-logout" onclick="handleLogoutNow()">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
