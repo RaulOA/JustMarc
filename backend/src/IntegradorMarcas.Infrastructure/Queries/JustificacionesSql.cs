@@ -329,6 +329,33 @@ SELECT DISTINCT
 FROM Configuracion.TipoJustificacion
 WHERE TipoJustificacionId IN @Ids;";
 
+    public const string GetCurrentApproverBySolicitante = @"
+SELECT
+    @SolicitanteUsuarioID AS SolicitanteUsuarioID,
+    scopeData.ScopeSource AS Origen,
+    scopeData.DeleganteUsuarioId AS DeleganteUsuarioID,
+    delegante.NombreCompleto AS DeleganteNombre,
+    aprobador.UsuarioID AS AprobadorUsuarioID,
+    aprobador.NombreCompleto AS AprobadorNombreCompleto,
+    aprobador.Cedula AS AprobadorCedula,
+    aprobador.CorreoElectronico AS AprobadorCorreo,
+    aprobador.Compania AS AprobadorCompania,
+    aprobador.UnidadId AS AprobadorUnidadID,
+    eo.Nombre AS AprobadorUnidadNombre,
+    aprobador.JefaturaId AS AprobadorJefaturaID
+FROM (SELECT 1 AS Seed) seed
+OUTER APPLY (
+    SELECT TOP 1
+        fa.AprobadorUsuarioId,
+        fa.Origen AS ScopeSource,
+        fa.DeleganteUsuarioId
+    FROM dbo.fn_AprobadoresVigentesPorSolicitante(@SolicitanteUsuarioID, GETDATE()) fa
+    ORDER BY CASE WHEN fa.Origen = 'Delegacion' THEN 0 ELSE 1 END, fa.AprobadorUsuarioId
+) scopeData
+LEFT JOIN RecursosHumanos.Usuario aprobador ON aprobador.UsuarioID = scopeData.AprobadorUsuarioId
+LEFT JOIN RecursosHumanos.EstructuraOrganizacional eo ON eo.CodigoOrigen = CAST(aprobador.UnidadID AS VARCHAR(50))
+LEFT JOIN RecursosHumanos.Usuario delegante ON delegante.UsuarioID = scopeData.DeleganteUsuarioId;";
+
     public const string ResolverPendiente = @"
 UPDATE je
 SET

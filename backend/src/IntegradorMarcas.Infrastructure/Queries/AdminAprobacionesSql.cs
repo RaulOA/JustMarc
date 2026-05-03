@@ -28,7 +28,7 @@ INSERT INTO Operacion.JerarquiaAprobacion
     EstadoRegistroId,
     VigenciaDesde,
     VigenciaHasta,
-    Usr_Registro
+    CreadoPor
 )
 VALUES
 (
@@ -39,9 +39,21 @@ VALUES
     1,
     @VigenciaDesde,
     @VigenciaHasta,
-    @UsrRegistro
+    @CreadoPor
 );
 SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+    public const string UpdateJerarquia = @"
+UPDATE Operacion.JerarquiaAprobacion
+SET
+    AprobadorUsuarioId = @AprobadorUsuarioID,
+    EstructuraOrganizacionalId = @EstructuraOrganizacionalID,
+    NivelAprobacion = @NivelAprobacion,
+    TipoRelacion = @TipoRelacion,
+    EstadoRegistroId = @EstadoRegistroID,
+    VigenciaDesde = @VigenciaDesde,
+    VigenciaHasta = @VigenciaHasta
+WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID;";
 
     public const string GetJerarquiaById = @"
 SELECT
@@ -95,7 +107,7 @@ INSERT INTO Operacion.DelegacionAprobacion
     EstadoRegistroId,
     VigenciaDesde,
     VigenciaHasta,
-    Usr_Registro
+    CreadoPor
 )
 VALUES
 (
@@ -106,9 +118,21 @@ VALUES
     1,
     @VigenciaDesde,
     @VigenciaHasta,
-    @UsrRegistro
+    @CreadoPor
 );
 SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+    public const string UpdateDelegacion = @"
+UPDATE Operacion.DelegacionAprobacion
+SET
+    DeleganteUsuarioId = @DeleganteUsuarioID,
+    DelegadoUsuarioId = @DelegadoUsuarioID,
+    JerarquiaAprobacionId = @JerarquiaAprobacionID,
+    Motivo = @Motivo,
+    EstadoRegistroId = @EstadoRegistroID,
+    VigenciaDesde = @VigenciaDesde,
+    VigenciaHasta = @VigenciaHasta
+WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
 
     public const string GetDelegacionById = @"
 SELECT
@@ -127,4 +151,25 @@ WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
 UPDATE Operacion.DelegacionAprobacion
 SET EstadoRegistroId = @EstadoRegistroID
 WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
+
+    public const string ExistsUsuario = @"
+SELECT CAST(CASE WHEN EXISTS (
+    SELECT 1
+    FROM RecursosHumanos.Usuario
+    WHERE UsuarioId = @UsuarioID
+) THEN 1 ELSE 0 END AS bit);";
+
+    public const string ExistsEstructura = @"
+SELECT CAST(CASE WHEN EXISTS (
+    SELECT 1
+    FROM RecursosHumanos.EstructuraOrganizacional
+    WHERE EstructuraOrganizacionalId = @EstructuraOrganizacionalID
+) THEN 1 ELSE 0 END AS bit);";
+
+    public const string ExistsJerarquia = @"
+SELECT CAST(CASE WHEN EXISTS (
+    SELECT 1
+    FROM Operacion.JerarquiaAprobacion
+    WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID
+) THEN 1 ELSE 0 END AS bit);";
 }

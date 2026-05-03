@@ -2,6 +2,7 @@ using IntegradorMarcas.Application.Common;
 using IntegradorMarcas.Application.DTOs;
 using IntegradorMarcas.Application.Interfaces;
 using IntegradorMarcas.Domain.Constants;
+using System.Text.Json;
 
 namespace IntegradorMarcas.Application.Services;
 
@@ -9,11 +10,16 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
 {
     private readonly IAdminAprobacionesRepository _repository;
     private readonly IAuditEventRepository _auditEventRepository;
+    private readonly IAdminActionAuditRepository _adminActionAuditRepository;
 
-    public AdminAprobacionesService(IAdminAprobacionesRepository repository, IAuditEventRepository auditEventRepository)
+    public AdminAprobacionesService(
+        IAdminAprobacionesRepository repository,
+        IAuditEventRepository auditEventRepository,
+        IAdminActionAuditRepository adminActionAuditRepository)
     {
         _repository = repository;
         _auditEventRepository = auditEventRepository;
+        _adminActionAuditRepository = adminActionAuditRepository;
     }
 
     public async Task<IReadOnlyList<AdminJerarquiaDto>> ListJerarquiasAsync(UserContextInfo user, int? aprobadorUsuarioId, int? estadoRegistroId, CancellationToken cancellationToken)
@@ -22,14 +28,15 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         return await _repository.ListJerarquiasAsync(aprobadorUsuarioId, estadoRegistroId, cancellationToken);
     }
 
-    public async Task<AdminJerarquiaDto> CreateJerarquiaAsync(UserContextInfo user, CreateJerarquiaDto request, CancellationToken cancellationToken)
+    public async Task<AdminJerarquiaDto> CreateJerarquiaAsync(UserContextInfo user, CreateJerarquiaDto request, string? correlationId, CancellationToken cancellationToken)
     {
         EnsureAdmin(user);
         ValidateCreateJerarquia(request);
+        await EnsureReferencesForJerarquiaAsync(request.AprobadorUsuarioId, request.EstructuraOrganizacionalId, cancellationToken);
 
         var created = await _repository.CreateJerarquiaAsync(request, user.UserId, cancellationToken);
 
-        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        await LogSummaryEventAsync(new AuditEventEntry
         {
             UsuarioId = user.UserId,
             NombreUsuario = $"Usuario {user.UserId}",
@@ -41,13 +48,77 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             PayloadResumen = $"Aprobador={created.AprobadorUsuarioId};Estructura={created.EstructuraOrganizacionalId};Nivel={created.NivelAprobacion};Estado={created.EstadoRegistroId}"
         }, cancellationToken);
 
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "JerarquiaAprobacion",
+            entidadObjetivoId: created.JerarquiaAprobacionId.ToString(),
+            accion: "Create",
+            descripcion: "Alta de jerarquia de aprobacion.",
+            valoresAnteriores: null,
+            valoresNuevos: created,
+            cancellationToken: cancellationToken);
+
         return created;
     }
 
-    public async Task ToggleJerarquiaEstadoAsync(UserContextInfo user, int jerarquiaAprobacionId, ToggleEstadoRegistroDto request, CancellationToken cancellationToken)
+    public async Task<AdminJerarquiaDto> UpdateJerarquiaAsync(UserContextInfo user, int jerarquiaAprobacionId, UpdateJerarquiaDto request, string? correlationId, CancellationToken cancellationToken)
+    {
+        EnsureAdmin(user);
+        ValidateUpdateJerarquia(request);
+        await EnsureReferencesForJerarquiaAsync(request.AprobadorUsuarioId, request.EstructuraOrganizacionalId, cancellationToken);
+
+        var previous = await _repository.GetJerarquiaByIdAsync(jerarquiaAprobacionId, cancellationToken);
+        if (previous is null)
+        {
+            throw new AppException("No existe la jerarquia indicada.", 404);
+        }
+
+        var affected = await _repository.UpdateJerarquiaAsync(jerarquiaAprobacionId, request, user.UserId, cancellationToken);
+        if (affected == 0)
+        {
+            throw new AppException("No se pudo actualizar la jerarquia indicada.", 404);
+        }
+
+        var updated = await _repository.GetJerarquiaByIdAsync(jerarquiaAprobacionId, cancellationToken)
+            ?? throw new AppException("No se pudo recuperar la jerarquia actualizada.", 500);
+
+        await LogSummaryEventAsync(new AuditEventEntry
+        {
+            UsuarioId = user.UserId,
+            NombreUsuario = $"Usuario {user.UserId}",
+            RolCodigo = user.Role,
+            TipoEventoAuditoriaId = 8,
+            DescripcionEvento = "Actualizacion de jerarquia de aprobacion.",
+            ResultadoAuditoriaId = 1,
+            ReferenciaFuncional = $"Jerarquia:{jerarquiaAprobacionId}",
+            PayloadResumen = $"Aprobador={updated.AprobadorUsuarioId};Estructura={updated.EstructuraOrganizacionalId};Nivel={updated.NivelAprobacion};Estado={updated.EstadoRegistroId}"
+        }, cancellationToken);
+
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "JerarquiaAprobacion",
+            entidadObjetivoId: jerarquiaAprobacionId.ToString(),
+            accion: "Update",
+            descripcion: "Actualizacion de jerarquia de aprobacion.",
+            valoresAnteriores: previous,
+            valoresNuevos: updated,
+            cancellationToken: cancellationToken);
+
+        return updated;
+    }
+
+    public async Task ToggleJerarquiaEstadoAsync(UserContextInfo user, int jerarquiaAprobacionId, ToggleEstadoRegistroDto request, string? correlationId, CancellationToken cancellationToken)
     {
         EnsureAdmin(user);
         ValidateEstadoRegistro(request.EstadoRegistroId);
+
+        var previous = await _repository.GetJerarquiaByIdAsync(jerarquiaAprobacionId, cancellationToken);
+        if (previous is null)
+        {
+            throw new AppException("No existe la jerarquia indicada.", 404);
+        }
 
         var affected = await _repository.ToggleJerarquiaEstadoAsync(jerarquiaAprobacionId, request.EstadoRegistroId, cancellationToken);
         if (affected == 0)
@@ -55,7 +126,9 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             throw new AppException("No existe la jerarquia indicada.", 404);
         }
 
-        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        var updated = await _repository.GetJerarquiaByIdAsync(jerarquiaAprobacionId, cancellationToken);
+
+        await LogSummaryEventAsync(new AuditEventEntry
         {
             UsuarioId = user.UserId,
             NombreUsuario = $"Usuario {user.UserId}",
@@ -66,6 +139,17 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             ReferenciaFuncional = $"Jerarquia:{jerarquiaAprobacionId}",
             PayloadResumen = $"EstadoRegistroID={request.EstadoRegistroId}"
         }, cancellationToken);
+
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "JerarquiaAprobacion",
+            entidadObjetivoId: jerarquiaAprobacionId.ToString(),
+            accion: "ChangeState",
+            descripcion: "Cambio de estado de jerarquia de aprobacion.",
+            valoresAnteriores: previous,
+            valoresNuevos: updated,
+            cancellationToken: cancellationToken);
     }
 
     public async Task<IReadOnlyList<AdminDelegacionDto>> ListDelegacionesAsync(UserContextInfo user, int? deleganteUsuarioId, int? delegadoUsuarioId, int? estadoRegistroId, DateTime? vigenteEnFecha, CancellationToken cancellationToken)
@@ -74,14 +158,15 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         return await _repository.ListDelegacionesAsync(deleganteUsuarioId, delegadoUsuarioId, estadoRegistroId, vigenteEnFecha, cancellationToken);
     }
 
-    public async Task<AdminDelegacionDto> CreateDelegacionAsync(UserContextInfo user, CreateDelegacionDto request, CancellationToken cancellationToken)
+    public async Task<AdminDelegacionDto> CreateDelegacionAsync(UserContextInfo user, CreateDelegacionDto request, string? correlationId, CancellationToken cancellationToken)
     {
         EnsureAdmin(user);
         ValidateCreateDelegacion(request);
+        await EnsureReferencesForDelegacionAsync(request.DeleganteUsuarioId, request.DelegadoUsuarioId, request.JerarquiaAprobacionId, cancellationToken);
 
         var created = await _repository.CreateDelegacionAsync(request, user.UserId, cancellationToken);
 
-        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        await LogSummaryEventAsync(new AuditEventEntry
         {
             UsuarioId = user.UserId,
             NombreUsuario = $"Usuario {user.UserId}",
@@ -93,13 +178,77 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             PayloadResumen = $"Delegante={created.DeleganteUsuarioId};Delegado={created.DelegadoUsuarioId};Estado={created.EstadoRegistroId}"
         }, cancellationToken);
 
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "DelegacionAprobacion",
+            entidadObjetivoId: created.DelegacionAprobacionId.ToString(),
+            accion: "Create",
+            descripcion: "Alta de delegacion de aprobacion.",
+            valoresAnteriores: null,
+            valoresNuevos: created,
+            cancellationToken: cancellationToken);
+
         return created;
     }
 
-    public async Task ToggleDelegacionEstadoAsync(UserContextInfo user, int delegacionAprobacionId, ToggleEstadoRegistroDto request, CancellationToken cancellationToken)
+    public async Task<AdminDelegacionDto> UpdateDelegacionAsync(UserContextInfo user, int delegacionAprobacionId, UpdateDelegacionDto request, string? correlationId, CancellationToken cancellationToken)
+    {
+        EnsureAdmin(user);
+        ValidateUpdateDelegacion(request);
+        await EnsureReferencesForDelegacionAsync(request.DeleganteUsuarioId, request.DelegadoUsuarioId, request.JerarquiaAprobacionId, cancellationToken);
+
+        var previous = await _repository.GetDelegacionByIdAsync(delegacionAprobacionId, cancellationToken);
+        if (previous is null)
+        {
+            throw new AppException("No existe la delegacion indicada.", 404);
+        }
+
+        var affected = await _repository.UpdateDelegacionAsync(delegacionAprobacionId, request, user.UserId, cancellationToken);
+        if (affected == 0)
+        {
+            throw new AppException("No se pudo actualizar la delegacion indicada.", 404);
+        }
+
+        var updated = await _repository.GetDelegacionByIdAsync(delegacionAprobacionId, cancellationToken)
+            ?? throw new AppException("No se pudo recuperar la delegacion actualizada.", 500);
+
+        await LogSummaryEventAsync(new AuditEventEntry
+        {
+            UsuarioId = user.UserId,
+            NombreUsuario = $"Usuario {user.UserId}",
+            RolCodigo = user.Role,
+            TipoEventoAuditoriaId = 9,
+            DescripcionEvento = "Actualizacion de delegacion de aprobacion.",
+            ResultadoAuditoriaId = 1,
+            ReferenciaFuncional = $"Delegacion:{delegacionAprobacionId}",
+            PayloadResumen = $"Delegante={updated.DeleganteUsuarioId};Delegado={updated.DelegadoUsuarioId};Estado={updated.EstadoRegistroId}"
+        }, cancellationToken);
+
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "DelegacionAprobacion",
+            entidadObjetivoId: delegacionAprobacionId.ToString(),
+            accion: "Update",
+            descripcion: "Actualizacion de delegacion de aprobacion.",
+            valoresAnteriores: previous,
+            valoresNuevos: updated,
+            cancellationToken: cancellationToken);
+
+        return updated;
+    }
+
+    public async Task ToggleDelegacionEstadoAsync(UserContextInfo user, int delegacionAprobacionId, ToggleEstadoRegistroDto request, string? correlationId, CancellationToken cancellationToken)
     {
         EnsureAdmin(user);
         ValidateEstadoRegistro(request.EstadoRegistroId);
+
+        var previous = await _repository.GetDelegacionByIdAsync(delegacionAprobacionId, cancellationToken);
+        if (previous is null)
+        {
+            throw new AppException("No existe la delegacion indicada.", 404);
+        }
 
         var affected = await _repository.ToggleDelegacionEstadoAsync(delegacionAprobacionId, request.EstadoRegistroId, cancellationToken);
         if (affected == 0)
@@ -107,7 +256,9 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             throw new AppException("No existe la delegacion indicada.", 404);
         }
 
-        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        var updated = await _repository.GetDelegacionByIdAsync(delegacionAprobacionId, cancellationToken);
+
+        await LogSummaryEventAsync(new AuditEventEntry
         {
             UsuarioId = user.UserId,
             NombreUsuario = $"Usuario {user.UserId}",
@@ -117,6 +268,88 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             ResultadoAuditoriaId = 1,
             ReferenciaFuncional = $"Delegacion:{delegacionAprobacionId}",
             PayloadResumen = $"EstadoRegistroID={request.EstadoRegistroId}"
+        }, cancellationToken);
+
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "DelegacionAprobacion",
+            entidadObjetivoId: delegacionAprobacionId.ToString(),
+            accion: "ChangeState",
+            descripcion: "Cambio de estado de delegacion de aprobacion.",
+            valoresAnteriores: previous,
+            valoresNuevos: updated,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task EnsureReferencesForJerarquiaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, CancellationToken cancellationToken)
+    {
+        if (!await _repository.ExistsUsuarioAsync(aprobadorUsuarioId, cancellationToken))
+        {
+            throw new AppException("El aprobador indicado no existe.", 400);
+        }
+
+        if (!await _repository.ExistsEstructuraAsync(estructuraOrganizacionalId, cancellationToken))
+        {
+            throw new AppException("La estructura organizacional indicada no existe.", 400);
+        }
+    }
+
+    private async Task EnsureReferencesForDelegacionAsync(int deleganteUsuarioId, int delegadoUsuarioId, int? jerarquiaAprobacionId, CancellationToken cancellationToken)
+    {
+        if (deleganteUsuarioId == delegadoUsuarioId)
+        {
+            throw new AppException("No se permite auto-delegacion.", 400);
+        }
+
+        if (!await _repository.ExistsUsuarioAsync(deleganteUsuarioId, cancellationToken))
+        {
+            throw new AppException("El delegante indicado no existe.", 400);
+        }
+
+        if (!await _repository.ExistsUsuarioAsync(delegadoUsuarioId, cancellationToken))
+        {
+            throw new AppException("El delegado indicado no existe.", 400);
+        }
+
+        if (jerarquiaAprobacionId.HasValue && !await _repository.ExistsJerarquiaAsync(jerarquiaAprobacionId.Value, cancellationToken))
+        {
+            throw new AppException("La jerarquia indicada no existe.", 400);
+        }
+    }
+
+    private Task LogSummaryEventAsync(AuditEventEntry entry, CancellationToken cancellationToken)
+    {
+        return _auditEventRepository.LogEventAsync(entry, cancellationToken);
+    }
+
+    private Task LogDetailedAuditAsync(
+        UserContextInfo user,
+        string? correlationId,
+        string entidadObjetivo,
+        string entidadObjetivoId,
+        string accion,
+        string descripcion,
+        object? valoresAnteriores,
+        object? valoresNuevos,
+        CancellationToken cancellationToken)
+    {
+        return _adminActionAuditRepository.LogActionAsync(new AdminActionAuditEntry
+        {
+            CorrelationId = correlationId,
+            UsuarioActorId = user.UserId,
+            RolActorCodigo = user.Role,
+            EntidadObjetivo = entidadObjetivo,
+            EntidadObjetivoId = entidadObjetivoId,
+            Accion = accion,
+            ResultadoAuditoriaId = 1,
+            Descripcion = descripcion,
+            ValoresAnteriores = valoresAnteriores is null ? null : JsonSerializer.Serialize(valoresAnteriores),
+            ValoresNuevos = valoresNuevos is null ? null : JsonSerializer.Serialize(valoresNuevos),
+            Metadata = JsonSerializer.Serialize(new
+            {
+                scope = "admin.aprobaciones"
+            })
         }, cancellationToken);
     }
 
@@ -169,6 +402,73 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         {
             throw new AppException("DelegadoUsuarioId es requerido.", 400);
         }
+
+        if (request.DeleganteUsuarioId == request.DelegadoUsuarioId)
+        {
+            throw new AppException("No se permite auto-delegacion.", 400);
+        }
+
+        if (request.VigenciaHasta.HasValue && request.VigenciaHasta.Value < request.VigenciaDesde)
+        {
+            throw new AppException("VigenciaHasta no puede ser menor a VigenciaDesde.", 400);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Motivo) && request.Motivo.Trim().Length > 250)
+        {
+            throw new AppException("Motivo no puede exceder 250 caracteres.", 400);
+        }
+    }
+
+    private static void ValidateUpdateJerarquia(UpdateJerarquiaDto request)
+    {
+        if (request.AprobadorUsuarioId <= 0)
+        {
+            throw new AppException("AprobadorUsuarioId es requerido.", 400);
+        }
+
+        if (request.EstructuraOrganizacionalId <= 0)
+        {
+            throw new AppException("EstructuraOrganizacionalId es requerido.", 400);
+        }
+
+        if (request.NivelAprobacion <= 0)
+        {
+            throw new AppException("NivelAprobacion debe ser mayor a cero.", 400);
+        }
+
+        ValidateEstadoRegistro(request.EstadoRegistroId);
+
+        var tipoRelacion = request.TipoRelacion.Trim();
+        if (!string.Equals(tipoRelacion, "Vertical", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(tipoRelacion, "Horizontal", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppException("TipoRelacion debe ser Vertical u Horizontal.", 400);
+        }
+
+        if (request.VigenciaHasta.HasValue && request.VigenciaHasta.Value < request.VigenciaDesde)
+        {
+            throw new AppException("VigenciaHasta no puede ser menor a VigenciaDesde.", 400);
+        }
+    }
+
+    private static void ValidateUpdateDelegacion(UpdateDelegacionDto request)
+    {
+        if (request.DeleganteUsuarioId <= 0)
+        {
+            throw new AppException("DeleganteUsuarioId es requerido.", 400);
+        }
+
+        if (request.DelegadoUsuarioId <= 0)
+        {
+            throw new AppException("DelegadoUsuarioId es requerido.", 400);
+        }
+
+        if (request.DeleganteUsuarioId == request.DelegadoUsuarioId)
+        {
+            throw new AppException("No se permite auto-delegacion.", 400);
+        }
+
+        ValidateEstadoRegistro(request.EstadoRegistroId);
 
         if (request.VigenciaHasta.HasValue && request.VigenciaHasta.Value < request.VigenciaDesde)
         {

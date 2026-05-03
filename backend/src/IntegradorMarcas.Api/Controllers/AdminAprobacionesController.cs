@@ -56,6 +56,7 @@ public sealed class AdminAprobacionesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
         var created = await _service.CreateJerarquiaAsync(user, new CreateJerarquiaDto
         {
             AprobadorUsuarioId = request.AprobadorUsuarioID,
@@ -64,7 +65,7 @@ public sealed class AdminAprobacionesController : ControllerBase
             TipoRelacion = request.TipoRelacion,
             VigenciaDesde = request.VigenciaDesde,
             VigenciaHasta = request.VigenciaHasta
-        }, cancellationToken);
+        }, correlationId, cancellationToken);
 
         return Ok(new AdminJerarquiaResponse
         {
@@ -80,6 +81,41 @@ public sealed class AdminAprobacionesController : ControllerBase
     }
 
     /// <summary>
+    /// Actualiza una jerarquia de aprobacion existente.
+    /// </summary>
+    [HttpPatch("jerarquias/{jerarquiaAprobacionId:int}")]
+    public async Task<ActionResult<AdminJerarquiaResponse>> UpdateJerarquia(
+        int jerarquiaAprobacionId,
+        [FromBody] UpdateJerarquiaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
+        var updated = await _service.UpdateJerarquiaAsync(user, jerarquiaAprobacionId, new UpdateJerarquiaDto
+        {
+            AprobadorUsuarioId = request.AprobadorUsuarioID,
+            EstructuraOrganizacionalId = request.EstructuraOrganizacionalID,
+            NivelAprobacion = request.NivelAprobacion,
+            TipoRelacion = request.TipoRelacion,
+            EstadoRegistroId = request.EstadoRegistroID,
+            VigenciaDesde = request.VigenciaDesde,
+            VigenciaHasta = request.VigenciaHasta
+        }, correlationId, cancellationToken);
+
+        return Ok(new AdminJerarquiaResponse
+        {
+            JerarquiaAprobacionID = updated.JerarquiaAprobacionId,
+            AprobadorUsuarioID = updated.AprobadorUsuarioId,
+            EstructuraOrganizacionalID = updated.EstructuraOrganizacionalId,
+            NivelAprobacion = updated.NivelAprobacion,
+            TipoRelacion = updated.TipoRelacion,
+            EstadoRegistroID = updated.EstadoRegistroId,
+            VigenciaDesde = updated.VigenciaDesde,
+            VigenciaHasta = updated.VigenciaHasta
+        });
+    }
+
+    /// <summary>
     /// Cambia el estado de registro de una jerarquia de aprobacion.
     /// </summary>
     [HttpPatch("jerarquias/{jerarquiaAprobacionId:int}/estado")]
@@ -89,10 +125,11 @@ public sealed class AdminAprobacionesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
         await _service.ToggleJerarquiaEstadoAsync(user, jerarquiaAprobacionId, new ToggleEstadoRegistroDto
         {
             EstadoRegistroId = request.EstadoRegistroID
-        }, cancellationToken);
+        }, correlationId, cancellationToken);
 
         return NoContent();
     }
@@ -142,6 +179,7 @@ public sealed class AdminAprobacionesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
         var created = await _service.CreateDelegacionAsync(user, new CreateDelegacionDto
         {
             DeleganteUsuarioId = request.DeleganteUsuarioID,
@@ -150,7 +188,7 @@ public sealed class AdminAprobacionesController : ControllerBase
             Motivo = request.Motivo,
             VigenciaDesde = request.VigenciaDesde,
             VigenciaHasta = request.VigenciaHasta
-        }, cancellationToken);
+        }, correlationId, cancellationToken);
 
         return Ok(new AdminDelegacionResponse
         {
@@ -166,6 +204,41 @@ public sealed class AdminAprobacionesController : ControllerBase
     }
 
     /// <summary>
+    /// Actualiza una delegacion de aprobacion existente.
+    /// </summary>
+    [HttpPatch("delegaciones/{delegacionAprobacionId:int}")]
+    public async Task<ActionResult<AdminDelegacionResponse>> UpdateDelegacion(
+        int delegacionAprobacionId,
+        [FromBody] UpdateDelegacionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
+        var updated = await _service.UpdateDelegacionAsync(user, delegacionAprobacionId, new UpdateDelegacionDto
+        {
+            DeleganteUsuarioId = request.DeleganteUsuarioID,
+            DelegadoUsuarioId = request.DelegadoUsuarioID,
+            JerarquiaAprobacionId = request.JerarquiaAprobacionID,
+            Motivo = request.Motivo,
+            EstadoRegistroId = request.EstadoRegistroID,
+            VigenciaDesde = request.VigenciaDesde,
+            VigenciaHasta = request.VigenciaHasta
+        }, correlationId, cancellationToken);
+
+        return Ok(new AdminDelegacionResponse
+        {
+            DelegacionAprobacionID = updated.DelegacionAprobacionId,
+            DeleganteUsuarioID = updated.DeleganteUsuarioId,
+            DelegadoUsuarioID = updated.DelegadoUsuarioId,
+            JerarquiaAprobacionID = updated.JerarquiaAprobacionId,
+            Motivo = updated.Motivo,
+            EstadoRegistroID = updated.EstadoRegistroId,
+            VigenciaDesde = updated.VigenciaDesde,
+            VigenciaHasta = updated.VigenciaHasta
+        });
+    }
+
+    /// <summary>
     /// Cambia el estado de registro de una delegacion de aprobacion.
     /// </summary>
     [HttpPatch("delegaciones/{delegacionAprobacionId:int}/estado")]
@@ -175,10 +248,11 @@ public sealed class AdminAprobacionesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
         await _service.ToggleDelegacionEstadoAsync(user, delegacionAprobacionId, new ToggleEstadoRegistroDto
         {
             EstadoRegistroId = request.EstadoRegistroID
-        }, cancellationToken);
+        }, correlationId, cancellationToken);
 
         return NoContent();
     }

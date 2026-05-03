@@ -1,3 +1,4 @@
+using IntegradorMarcas.Application.Common;
 using IntegradorMarcas.Application.DTOs;
 using IntegradorMarcas.Application.Interfaces;
 using IntegradorMarcas.Application.Services;
@@ -5,12 +6,25 @@ using IntegradorMarcas.Domain.Constants;
 
 namespace IntegradorMarcas.Tests;
 
-public sealed class JustificacionServiceHistoricoTests
+public sealed class JustificacionServiceCurrentApproverTests
 {
     [Fact]
-    public async Task ListHistoricoAsync_RolFuncionario_FuerzaScopePropioEIgnoraFiltroFuncionario()
+    public async Task GetCurrentApproverAsync_RolFuncionario_RetornaDatoDesdeRepositorio()
     {
-        var repository = new FakeJustificacionRepository();
+        var repository = new FakeJustificacionRepository
+        {
+            CurrentApproverToReturn = new CurrentApproverDto
+            {
+                SolicitanteUsuarioId = 4,
+                Origen = "Jerarquia",
+                Aprobador = new UsuarioResumenDto
+                {
+                    UsuarioId = 3,
+                    NombreCompleto = "Maria Jefe"
+                }
+            }
+        };
+
         var service = new JustificacionService(repository, new FakeAuditEventRepository());
         var user = new UserContextInfo
         {
@@ -18,48 +32,32 @@ public sealed class JustificacionServiceHistoricoTests
             Role = RolesSistema.RolFunc
         };
 
-        await service.ListHistoricoAsync(user, new FiltroRrhhJustificacionesDto
-        {
-            Funcionario = "Carlos",
-            FechaDesde = new DateTime(2026, 1, 1),
-            FechaHasta = new DateTime(2026, 1, 31)
-        }, CancellationToken.None);
+        var result = await service.GetCurrentApproverAsync(user, CancellationToken.None);
 
-        Assert.Equal(4, repository.LastHistoricoUsuarioId);
-        Assert.Null(repository.LastHistoricoAprobadorUsuarioId);
-        Assert.False(repository.LastHistoricoExcluirPropiosEnScopeAprobador);
-        Assert.NotNull(repository.LastHistoricoFiltros);
-        Assert.Null(repository.LastHistoricoFiltros!.Funcionario);
+        Assert.Equal(4, repository.LastSolicitanteUsuarioId);
+        Assert.Equal("Jerarquia", result.Origen);
+        Assert.Equal(3, result.Aprobador?.UsuarioId);
     }
 
     [Fact]
-    public async Task ListHistoricoAsync_RolRrhh_MantieneFiltroFuncionarioSinScopeUsuario()
+    public async Task GetCurrentApproverAsync_RolJefatura_Aceptado()
     {
-        var repository = new FakeJustificacionRepository();
-        var service = new JustificacionService(repository, new FakeAuditEventRepository());
-        var user = new UserContextInfo
+        var repository = new FakeJustificacionRepository
         {
-            UserId = 6,
-            Role = RolesSistema.RolRrhh
+            CurrentApproverToReturn = new CurrentApproverDto
+            {
+                SolicitanteUsuarioId = 3,
+                Origen = "Delegacion",
+                DeleganteUsuarioId = 8,
+                DeleganteNombre = "Carlos Delegante",
+                Aprobador = new UsuarioResumenDto
+                {
+                    UsuarioId = 10,
+                    NombreCompleto = "Laura Delegada"
+                }
+            }
         };
 
-        await service.ListHistoricoAsync(user, new FiltroRrhhJustificacionesDto
-        {
-            Funcionario = "Ana",
-            Compania = "CNP"
-        }, CancellationToken.None);
-
-        Assert.Null(repository.LastHistoricoUsuarioId);
-        Assert.Null(repository.LastHistoricoAprobadorUsuarioId);
-        Assert.False(repository.LastHistoricoExcluirPropiosEnScopeAprobador);
-        Assert.NotNull(repository.LastHistoricoFiltros);
-        Assert.Equal("Ana", repository.LastHistoricoFiltros!.Funcionario);
-    }
-
-    [Fact]
-    public async Task ListHistoricoAsync_RolJefatura_AplicaScopeAprobadorYExcluyePropios()
-    {
-        var repository = new FakeJustificacionRepository();
         var service = new JustificacionService(repository, new FakeAuditEventRepository());
         var user = new UserContextInfo
         {
@@ -67,17 +65,29 @@ public sealed class JustificacionServiceHistoricoTests
             Role = RolesSistema.RolJefe
         };
 
-        await service.ListHistoricoAsync(user, new FiltroRrhhJustificacionesDto
-        {
-            Funcionario = "Luis",
-            Compania = "CNP"
-        }, CancellationToken.None);
+        var result = await service.GetCurrentApproverAsync(user, CancellationToken.None);
 
-        Assert.Null(repository.LastHistoricoUsuarioId);
-        Assert.Equal(3, repository.LastHistoricoAprobadorUsuarioId);
-        Assert.True(repository.LastHistoricoExcluirPropiosEnScopeAprobador);
-        Assert.NotNull(repository.LastHistoricoFiltros);
-        Assert.Equal("Luis", repository.LastHistoricoFiltros!.Funcionario);
+        Assert.Equal(3, repository.LastSolicitanteUsuarioId);
+        Assert.Equal("Delegacion", result.Origen);
+        Assert.Equal(8, result.DeleganteUsuarioId);
+        Assert.Equal("Carlos Delegante", result.DeleganteNombre);
+    }
+
+    [Fact]
+    public async Task GetCurrentApproverAsync_RolNoPermitido_Lanza403()
+    {
+        var repository = new FakeJustificacionRepository();
+        var service = new JustificacionService(repository, new FakeAuditEventRepository());
+        var user = new UserContextInfo
+        {
+            UserId = 99,
+            Role = "ROL_INVITADO"
+        };
+
+        var exception = await Assert.ThrowsAsync<AppException>(() => service.GetCurrentApproverAsync(user, CancellationToken.None));
+
+        Assert.Equal(403, exception.StatusCode);
+        Assert.Null(repository.LastSolicitanteUsuarioId);
     }
 
     private sealed class FakeAuditEventRepository : IAuditEventRepository
@@ -90,10 +100,8 @@ public sealed class JustificacionServiceHistoricoTests
 
     private sealed class FakeJustificacionRepository : IJustificacionRepository
     {
-        public int? LastHistoricoUsuarioId { get; private set; }
-        public int? LastHistoricoAprobadorUsuarioId { get; private set; }
-        public bool LastHistoricoExcluirPropiosEnScopeAprobador { get; private set; }
-        public FiltroRrhhJustificacionesDto? LastHistoricoFiltros { get; private set; }
+        public int? LastSolicitanteUsuarioId { get; private set; }
+        public CurrentApproverDto CurrentApproverToReturn { get; set; } = new();
 
         public Task<IReadOnlyCollection<int>> GetExistingTipoJustificacionIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken)
         {
@@ -107,7 +115,8 @@ public sealed class JustificacionServiceHistoricoTests
 
         public Task<CurrentApproverDto> GetCurrentApproverAsync(int solicitanteUsuarioId, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            LastSolicitanteUsuarioId = solicitanteUsuarioId;
+            return Task.FromResult(CurrentApproverToReturn);
         }
 
         public Task<IReadOnlyList<JustificacionResumenDto>> ListMineAsync(int usuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
@@ -137,11 +146,7 @@ public sealed class JustificacionServiceHistoricoTests
             FiltroRrhhJustificacionesDto filtros,
             CancellationToken cancellationToken)
         {
-            LastHistoricoUsuarioId = usuarioId;
-            LastHistoricoAprobadorUsuarioId = aprobadorUsuarioId;
-            LastHistoricoExcluirPropiosEnScopeAprobador = excluirPropiosEnScopeAprobador;
-            LastHistoricoFiltros = filtros;
-            return Task.FromResult<IReadOnlyList<RrhhJustificacionResumenDto>>(Array.Empty<RrhhJustificacionResumenDto>());
+            throw new NotImplementedException();
         }
 
         public Task<JustificacionCompletaDto?> GetDetalleJefaturaAsync(int justificacionId, int aprobadorUsuarioId, CancellationToken cancellationToken)

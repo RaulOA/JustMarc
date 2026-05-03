@@ -55,7 +55,10 @@ builder.Services.AddScoped<IJustificacionRepository, JustificacionRepository>();
 builder.Services.AddScoped<IJustificacionService, JustificacionService>();
 builder.Services.AddScoped<IAdminAprobacionesRepository, AdminAprobacionesRepository>();
 builder.Services.AddScoped<IAdminAprobacionesService, AdminAprobacionesService>();
+builder.Services.AddScoped<IAdminOrganizacionRepository, AdminOrganizacionRepository>();
+builder.Services.AddScoped<IAdminOrganizacionService, AdminOrganizacionService>();
 builder.Services.AddScoped<IAuditEventRepository, AuditEventRepository>();
+builder.Services.AddScoped<IAdminActionAuditRepository, AdminActionAuditRepository>();
 builder.Services.AddScoped<IUserContext, HeaderUserContext>();
 builder.Services.AddScoped<IErrorLogRepository, ErrorLogRepository>();
 

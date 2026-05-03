@@ -32,6 +32,19 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
         return data.ToList();
     }
 
+    public async Task<AdminJerarquiaDto?> GetJerarquiaByIdAsync(int jerarquiaAprobacionId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.QuerySingleOrDefaultAsync<AdminJerarquiaDto>(new CommandDefinition(
+            AdminAprobacionesSql.GetJerarquiaById,
+            new
+            {
+                JerarquiaAprobacionID = jerarquiaAprobacionId
+            },
+            cancellationToken: cancellationToken));
+    }
+
     public async Task<AdminJerarquiaDto> CreateJerarquiaAsync(CreateJerarquiaDto request, int actorUsuarioId, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
@@ -46,7 +59,7 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
                 TipoRelacion = request.TipoRelacion.Trim(),
                 request.VigenciaDesde,
                 request.VigenciaHasta,
-                UsrRegistro = actorUsuarioId.ToString()
+                CreadoPor = actorUsuarioId.ToString()
             },
             cancellationToken: cancellationToken));
 
@@ -55,6 +68,27 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
             new
             {
                 JerarquiaAprobacionID = jerarquiaAprobacionId
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<int> UpdateJerarquiaAsync(int jerarquiaAprobacionId, UpdateJerarquiaDto request, int actorUsuarioId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition(
+            AdminAprobacionesSql.UpdateJerarquia,
+            new
+            {
+                JerarquiaAprobacionID = jerarquiaAprobacionId,
+                AprobadorUsuarioID = request.AprobadorUsuarioId,
+                EstructuraOrganizacionalID = request.EstructuraOrganizacionalId,
+                request.NivelAprobacion,
+                TipoRelacion = request.TipoRelacion.Trim(),
+                EstadoRegistroID = request.EstadoRegistroId,
+                request.VigenciaDesde,
+                request.VigenciaHasta,
+                ModificadoPor = actorUsuarioId.ToString()
             },
             cancellationToken: cancellationToken));
     }
@@ -91,6 +125,19 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
         return data.ToList();
     }
 
+    public async Task<AdminDelegacionDto?> GetDelegacionByIdAsync(int delegacionAprobacionId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.QuerySingleOrDefaultAsync<AdminDelegacionDto>(new CommandDefinition(
+            AdminAprobacionesSql.GetDelegacionById,
+            new
+            {
+                DelegacionAprobacionID = delegacionAprobacionId
+            },
+            cancellationToken: cancellationToken));
+    }
+
     public async Task<AdminDelegacionDto> CreateDelegacionAsync(CreateDelegacionDto request, int actorUsuarioId, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
@@ -105,7 +152,7 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
                 Motivo = string.IsNullOrWhiteSpace(request.Motivo) ? null : request.Motivo.Trim(),
                 request.VigenciaDesde,
                 request.VigenciaHasta,
-                UsrRegistro = actorUsuarioId.ToString()
+                CreadoPor = actorUsuarioId.ToString()
             },
             cancellationToken: cancellationToken));
 
@@ -114,6 +161,27 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
             new
             {
                 DelegacionAprobacionID = delegacionAprobacionId
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<int> UpdateDelegacionAsync(int delegacionAprobacionId, UpdateDelegacionDto request, int actorUsuarioId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition(
+            AdminAprobacionesSql.UpdateDelegacion,
+            new
+            {
+                DelegacionAprobacionID = delegacionAprobacionId,
+                DeleganteUsuarioID = request.DeleganteUsuarioId,
+                DelegadoUsuarioID = request.DelegadoUsuarioId,
+                JerarquiaAprobacionID = request.JerarquiaAprobacionId,
+                Motivo = string.IsNullOrWhiteSpace(request.Motivo) ? null : request.Motivo.Trim(),
+                EstadoRegistroID = request.EstadoRegistroId,
+                request.VigenciaDesde,
+                request.VigenciaHasta,
+                ModificadoPor = actorUsuarioId.ToString()
             },
             cancellationToken: cancellationToken));
     }
@@ -128,6 +196,45 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
             {
                 DelegacionAprobacionID = delegacionAprobacionId,
                 EstadoRegistroID = estadoRegistroId
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> ExistsUsuarioAsync(int usuarioId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            AdminAprobacionesSql.ExistsUsuario,
+            new
+            {
+                UsuarioID = usuarioId
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> ExistsEstructuraAsync(int estructuraOrganizacionalId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            AdminAprobacionesSql.ExistsEstructura,
+            new
+            {
+                EstructuraOrganizacionalID = estructuraOrganizacionalId
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> ExistsJerarquiaAsync(int jerarquiaAprobacionId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            AdminAprobacionesSql.ExistsJerarquia,
+            new
+            {
+                JerarquiaAprobacionID = jerarquiaAprobacionId
             },
             cancellationToken: cancellationToken));
     }

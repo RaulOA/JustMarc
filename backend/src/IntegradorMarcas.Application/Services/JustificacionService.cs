@@ -54,6 +54,16 @@ public sealed class JustificacionService : IJustificacionService
         return justificacionId;
     }
 
+    public async Task<CurrentApproverDto> GetCurrentApproverAsync(UserContextInfo user, CancellationToken cancellationToken)
+    {
+        if (!RolesSistema.EsFuncionario(user.Role) && !RolesSistema.EsJefatura(user.Role) && !RolesSistema.EsRrhh(user.Role))
+        {
+            throw new AppException("Solo funcionario, jefatura o RRHH pueden consultar el aprobador actual.", 403);
+        }
+
+        return await _repository.GetCurrentApproverAsync(user.UserId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<JustificacionResumenDto>> ListMineAsync(UserContextInfo user, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
     {
         if (!RolesSistema.EsFuncionario(user.Role) && !RolesSistema.EsJefatura(user.Role) && !RolesSistema.EsRrhh(user.Role))

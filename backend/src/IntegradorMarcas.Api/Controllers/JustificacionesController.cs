@@ -80,6 +80,34 @@ public sealed class JustificacionesController : ControllerBase
         }).ToList());
     }
 
+    [HttpGet("aprobador-actual")]
+    public async Task<ActionResult<CurrentApproverResponse>> GetCurrentApprover(CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        var result = await _service.GetCurrentApproverAsync(user, cancellationToken);
+
+        return Ok(new CurrentApproverResponse
+        {
+            SolicitanteUsuarioID = result.SolicitanteUsuarioId,
+            Origen = result.Origen,
+            DeleganteUsuarioID = result.DeleganteUsuarioId,
+            DeleganteNombre = result.DeleganteNombre,
+            Aprobador = result.Aprobador is null
+                ? null
+                : new UsuarioResumenResponse
+                {
+                    UsuarioID = result.Aprobador.UsuarioId,
+                    NombreCompleto = result.Aprobador.NombreCompleto,
+                    Cedula = result.Aprobador.Cedula,
+                    Correo = result.Aprobador.Correo,
+                    Compania = result.Aprobador.Compania,
+                    UnidadID = result.Aprobador.UnidadId,
+                    UnidadNombre = result.Aprobador.UnidadNombre,
+                    JefaturaID = result.Aprobador.JefaturaId
+                }
+        });
+    }
+
     [HttpGet("{justificacionId:int}/lineas")]
     public async Task<ActionResult<IReadOnlyList<JustificacionDetalleLineaResponse>>> ListMineLineas(
         int justificacionId,

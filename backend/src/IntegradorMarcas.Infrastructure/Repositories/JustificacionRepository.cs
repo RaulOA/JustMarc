@@ -85,6 +85,40 @@ public sealed class JustificacionRepository : IJustificacionRepository
         }
     }
 
+    public async Task<CurrentApproverDto> GetCurrentApproverAsync(int solicitanteUsuarioId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        var data = await connection.QuerySingleAsync<CurrentApproverRow>(new CommandDefinition(
+            JustificacionesSql.GetCurrentApproverBySolicitante,
+            new
+            {
+                SolicitanteUsuarioID = solicitanteUsuarioId
+            },
+            cancellationToken: cancellationToken));
+
+        return new CurrentApproverDto
+        {
+            SolicitanteUsuarioId = data.SolicitanteUsuarioID,
+            Origen = data.Origen,
+            DeleganteUsuarioId = data.DeleganteUsuarioID,
+            DeleganteNombre = data.DeleganteNombre,
+            Aprobador = data.AprobadorUsuarioID.HasValue
+                ? new UsuarioResumenDto
+                {
+                    UsuarioId = data.AprobadorUsuarioID.Value,
+                    NombreCompleto = data.AprobadorNombreCompleto ?? string.Empty,
+                    Cedula = data.AprobadorCedula ?? string.Empty,
+                    Correo = data.AprobadorCorreo ?? string.Empty,
+                    Compania = data.AprobadorCompania ?? string.Empty,
+                    UnidadId = data.AprobadorUnidadID ?? 0,
+                    UnidadNombre = data.AprobadorUnidadNombre ?? string.Empty,
+                    JefaturaId = data.AprobadorJefaturaID
+                }
+                : null
+        };
+    }
+
     public async Task<IReadOnlyList<JustificacionResumenDto>> ListMineAsync(int usuarioId, FiltroJustificacionesDto filtros, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
@@ -323,6 +357,22 @@ public sealed class JustificacionRepository : IJustificacionRepository
         public string? AprobadorCorreo { get; set; }
         public string? AprobadorCompania { get; set; }
         public int? AprobadorUnidadID { get; set; }
+        public int? AprobadorJefaturaID { get; set; }
+    }
+
+    private sealed class CurrentApproverRow
+    {
+        public int SolicitanteUsuarioID { get; set; }
+        public string? Origen { get; set; }
+        public int? DeleganteUsuarioID { get; set; }
+        public string? DeleganteNombre { get; set; }
+        public int? AprobadorUsuarioID { get; set; }
+        public string? AprobadorNombreCompleto { get; set; }
+        public string? AprobadorCedula { get; set; }
+        public string? AprobadorCorreo { get; set; }
+        public string? AprobadorCompania { get; set; }
+        public int? AprobadorUnidadID { get; set; }
+        public string? AprobadorUnidadNombre { get; set; }
         public int? AprobadorJefaturaID { get; set; }
     }
 }

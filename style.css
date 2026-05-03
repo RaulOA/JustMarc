@@ -557,3 +557,187 @@ tbody td {
 .session-warning-btn-logout:hover {
   background: var(--grey-200);
 }
+
+/* ===== ADMIN PANEL REDISEÑADO ===== */
+.admin-tabs-nav {
+  display: flex;
+  gap: 4px;
+  background: var(--grey-50, #f5f5f5);
+  padding: 6px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+.admin-tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--grey-600, #666);
+  transition: background 0.2s, color 0.2s;
+  font-family: var(--font-main, sans-serif);
+}
+.admin-tab-btn.active {
+  background: var(--blue-600, #1a73e8);
+  color: var(--white, #fff);
+  font-weight: 600;
+}
+.admin-tab-btn:hover:not(.active) {
+  background: var(--grey-100, #e8e8e8);
+}
+.admin-sub-panel {
+  animation: fadeIn 0.15s ease;
+}
+.admin-search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.admin-search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid var(--grey-200, #ddd);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--white, #fff);
+  color: var(--grey-800, #333);
+  font-family: var(--font-main, sans-serif);
+}
+.admin-results-area {
+  min-height: 60px;
+}
+.admin-empty-hint {
+  color: var(--grey-500, #888);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 24px 0;
+}
+.admin-loading {
+  color: var(--grey-500, #888);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 24px 0;
+}
+.admin-error {
+  color: var(--danger, #d32f2f);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 16px 0;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.admin-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--grey-50, #f5f5f5);
+  font-weight: 600;
+  color: var(--grey-600, #666);
+  border-bottom: 2px solid var(--grey-100, #eee);
+}
+.admin-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grey-100, #eee);
+  color: var(--grey-800, #333);
+  vertical-align: middle;
+}
+.admin-table tr:hover td {
+  background: var(--blue-50, #f0f4ff);
+}
+.admin-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--grey-100, #eee);
+  color: var(--grey-600, #555);
+}
+.admin-badge.active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.admin-badge.inactive {
+  background: #ffebee;
+  color: #c62828;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 5px;
+  border: 1px solid var(--grey-200, #ddd);
+  background: var(--white, #fff);
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: var(--font-main, sans-serif);
+}
+.btn-sm:hover {
+  background: var(--grey-50, #f0f0f0);
+}
+.btn-sm.btn-danger {
+  border-color: #ffcdd2;
+  color: #c62828;
+}
+.btn-sm.btn-danger:hover {
+  background: #ffebee;
+}
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 0.875rem;
+  color: var(--grey-600, #666);
+}
+.admin-edit-drawer {
+  margin-top: 16px;
+  border: 1px solid var(--grey-200, #ddd);
+  border-radius: 10px;
+  background: var(--grey-50, #fafafa);
+  overflow: hidden;
+}
+.admin-drawer-inner {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.admin-drawer-inner h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  color: var(--grey-800, #333);
+}
+.admin-drawer-inner label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--grey-600, #666);
+  font-weight: 500;
+}
+.admin-input {
+  padding: 8px 10px;
+  border: 1px solid var(--grey-200, #ddd);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--white, #fff);
+  color: var(--grey-800, #333);
+  margin-top: 2px;
+  font-family: var(--font-main, sans-serif);
+}
+.admin-drawer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

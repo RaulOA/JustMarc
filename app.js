@@ -89,8 +89,7 @@ const STORAGE_KEYS = {
 
 const SESSION_CONFIG = {
   INACTIVITY_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes
-  WARNING_TIME_MS: 4.5 * 60 * 1000,       // 4:30 warn before timeout
-  CHECK_INTERVAL_MS: 30 * 1000,           // Check every 30 seconds
+  WARNING_THRESHOLD_MS: 30 * 1000,        // Show warning in the final 30 seconds
   FINAL_CHECK_INTERVAL_MS: 1 * 1000       // Check every 1 second in final 30 seconds
 };
 
@@ -117,16 +116,32 @@ let sifcnpCurrentResults = [];
 let funcionarioHistoryAll = [];
 let funcionarioHistoryVisibleCount = FUNCIONARIO_HISTORY_PAGE_SIZE;
 const funcionarioHistoryDetailCache = new Map();
+let adminDepData = [];
+let adminUsrData = [];
+let adminJerData = [];
+let adminDelData = [];
+let adminDepPage = 1;
+let adminUsrPage = 1;
+let adminJerPage = 1;
+let adminDelPage = 1;
+const ADMIN_PAGE_SIZE = 15;
 
 const API_CONFIG = {
   defaultBaseUrl: 'http://localhost:5093',
   timeoutMs: 12000
 };
 
+let sessionWarningVisible = false;
+let sessionMainIntervalId = null;
+let sessionFinalIntervalId = null;
+let sessionLogoutTriggered = false;
+
 const MOCK_USER_DIRECTORY = {
   'funcionario.ana': { userId: 4, role: 'ROL_FUNC' },
   'jefe.maria': { userId: 3, role: 'ROL_JEFE' },
-  'rrhh.carlos': { userId: 6, role: 'ROL_RRHH' }
+  'rrhh.carlos': { userId: 6, role: 'ROL_RRHH' },
+  'admin.demo': { userId: 1, role: 'ROL_ADMIN' },
+  'admin.sofia': { userId: 1, role: 'ROL_ADMIN' }
 };
 
 const JUSTIFICACION_TIPO_IDS = {
@@ -138,7 +153,11 @@ const JUSTIFICACION_TIPO_IDS = {
 };
 
 function inferRole(username) {
-  const normalized = username.toLowerCase();
+  const normalized = String(username || '').trim().toLowerCase();
+  const directoryIdentity = MOCK_USER_DIRECTORY[normalized];
+  if (directoryIdentity?.role) return directoryIdentity.role;
+
+  if (normalized.includes('admin')) return 'ROL_ADMIN';
   if (normalized.includes('rrhh')) return 'ROL_RRHH';
   if (normalized.includes('jefe')) return 'ROL_JEFE';
   return 'ROL_FUNC';
@@ -165,6 +184,29 @@ function setSession(session) {
   // Initialize last activity timestamp when session is set
   if (session?.isAuth) {
     setLastActivity();
+  }
+}
+
+function getSessionDisplayName(session) {
+  const dn = session?.displayName?.trim();
+  if (dn) return dn;
+  return session?.username || 'Usuario';
+}
+
+async function hydrateSessionDisplayName() {
+  const session = getSession();
+  if (!session?.isAuth) return;
+  try {
+    const data = await apiFetch('/api/session/profile', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    const nombre = data?.nombreCompleto?.trim();
+    if (nombre) {
+      session.displayName = nombre;
+      setSession(session);
+      const userEl = document.getElementById('current-user');
+      if (userEl) userEl.textContent = nombre;
+    }
+  } catch {
+    // fallo silencioso; el topbar ya muestra username como fallback
   }
 }
 
@@ -253,7 +295,7 @@ function buildApiUrl(path) {
 function resolveUserIdentity(session) {
   if (!session?.username) return null;
 
-  const normalized = session.username.toLowerCase();
+  const normalized = String(session.username).trim().toLowerCase();
   const directoryIdentity = MOCK_USER_DIRECTORY[normalized];
   if (directoryIdentity) {
     return {
@@ -518,6 +560,13 @@ function requireAuth() {
 }
 
 function handleLogout(reason) {
+  if (sessionLogoutTriggered) return;
+
+  sessionLogoutTriggered = true;
+  clearSessionTimeoutIntervals();
+  sessionWarningVisible = false;
+  hideSessionWarningModal();
+
   sessionStorage.removeItem(STORAGE_KEYS.session);
   sessionStorage.removeItem(STORAGE_KEYS.activeTab);
   sessionStorage.removeItem(STORAGE_KEYS.lastActivity);
@@ -550,13 +599,26 @@ function initIdleMonitor() {
   });
 }
 
+function clearSessionTimeoutIntervals() {
+  if (sessionMainIntervalId) {
+    clearTimeout(sessionMainIntervalId);
+    sessionMainIntervalId = null;
+  }
+
+  if (sessionFinalIntervalId) {
+    clearInterval(sessionFinalIntervalId);
+    sessionFinalIntervalId = null;
+  }
+}
+
 /**
  * Reset the idle timer by updating last activity timestamp.
  */
 function resetIdleTimer() {
+  if (!getSession()?.isAuth || sessionWarningVisible) return;
+
   setLastActivity();
-  // Hide warning modal if it's showing
-  hideSessionWarningModal();
+  startSessionExpiryTimer();
 }
 
 /**
@@ -574,41 +636,46 @@ function checkSessionValidityOnLoad() {
 
 /**
  * Start the session expiry timer.
- * Checks for inactivity every 30 seconds.
- * Shows warning at 4:30 and logs out at 5:00.
+ * Schedules the warning exactly when 30 seconds remain.
  */
 function startSessionExpiryTimer() {
-  let lastWarningShown = false;
-  let logoutTriggered = false;
+  clearSessionTimeoutIntervals();
+  sessionWarningVisible = false;
+  sessionLogoutTriggered = false;
+  hideSessionWarningModal();
 
-  const mainInterval = setInterval(() => {
+  if (!getSession()?.isAuth) return;
+
+  const timeRemaining = getTimeUntilTimeout();
+
+  if (timeRemaining <= 0) {
+    handleLogout('Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente.');
+    return;
+  }
+
+  const warningDelayMs = Math.max(0, timeRemaining - SESSION_CONFIG.WARNING_THRESHOLD_MS);
+
+  sessionMainIntervalId = setTimeout(() => {
+    sessionMainIntervalId = null;
+
     if (!getSession()?.isAuth) {
-      clearInterval(mainInterval);
+      clearSessionTimeoutIntervals();
       return;
     }
 
-    const timeRemaining = getTimeUntilTimeout();
+    const currentTimeRemaining = getTimeUntilTimeout();
 
-    // If less than 30 seconds remaining, check every second
-    if (timeRemaining <= 30 * 1000 && timeRemaining > 0) {
-      clearInterval(mainInterval);
-      startFinalCountdown();
-      return;
-    }
-
-    // Show warning at 4:30 (within 30 seconds of 5 min mark)
-    if (timeRemaining <= 30 * 1000 && !lastWarningShown && timeRemaining > 0) {
-      lastWarningShown = true;
-      showSessionWarningModal();
-    }
-
-    // Logout if timeout reached
-    if (timeRemaining <= 0 && !logoutTriggered) {
-      logoutTriggered = true;
-      clearInterval(mainInterval);
+    if (currentTimeRemaining <= 0) {
       handleLogout('Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente.');
+      return;
     }
-  }, SESSION_CONFIG.CHECK_INTERVAL_MS);
+
+    if (currentTimeRemaining <= SESSION_CONFIG.WARNING_THRESHOLD_MS) {
+      sessionWarningVisible = true;
+      showSessionWarningModal();
+      startFinalCountdown();
+    }
+  }, warningDelayMs);
 }
 
 /**
@@ -616,29 +683,26 @@ function startSessionExpiryTimer() {
  * Called when less than 30 seconds remain.
  */
 function startFinalCountdown() {
-  let logoutTriggered = false;
+  if (sessionFinalIntervalId) {
+    clearInterval(sessionFinalIntervalId);
+  }
 
-  const finalInterval = setInterval(() => {
+  sessionFinalIntervalId = setInterval(() => {
     if (!getSession()?.isAuth) {
-      clearInterval(finalInterval);
+      clearSessionTimeoutIntervals();
       return;
     }
 
     const timeRemaining = getTimeUntilTimeout();
 
-    // Update warning modal countdown display
     updateWarningCountdown(timeRemaining);
 
-    // Show warning modal if not visible
-    if (timeRemaining > 0 && !document.getElementById('session-warning-modal')?.classList.contains('active')) {
+    if (timeRemaining > 0 && timeRemaining <= SESSION_CONFIG.WARNING_THRESHOLD_MS && !sessionWarningVisible) {
+      sessionWarningVisible = true;
       showSessionWarningModal();
     }
 
-    // Logout if timeout reached
-    if (timeRemaining <= 0 && !logoutTriggered) {
-      logoutTriggered = true;
-      clearInterval(finalInterval);
-      hideSessionWarningModal();
+    if (timeRemaining <= 0) {
       handleLogout('Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente.');
     }
   }, SESSION_CONFIG.FINAL_CHECK_INTERVAL_MS);
@@ -651,6 +715,7 @@ function showSessionWarningModal() {
   const modal = document.getElementById('session-warning-modal');
   if (!modal) return;
 
+  sessionWarningVisible = true;
   modal.classList.add('active');
   updateWarningCountdown(getTimeUntilTimeout());
 
@@ -665,6 +730,17 @@ function showSessionWarningModal() {
 function hideSessionWarningModal() {
   const modal = document.getElementById('session-warning-modal');
   if (modal) modal.classList.remove('active');
+}
+
+function resetSessionTimeoutFromWarningConfirmation() {
+  if (!getSession()?.isAuth) return;
+
+  clearSessionTimeoutIntervals();
+  sessionWarningVisible = false;
+  sessionLogoutTriggered = false;
+  setLastActivity();
+  hideSessionWarningModal();
+  startSessionExpiryTimer();
 }
 
 /**
@@ -682,17 +758,13 @@ function updateWarningCountdown(msRemaining) {
  * Handle "Stay Logged In" button click in warning modal.
  */
 function handleStayLoggedIn() {
-  hideSessionWarningModal();
-  resetIdleTimer();
-  // Restart the session expiry timer
-  startSessionExpiryTimer();
+  resetSessionTimeoutFromWarningConfirmation();
 }
 
 /**
  * Handle "Logout Now" button click in warning modal.
  */
 function handleLogoutNow() {
-  hideSessionWarningModal();
   handleLogout();
 }
 
@@ -702,14 +774,15 @@ function configureRoleUI() {
 
   const userEl = document.getElementById('current-user');
   const roleEl = document.getElementById('current-role');
-  if (userEl) userEl.textContent = session.username;
-  const ROLE_LABELS = { ROL_FUNC: 'Funcionario', ROL_JEFE: 'Jefatura', ROL_RRHH: 'Recursos Humanos' };
+  if (userEl) userEl.textContent = getSessionDisplayName(session);
+  const ROLE_LABELS = { ROL_FUNC: 'Funcionario', ROL_JEFE: 'Jefatura', ROL_RRHH: 'Recursos Humanos', ROL_ADMIN: 'Administrador' };
   if (roleEl) roleEl.textContent = ROLE_LABELS[session.role] ?? session.role.replace('ROL_', '');
 
   const allowedByRole = {
     ROL_FUNC: ['panel-funcionario', 'panel-sifcnp'],
     ROL_JEFE: ['panel-funcionario', 'panel-jefatura', 'panel-sifcnp'],
-    ROL_RRHH: ['panel-funcionario', 'panel-rrhh', 'panel-sifcnp']
+    ROL_RRHH: ['panel-funcionario', 'panel-rrhh', 'panel-sifcnp'],
+    ROL_ADMIN: ['panel-admin', 'panel-sifcnp']
   };
 
   const allowedTabs = allowedByRole[session.role] || ['panel-sifcnp'];
@@ -723,6 +796,46 @@ function configureRoleUI() {
   const target = savedTab && allowedTabs.includes(savedTab) ? savedTab : fallback;
   switchTab(target);
   configureSifcnpScopeUI(session);
+}
+
+async function renderCurrentApproverTopbar() {
+  const approverEl = document.getElementById('current-approver');
+  if (!approverEl) return;
+
+  const session = getSession();
+  if (!session) {
+    approverEl.textContent = 'Aprobador actual: No disponible';
+    return;
+  }
+
+  if (session.role !== 'ROL_FUNC' && session.role !== 'ROL_JEFE' && session.role !== 'ROL_RRHH') {
+    approverEl.textContent = 'Aprobador actual: No aplica';
+    return;
+  }
+
+  approverEl.textContent = 'Aprobador actual: Cargando...';
+
+  try {
+    const response = await apiFetch('/api/justificaciones/aprobador-actual', {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
+
+    const aprobador = response?.aprobador;
+    if (!aprobador?.nombreCompleto) {
+      approverEl.textContent = 'Aprobador actual: No definido';
+      return;
+    }
+
+    if (aprobador.unidadNombre) {
+      approverEl.textContent = `Aprobador actual: ${aprobador.nombreCompleto} - ${aprobador.unidadNombre}`;
+      return;
+    }
+
+    approverEl.textContent = `Aprobador actual: ${aprobador.nombreCompleto}`;
+  } catch {
+    approverEl.textContent = 'Aprobador actual: No disponible';
+  }
 }
 
 function configureSifcnpScopeUI(session) {
@@ -1479,6 +1592,445 @@ function downloadSifcnpReport() {
   URL.revokeObjectURL(url);
 }
 
+function requireAdminSession() {
+  const session = getSession();
+  if (!session || session.role !== 'ROL_ADMIN') {
+    throw new Error('Funcionalidad disponible solo para ROL_ADMIN.');
+  }
+  return session;
+}
+
+function parseNullableInt(rawValue) {
+  const raw = String(rawValue ?? '').trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error('Debe ingresar un número entero mayor a cero.');
+  }
+  return value;
+}
+
+function normalizeDateForApi(rawValue) {
+  const raw = String(rawValue || '').trim();
+  return raw ? `${raw}T00:00:00` : null;
+}
+
+function normalizeDateForInput(rawValue) {
+  if (!rawValue) return '';
+  return String(rawValue).slice(0, 10);
+}
+
+function getEstadoRegistroLabel(estadoId) {
+  return Number(estadoId) === 1 ? 'Activo' : 'Inactivo';
+}
+
+// ===== ADMIN PANEL =====
+
+function initAdminPanelIfNeeded() {
+  // Solo activa el tab, sin cargar datos automáticamente
+}
+
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.adminTab === tab);
+  });
+  document.querySelectorAll('.admin-sub-panel').forEach(panel => {
+    panel.style.display = 'none';
+  });
+  const target = document.getElementById('admin-sub-' + tab);
+  if (target) target.style.display = '';
+}
+
+async function loadAdminDependencias() {
+  const search = (document.getElementById('admin-dep-search')?.value || '').toLowerCase();
+  const resultsEl = document.getElementById('admin-dep-results');
+  resultsEl.innerHTML = '<p class="admin-loading">Cargando...</p>';
+  try {
+    const session = requireAdminSession();
+    const data = await apiFetch('/api/admin/organizacion/dependencias', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    adminDepData = (Array.isArray(data) ? data : []).filter(d =>
+      !search || d.nombre?.toLowerCase().includes(search) || d.codigo?.toLowerCase().includes(search)
+    );
+    adminDepPage = 1;
+    renderAdminDepPage();
+  } catch (e) {
+    resultsEl.innerHTML = '<p class="admin-error">Error al cargar dependencias.</p>';
+  }
+}
+
+function renderAdminDepPage() {
+  const resultsEl = document.getElementById('admin-dep-results');
+  const total = adminDepData.length;
+  if (total === 0) { resultsEl.innerHTML = '<p class="admin-empty-hint">Sin resultados.</p>'; return; }
+  const start = (adminDepPage - 1) * ADMIN_PAGE_SIZE;
+  const page = adminDepData.slice(start, start + ADMIN_PAGE_SIZE);
+  let html = `<table class="admin-table"><thead><tr><th>ID</th><th>Nombre</th><th>Padre</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>`;
+  page.forEach(d => {
+    const id = d.estructuraOrganizacionalID ?? d.dependenciaId ?? d.id ?? '';
+    html += `<tr>
+      <td>${escapeHtml(String(id))}</td>
+      <td>${escapeHtml(d.nombre ?? '')}</td>
+      <td>${escapeHtml(String(d.estructuraPadreID ?? d.padreId ?? '—'))}</td>
+      <td>${escapeHtml(getEstadoRegistroLabel(d.estadoRegistroID ?? 1))}</td>
+      <td><button class="btn-sm" onclick="openAdminDepEdit(${id})">Editar</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  html += renderAdminPagination(adminDepPage, total, 'Dep');
+  resultsEl.innerHTML = html;
+}
+
+function openAdminDepEdit(id) {
+  const dep = adminDepData.find(d => (d.estructuraOrganizacionalID ?? d.dependenciaId ?? d.id) === id);
+  if (!dep) return;
+  const drawer = document.getElementById('admin-dep-drawer');
+  drawer.style.display = '';
+  drawer.innerHTML = `
+    <div class="admin-drawer-inner">
+      <h4>Editar Dependencia #${escapeHtml(String(id))}</h4>
+      <label>Nombre<input id="edit-dep-nombre" class="admin-input" value="${escapeHtml(dep.nombre ?? '')}" /></label>
+      <label>Padre ID<input id="edit-dep-padre" class="admin-input" value="${escapeHtml(String(dep.estructuraPadreID ?? dep.padreId ?? ''))}" /></label>
+      <div class="admin-drawer-actions">
+        <button class="btn btn-primary" onclick="saveAdminDep(${id})">Guardar</button>
+        <button class="btn btn-secondary" onclick="closeAdminDrawer('dep')">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+async function saveAdminDep(id) {
+  try {
+    const session = requireAdminSession();
+    const nombre = (document.getElementById('edit-dep-nombre')?.value || '').trim();
+    const estructuraPadreID = parseNullableInt(document.getElementById('edit-dep-padre')?.value);
+    if (!nombre) { alert('El nombre es requerido.'); return; }
+    await apiFetch(`/api/admin/organizacion/dependencias/${id}`, {
+      method: 'PATCH',
+      headers: buildApiHeaders(session, true),
+      body: JSON.stringify({ nombre, estructuraPadreID })
+    }, session);
+    closeAdminDrawer('dep');
+    await loadAdminDependencias();
+  } catch (e) {
+    showNotice('admin-notice', 'error', `No se pudo guardar dependencia: ${e.message}`);
+  }
+}
+
+async function loadAdminUsuarios() {
+  const search = (document.getElementById('admin-usr-search')?.value || '').toLowerCase();
+  const resultsEl = document.getElementById('admin-usr-results');
+  resultsEl.innerHTML = '<p class="admin-loading">Cargando...</p>';
+  try {
+    const session = requireAdminSession();
+    const data = await apiFetch('/api/admin/organizacion/usuarios', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    adminUsrData = (Array.isArray(data) ? data : []).filter(u =>
+      !search ||
+      u.nombreCompleto?.toLowerCase().includes(search) ||
+      u.username?.toLowerCase().includes(search) ||
+      u.dependencia?.toLowerCase().includes(search) ||
+      u.rolDescripcion?.toLowerCase().includes(search)
+    );
+    adminUsrPage = 1;
+    renderAdminUsrPage();
+  } catch (e) {
+    resultsEl.innerHTML = '<p class="admin-error">Error al cargar usuarios.</p>';
+  }
+}
+
+function renderAdminUsrPage() {
+  const resultsEl = document.getElementById('admin-usr-results');
+  const total = adminUsrData.length;
+  if (total === 0) { resultsEl.innerHTML = '<p class="admin-empty-hint">Sin resultados.</p>'; return; }
+  const start = (adminUsrPage - 1) * ADMIN_PAGE_SIZE;
+  const page = adminUsrData.slice(start, start + ADMIN_PAGE_SIZE);
+  let html = `<table class="admin-table"><thead><tr><th>ID</th><th>Nombre</th><th>Rol</th><th>Unidad</th><th>Activo</th><th>Acciones</th></tr></thead><tbody>`;
+  page.forEach(u => {
+    const id = u.usuarioID ?? u.empleadoId ?? u.id ?? '';
+    html += `<tr>
+      <td>${escapeHtml(String(id))}</td>
+      <td>${escapeHtml(u.nombreCompleto ?? '')}</td>
+      <td><span class="admin-badge">${escapeHtml(u.rolDescripcion ?? u.rol ?? '')}</span></td>
+      <td>${escapeHtml(String(u.unidadID ?? u.dependencia ?? ''))}</td>
+      <td>${u.esActivo ? 'Sí' : 'No'}</td>
+      <td><button class="btn-sm" onclick="openAdminUsrEdit(${id})">Editar</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  html += renderAdminPagination(adminUsrPage, total, 'Usr');
+  resultsEl.innerHTML = html;
+}
+
+function openAdminUsrEdit(id) {
+  const usr = adminUsrData.find(u => (u.usuarioID ?? u.empleadoId ?? u.id) === id);
+  if (!usr) return;
+  const drawer = document.getElementById('admin-usr-drawer');
+  drawer.style.display = '';
+  const rol = usr.rolID ?? usr.rol ?? '';
+  drawer.innerHTML = `
+    <div class="admin-drawer-inner">
+      <h4>Editar Usuario: ${escapeHtml(usr.nombreCompleto ?? String(id))}</h4>
+      <label>Rol ID
+        <input id="edit-usr-rolid" class="admin-input" value="${escapeHtml(String(rol))}" placeholder="ID de rol" />
+      </label>
+      <label>Unidad ID
+        <input id="edit-usr-unidad" class="admin-input" value="${escapeHtml(String(usr.unidadID ?? ''))}" placeholder="ID de unidad" />
+      </label>
+      <label>Jefatura ID
+        <input id="edit-usr-jefatura" class="admin-input" value="${escapeHtml(String(usr.jefaturaID ?? ''))}" placeholder="Vacío para null" />
+      </label>
+      <label>Activo
+        <select id="edit-usr-activo" class="admin-input">
+          <option value="true" ${usr.esActivo ? 'selected' : ''}>Sí</option>
+          <option value="false" ${!usr.esActivo ? 'selected' : ''}>No</option>
+        </select>
+      </label>
+      <div class="admin-drawer-actions">
+        <button class="btn btn-primary" onclick="saveAdminUsrAsignacion(${id})">Guardar Asignación</button>
+        <button class="btn btn-secondary" onclick="closeAdminDrawer('usr')">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+async function saveAdminUsrAsignacion(id) {
+  try {
+    const session = requireAdminSession();
+    const payload = {
+      rolID: parseNullableInt(document.getElementById('edit-usr-rolid')?.value),
+      unidadID: parseNullableInt(document.getElementById('edit-usr-unidad')?.value),
+      jefaturaID: parseNullableInt(document.getElementById('edit-usr-jefatura')?.value),
+      esActivo: document.getElementById('edit-usr-activo')?.value === 'true'
+    };
+    await apiFetch(`/api/admin/organizacion/usuarios/${id}/asignacion`, {
+      method: 'PATCH',
+      headers: buildApiHeaders(session, true),
+      body: JSON.stringify(payload)
+    }, session);
+    closeAdminDrawer('usr');
+    await loadAdminUsuarios();
+  } catch (e) {
+    showNotice('admin-notice', 'error', `No se pudo guardar usuario: ${e.message}`);
+  }
+}
+
+async function loadAdminJerarquias() {
+  const search = (document.getElementById('admin-jer-search')?.value || '').toLowerCase();
+  const resultsEl = document.getElementById('admin-jer-results');
+  resultsEl.innerHTML = '<p class="admin-loading">Cargando...</p>';
+  try {
+    const session = requireAdminSession();
+    const data = await apiFetch('/api/admin/aprobaciones/jerarquias', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    adminJerData = (Array.isArray(data) ? data : []).filter(j =>
+      !search ||
+      String(j.estructuraOrganizacionalID ?? '').includes(search) ||
+      String(j.aprobadorUsuarioID ?? '').includes(search) ||
+      j.tipoRelacion?.toLowerCase().includes(search)
+    );
+    adminJerPage = 1;
+    renderAdminJerPage();
+  } catch (e) {
+    resultsEl.innerHTML = '<p class="admin-error">Error al cargar jerarquías.</p>';
+  }
+}
+
+function renderAdminJerPage() {
+  const resultsEl = document.getElementById('admin-jer-results');
+  const total = adminJerData.length;
+  if (total === 0) { resultsEl.innerHTML = '<p class="admin-empty-hint">Sin resultados.</p>'; return; }
+  const start = (adminJerPage - 1) * ADMIN_PAGE_SIZE;
+  const page = adminJerData.slice(start, start + ADMIN_PAGE_SIZE);
+  let html = `<table class="admin-table"><thead><tr><th>ID</th><th>Aprobador ID</th><th>Estructura ID</th><th>Nivel</th><th>Relación</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>`;
+  page.forEach(j => {
+    const id = j.jerarquiaAprobacionID ?? j.jerarquiaId ?? j.id ?? '';
+    const activo = (j.estadoRegistroID ?? 1) === 1;
+    html += `<tr>
+      <td>${escapeHtml(String(id))}</td>
+      <td>${escapeHtml(String(j.aprobadorUsuarioID ?? ''))}</td>
+      <td>${escapeHtml(String(j.estructuraOrganizacionalID ?? ''))}</td>
+      <td>${escapeHtml(String(j.nivelAprobacion ?? ''))}</td>
+      <td>${escapeHtml(j.tipoRelacion ?? '—')}</td>
+      <td><span class="admin-badge ${activo ? 'active' : 'inactive'}">${activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td><button class="btn-sm btn-danger" onclick="deleteAdminJerarquia(${id})">Eliminar</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  html += renderAdminPagination(adminJerPage, total, 'Jer');
+  resultsEl.innerHTML = html;
+}
+
+async function deleteAdminJerarquia(id) {
+  if (!confirm('¿Eliminar esta jerarquía?')) return;
+  try {
+    const session = requireAdminSession();
+    await apiFetch(`/api/admin/aprobaciones/jerarquias/${id}`, { method: 'DELETE', headers: buildApiHeaders(session) }, session);
+    await loadAdminJerarquias();
+  } catch (e) {
+    showNotice('admin-notice', 'error', `No se pudo eliminar jerarquía: ${e.message}`);
+  }
+}
+
+function openAdminJerarquiaForm() {
+  const drawer = document.getElementById('admin-jer-drawer');
+  drawer.style.display = '';
+  drawer.innerHTML = `
+    <div class="admin-drawer-inner">
+      <h4>Nueva Jerarquía</h4>
+      <label>Aprobador ID (usuario)<input id="new-jer-apr" type="number" class="admin-input" placeholder="ID de usuario aprobador" /></label>
+      <label>Estructura ID<input id="new-jer-est" type="number" class="admin-input" placeholder="ID de estructura organizacional" /></label>
+      <label>Nivel<input id="new-jer-nivel" type="number" class="admin-input" value="1" /></label>
+      <label>Tipo Relación
+        <select id="new-jer-rel" class="admin-input">
+          <option value="Vertical">Vertical</option>
+          <option value="Horizontal">Horizontal</option>
+        </select>
+      </label>
+      <label>Vigencia Desde<input id="new-jer-desde" type="date" class="admin-input" /></label>
+      <label>Vigencia Hasta<input id="new-jer-hasta" type="date" class="admin-input" /></label>
+      <div class="admin-drawer-actions">
+        <button class="btn btn-primary" onclick="saveAdminJerarquia()">Crear</button>
+        <button class="btn btn-secondary" onclick="closeAdminDrawer('jer')">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+async function saveAdminJerarquia() {
+  const aprobadorUsuarioID = parseNullableInt(document.getElementById('new-jer-apr')?.value);
+  const estructuraOrganizacionalID = parseNullableInt(document.getElementById('new-jer-est')?.value);
+  const nivelAprobacion = parseNullableInt(document.getElementById('new-jer-nivel')?.value) || 1;
+  const tipoRelacion = document.getElementById('new-jer-rel')?.value || 'Vertical';
+  const vigenciaDesde = normalizeDateForApi(document.getElementById('new-jer-desde')?.value);
+  const vigenciaHasta = normalizeDateForApi(document.getElementById('new-jer-hasta')?.value);
+  if (!aprobadorUsuarioID || !estructuraOrganizacionalID || !vigenciaDesde) {
+    alert('Complete todos los campos obligatorios.');
+    return;
+  }
+  try {
+    const session = requireAdminSession();
+    await apiFetch('/api/admin/aprobaciones/jerarquias', {
+      method: 'POST',
+      headers: buildApiHeaders(session, true),
+      body: JSON.stringify({ aprobadorUsuarioID, estructuraOrganizacionalID, nivelAprobacion, tipoRelacion, vigenciaDesde, vigenciaHasta })
+    }, session);
+    closeAdminDrawer('jer');
+    await loadAdminJerarquias();
+  } catch (e) {
+    showNotice('admin-notice', 'error', `No se pudo crear jerarquía: ${e.message}`);
+  }
+}
+
+async function loadAdminDelegaciones() {
+  const search = (document.getElementById('admin-del-search')?.value || '').toLowerCase();
+  const resultsEl = document.getElementById('admin-del-results');
+  resultsEl.innerHTML = '<p class="admin-loading">Cargando...</p>';
+  try {
+    const session = requireAdminSession();
+    const data = await apiFetch('/api/admin/aprobaciones/delegaciones', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    adminDelData = (Array.isArray(data) ? data : []).filter(d =>
+      !search ||
+      String(d.deleganteUsuarioID ?? '').includes(search) ||
+      String(d.delegadoUsuarioID ?? '').includes(search)
+    );
+    adminDelPage = 1;
+    renderAdminDelPage();
+  } catch (e) {
+    resultsEl.innerHTML = '<p class="admin-error">Error al cargar delegaciones.</p>';
+  }
+}
+
+function renderAdminDelPage() {
+  const resultsEl = document.getElementById('admin-del-results');
+  const total = adminDelData.length;
+  if (total === 0) { resultsEl.innerHTML = '<p class="admin-empty-hint">Sin resultados.</p>'; return; }
+  const start = (adminDelPage - 1) * ADMIN_PAGE_SIZE;
+  const page = adminDelData.slice(start, start + ADMIN_PAGE_SIZE);
+  let html = `<table class="admin-table"><thead><tr><th>ID</th><th>Delegante ID</th><th>Delegado ID</th><th>Desde</th><th>Hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>`;
+  page.forEach(d => {
+    const id = d.delegacionAprobacionID ?? d.delegacionId ?? d.id ?? '';
+    const activo = (d.estadoRegistroID ?? 1) === 1;
+    html += `<tr>
+      <td>${escapeHtml(String(id))}</td>
+      <td>${escapeHtml(String(d.deleganteUsuarioID ?? ''))}</td>
+      <td>${escapeHtml(String(d.delegadoUsuarioID ?? ''))}</td>
+      <td>${d.vigenciaDesde ? escapeHtml(String(d.vigenciaDesde).substring(0, 10)) : '—'}</td>
+      <td>${d.vigenciaHasta ? escapeHtml(String(d.vigenciaHasta).substring(0, 10)) : '—'}</td>
+      <td><span class="admin-badge ${activo ? 'active' : 'inactive'}">${activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td><button class="btn-sm btn-danger" onclick="deleteAdminDelegacion(${id})">Eliminar</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  html += renderAdminPagination(adminDelPage, total, 'Del');
+  resultsEl.innerHTML = html;
+}
+
+async function deleteAdminDelegacion(id) {
+  if (!confirm('¿Eliminar esta delegación?')) return;
+  try {
+    const session = requireAdminSession();
+    await apiFetch(`/api/admin/aprobaciones/delegaciones/${id}`, { method: 'DELETE', headers: buildApiHeaders(session) }, session);
+    await loadAdminDelegaciones();
+  } catch (e) {
+    showNotice('admin-notice', 'error', `No se pudo eliminar delegación: ${e.message}`);
+  }
+}
+
+function openAdminDelegacionForm() {
+  const drawer = document.getElementById('admin-del-drawer');
+  drawer.style.display = '';
+  drawer.innerHTML = `
+    <div class="admin-drawer-inner">
+      <h4>Nueva Delegación</h4>
+      <label>Delegante ID<input id="new-del-dlg" type="number" class="admin-input" placeholder="ID usuario que delega" /></label>
+      <label>Delegado ID<input id="new-del-dld" type="number" class="admin-input" placeholder="ID usuario que recibe" /></label>
+      <label>Vigencia Desde<input id="new-del-desde" type="date" class="admin-input" /></label>
+      <label>Vigencia Hasta<input id="new-del-hasta" type="date" class="admin-input" /></label>
+      <div class="admin-drawer-actions">
+        <button class="btn btn-primary" onclick="saveAdminDelegacion()">Crear</button>
+        <button class="btn btn-secondary" onclick="closeAdminDrawer('del')">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+async function saveAdminDelegacion() {
+  const deleganteUsuarioID = parseNullableInt(document.getElementById('new-del-dlg')?.value);
+  const delegadoUsuarioID = parseNullableInt(document.getElementById('new-del-dld')?.value);
+  const vigenciaDesde = normalizeDateForApi(document.getElementById('new-del-desde')?.value);
+  const vigenciaHasta = normalizeDateForApi(document.getElementById('new-del-hasta')?.value);
+  if (!deleganteUsuarioID || !delegadoUsuarioID || !vigenciaDesde) {
+    alert('Complete todos los campos obligatorios.');
+    return;
+  }
+  try {
+    const session = requireAdminSession();
+    await apiFetch('/api/admin/aprobaciones/delegaciones', {
+      method: 'POST',
+      headers: buildApiHeaders(session, true),
+      body: JSON.stringify({ deleganteUsuarioID, delegadoUsuarioID, vigenciaDesde, vigenciaHasta })
+    }, session);
+    closeAdminDrawer('del');
+    await loadAdminDelegaciones();
+  } catch (e) {
+    showNotice('admin-notice', 'error', `No se pudo crear delegación: ${e.message}`);
+  }
+}
+
+function closeAdminDrawer(key) {
+  const drawer = document.getElementById(`admin-${key}-drawer`);
+  if (drawer) drawer.style.display = 'none';
+}
+
+function renderAdminPagination(currentPage, total, key) {
+  const totalPages = Math.ceil(total / ADMIN_PAGE_SIZE);
+  if (totalPages <= 1) return '';
+  const prev = currentPage > 1 ? `<button class="btn-sm" onclick="adminChangePage('${key}', ${currentPage - 1})">‹ Anterior</button>` : '';
+  const next = currentPage < totalPages ? `<button class="btn-sm" onclick="adminChangePage('${key}', ${currentPage + 1})">Siguiente ›</button>` : '';
+  return `<div class="admin-pagination">${prev}<span>${currentPage} / ${totalPages}</span>${next}</div>`;
+}
+
+function adminChangePage(key, page) {
+  if (key === 'Dep') { adminDepPage = page; renderAdminDepPage(); }
+  else if (key === 'Usr') { adminUsrPage = page; renderAdminUsrPage(); }
+  else if (key === 'Jer') { adminJerPage = page; renderAdminJerPage(); }
+  else if (key === 'Del') { adminDelPage = page; renderAdminDelPage(); }
+}
+
 function renderStatusBadge(estado) {
   if (estado === ESTADOS.APROBADO) return '<span class="badge badge-approved">Aprobado</span>';
   if (estado === ESTADOS.RECHAZADO) return '<span class="badge badge-rejected">Rechazado</span>';
@@ -1538,11 +2090,14 @@ function initDashboardPage() {
   requireAuth();
   checkSessionValidityOnLoad();
   configureRoleUI();
+  hydrateSessionDisplayName();
+  renderCurrentApproverTopbar();
   renderDraftDetails();
   renderFuncionarioHistory();
   renderJefaturaRequests();
   renderRRHHTable();
   renderSifcnpHistorico();
+  initAdminPanelIfNeeded();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

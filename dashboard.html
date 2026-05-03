@@ -249,6 +249,7 @@
     </div>
     <div class="user-info">
       <span>Usuario: <strong id="current-user">—</strong> | Rol: <strong id="current-role">—</strong></span>
+      <span id="current-approver">Aprobador actual: Cargando...</span>
       <button class="logout-btn" onclick="handleLogout()">Cerrar sesión</button>
     </div>
   </div>
@@ -284,6 +285,13 @@
         <path d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 0 1-10.535 5.1L1.05 13.015a.5.5 0 0 1-.707-.707L1.757 10.9A6.5 6.5 0 1 1 13 6.5z"/>
       </svg>
       Consulta Histórica (SIFCNP)
+    </div>
+
+    <div class="nav-tab" data-tab="panel-admin" onclick="switchTab('panel-admin')">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 1l1.9 1.2 2.2-.2.8 2.1 2 1.1-.8 2.1.8 2.1-2 1.1-.8 2.1-2.2-.2L8 15l-1.9-1.2-2.2.2-.8-2.1-2-1.1.8-2.1-.8-2.1 2-1.1.8-2.1 2.2.2L8 1zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+      </svg>
+      Panel Admin
     </div>
 
   </nav>
@@ -559,6 +567,88 @@
           <tbody id="rrhh-tbody"></tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+  <!-- ══ PANEL ADMIN ═══════════════════════════════════════ -->
+  <section id="panel-admin" class="tab-panel hidden">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>Panel de Administración</h2>
+        <p>Gestione dependencias, asignaciones, jerarquías y delegaciones</p>
+      </div>
+    </div>
+
+    <div id="admin-notice" class="alert" style="display:none"></div>
+
+    <!-- ── Tabs internas ── -->
+    <nav class="admin-tabs-nav" role="tablist">
+      <button class="admin-tab-btn active" data-admin-tab="dep" role="tab"
+              aria-selected="true" onclick="switchAdminTab('dep')">
+        Dependencias
+      </button>
+      <button class="admin-tab-btn" data-admin-tab="usr" role="tab"
+              aria-selected="false" onclick="switchAdminTab('usr')">
+        Usuarios
+      </button>
+      <button class="admin-tab-btn" data-admin-tab="jer" role="tab"
+              aria-selected="false" onclick="switchAdminTab('jer')">
+        Jerarquías
+      </button>
+      <button class="admin-tab-btn" data-admin-tab="del" role="tab"
+              aria-selected="false" onclick="switchAdminTab('del')">
+        Delegaciones
+      </button>
+    </nav>
+
+    <!-- Sub-panel Dependencias -->
+    <div id="admin-sub-dep" class="admin-sub-panel">
+      <div class="admin-search-bar">
+        <input id="admin-dep-search" type="text" placeholder="Buscar dependencia..." class="admin-search-input" />
+        <button class="btn btn-primary" onclick="loadAdminDependencias()">Buscar</button>
+      </div>
+      <div id="admin-dep-results" class="admin-results-area">
+        <p class="admin-empty-hint">Use el buscador para cargar dependencias.</p>
+      </div>
+      <div id="admin-dep-drawer" class="admin-edit-drawer" style="display:none;"></div>
+    </div>
+
+    <!-- Sub-panel Usuarios -->
+    <div id="admin-sub-usr" class="admin-sub-panel" style="display:none;">
+      <div class="admin-search-bar">
+        <input id="admin-usr-search" type="text" placeholder="Buscar usuario..." class="admin-search-input" />
+        <button class="btn btn-primary" onclick="loadAdminUsuarios()">Buscar</button>
+      </div>
+      <div id="admin-usr-results" class="admin-results-area">
+        <p class="admin-empty-hint">Use el buscador para cargar usuarios.</p>
+      </div>
+      <div id="admin-usr-drawer" class="admin-edit-drawer" style="display:none;"></div>
+    </div>
+
+    <!-- Sub-panel Jerarquías -->
+    <div id="admin-sub-jer" class="admin-sub-panel" style="display:none;">
+      <div class="admin-search-bar">
+        <input id="admin-jer-search" type="text" placeholder="Filtrar por dependencia..." class="admin-search-input" />
+        <button class="btn btn-primary" onclick="loadAdminJerarquias()">Buscar</button>
+        <button class="btn btn-secondary" onclick="openAdminJerarquiaForm()">+ Nueva</button>
+      </div>
+      <div id="admin-jer-results" class="admin-results-area">
+        <p class="admin-empty-hint">Use el buscador para cargar jerarquías.</p>
+      </div>
+      <div id="admin-jer-drawer" class="admin-edit-drawer" style="display:none;"></div>
+    </div>
+
+    <!-- Sub-panel Delegaciones -->
+    <div id="admin-sub-del" class="admin-sub-panel" style="display:none;">
+      <div class="admin-search-bar">
+        <input id="admin-del-search" type="text" placeholder="Filtrar delegaciones..." class="admin-search-input" />
+        <button class="btn btn-primary" onclick="loadAdminDelegaciones()">Buscar</button>
+        <button class="btn btn-secondary" onclick="openAdminDelegacionForm()">+ Nueva</button>
+      </div>
+      <div id="admin-del-results" class="admin-results-area">
+        <p class="admin-empty-hint">Use el buscador para cargar delegaciones.</p>
+      </div>
+      <div id="admin-del-drawer" class="admin-edit-drawer" style="display:none;"></div>
     </div>
   </section>
 

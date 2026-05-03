@@ -1,4 +1,7 @@
+using Dapper;
+using IntegradorMarcas.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace IntegradorMarcas.Api.Controllers;
 
@@ -10,6 +13,13 @@ namespace IntegradorMarcas.Api.Controllers;
 [Route("api/[controller]")]
 public class SessionController : ControllerBase
 {
+    private readonly ISqlConnectionFactory _connectionFactory;
+
+    public SessionController(ISqlConnectionFactory connectionFactory)
+    {
+        _connectionFactory = connectionFactory;
+    }
+
     /// <summary>
     /// Valida el estado actual de la sesión del usuario.
     /// </summary>
@@ -71,6 +81,57 @@ public class SessionController : ControllerBase
             userId = userId,
             role = userRole,
             serverTime = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// Retorna el perfil del usuario autenticado incluyendo nombre completo si está disponible.
+    /// </summary>
+    [HttpGet("profile")]
+    [Produces("application/json")]
+    public async Task<IActionResult> GetSessionProfile(CancellationToken cancellationToken)
+    {
+        if (!Request.Headers.TryGetValue("X-User-Id", out var userIdHeader) ||
+            !Request.Headers.TryGetValue("X-User-Role", out var userRoleHeader))
+        {
+            return Unauthorized(new { detail = "Headers de autenticación requeridos", statusCode = 401 });
+        }
+
+        var userIdStr = userIdHeader.ToString().Trim();
+        var userRole = userRoleHeader.ToString().Trim();
+
+        if (string.IsNullOrEmpty(userIdStr) || string.IsNullOrEmpty(userRole))
+            return Unauthorized(new { detail = "Headers de autenticación inválidos o vacíos", statusCode = 401 });
+
+        if (!int.TryParse(userIdStr, out var userId))
+            return Unauthorized(new { detail = "X-User-Id debe ser un número entero válido", statusCode = 401 });
+
+        string? nombreCompleto = null;
+        try
+        {
+            await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            nombreCompleto = await connection.QuerySingleOrDefaultAsync<string?>(
+                new CommandDefinition(
+                    "SELECT NombreCompleto FROM RecursosHumanos.Usuario WHERE UsuarioId = @UsuarioId",
+                    new { UsuarioId = userId },
+                    cancellationToken: cancellationToken));
+
+            if (!string.IsNullOrWhiteSpace(nombreCompleto))
+                nombreCompleto = nombreCompleto.Trim();
+            else
+                nombreCompleto = null;
+        }
+        catch
+        {
+            // No bloquear si la BD falla; se retorna null para que el frontend use fallback.
+            nombreCompleto = null;
+        }
+
+        return Ok(new
+        {
+            userId,
+            role = userRole,
+            nombreCompleto
         });
     }
 
