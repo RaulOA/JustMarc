@@ -575,7 +575,7 @@
     <div class="panel-header">
       <div class="panel-title">
         <h2>Panel de Administración</h2>
-        <p>Gestione dependencias, asignaciones, jerarquías y delegaciones</p>
+        <p>Gestione configuración y consulte registros de errores y eventos</p>
       </div>
     </div>
 
@@ -598,6 +598,10 @@
       <button class="admin-tab-btn" data-admin-tab="del" role="tab"
               aria-selected="false" onclick="switchAdminTab('del')">
         Delegaciones
+      </button>
+      <button class="admin-tab-btn" data-admin-tab="mon" role="tab"
+              aria-selected="false" onclick="switchAdminTab('mon')">
+        Registros
       </button>
     </nav>
 
@@ -649,6 +653,36 @@
         <p class="admin-empty-hint">Use el buscador para cargar delegaciones.</p>
       </div>
       <div id="admin-del-drawer" class="admin-edit-drawer" style="display:none;"></div>
+    </div>
+
+    <!-- Sub-panel Registros (solo lectura) -->
+    <div id="admin-sub-mon" class="admin-sub-panel" style="display:none;">
+      <div class="admin-search-bar">
+        <select id="admin-mon-tipo" class="admin-search-input" style="max-width:160px">
+          <option value="">Todos</option>
+          <option value="ERROR">Errores</option>
+          <option value="EVENTO">Eventos</option>
+        </select>
+        <input id="admin-mon-search" type="text" placeholder="Buscar texto, usuario, referencia..." class="admin-search-input" />
+        <input id="admin-mon-desde" type="date" class="admin-search-input" style="max-width:170px" />
+        <input id="admin-mon-hasta" type="date" class="admin-search-input" style="max-width:170px" />
+        <select id="admin-mon-sortby" class="admin-search-input" style="max-width:160px">
+          <option value="fecha">Ordenar: Fecha</option>
+          <option value="tipo">Ordenar: Tipo</option>
+          <option value="mensaje">Ordenar: Mensaje</option>
+          <option value="usuario">Ordenar: Usuario</option>
+          <option value="estado">Ordenar: Estado</option>
+        </select>
+        <select id="admin-mon-sortdir" class="admin-search-input" style="max-width:130px">
+          <option value="desc">Desc</option>
+          <option value="asc">Asc</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadAdminMonitoring()">Buscar</button>
+        <button class="btn btn-secondary" onclick="downloadAdminMonitoringReport()">Descargar CSV</button>
+      </div>
+      <div id="admin-mon-results" class="admin-results-area">
+        <p class="admin-empty-hint">Use filtros para cargar registros de error y eventos.</p>
+      </div>
     </div>
   </section>
 

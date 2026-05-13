@@ -124,6 +124,8 @@ let adminDepPage = 1;
 let adminUsrPage = 1;
 let adminJerPage = 1;
 let adminDelPage = 1;
+let adminMonData = [];
+let adminMonPage = 1;
 const ADMIN_PAGE_SIZE = 15;
 
 const API_CONFIG = {
@@ -138,8 +140,11 @@ let sessionLogoutTriggered = false;
 
 const MOCK_USER_DIRECTORY = {
   'funcionario.ana': { userId: 4, role: 'ROL_FUNC' },
+  'funcionario.luis': { userId: 5, role: 'ROL_FUNC' },
   'jefe.maria': { userId: 3, role: 'ROL_JEFE' },
+  'jefe.ricardo': { userId: 3, role: 'ROL_JEFE' },
   'rrhh.carlos': { userId: 6, role: 'ROL_RRHH' },
+  'rrhh.sandra': { userId: 6, role: 'ROL_RRHH' },
   'admin.demo': { userId: 1, role: 'ROL_ADMIN' },
   'admin.sofia': { userId: 1, role: 'ROL_ADMIN' }
 };
@@ -782,7 +787,7 @@ function configureRoleUI() {
     ROL_FUNC: ['panel-funcionario', 'panel-sifcnp'],
     ROL_JEFE: ['panel-funcionario', 'panel-jefatura', 'panel-sifcnp'],
     ROL_RRHH: ['panel-funcionario', 'panel-rrhh', 'panel-sifcnp'],
-    ROL_ADMIN: ['panel-admin', 'panel-sifcnp']
+    ROL_ADMIN: ['panel-admin']
   };
 
   const allowedTabs = allowedByRole[session.role] || ['panel-sifcnp'];
@@ -2016,6 +2021,108 @@ function closeAdminDrawer(key) {
   if (drawer) drawer.style.display = 'none';
 }
 
+async function loadAdminMonitoring() {
+  const resultsEl = document.getElementById('admin-mon-results');
+  if (!resultsEl) return;
+
+  const tipo = document.getElementById('admin-mon-tipo')?.value || '';
+  const search = (document.getElementById('admin-mon-search')?.value || '').trim();
+  const desde = document.getElementById('admin-mon-desde')?.value || '';
+  const hasta = document.getElementById('admin-mon-hasta')?.value || '';
+  const sortBy = document.getElementById('admin-mon-sortby')?.value || 'fecha';
+  const sortDir = document.getElementById('admin-mon-sortdir')?.value || 'desc';
+
+  resultsEl.innerHTML = '<p class="admin-loading">Cargando registros...</p>';
+
+  try {
+    const session = requireAdminSession();
+    const qs = new URLSearchParams();
+    if (tipo) qs.set('tipo', tipo);
+    if (search) qs.set('search', search);
+    if (desde) qs.set('desde', `${desde}T00:00:00`);
+    if (hasta) qs.set('hasta', `${hasta}T00:00:00`);
+    qs.set('sortBy', sortBy);
+    qs.set('sortDir', sortDir);
+
+    const data = await apiFetch(`/api/admin/monitoring/registros?${qs.toString()}`, {
+      method: 'GET',
+      headers: buildApiHeaders(session)
+    }, session);
+
+    adminMonData = Array.isArray(data) ? data : [];
+    adminMonPage = 1;
+    renderAdminMonitoringPage();
+  } catch (e) {
+    resultsEl.innerHTML = '<p class="admin-error">Error al cargar registros de monitoreo.</p>';
+  }
+}
+
+function renderAdminMonitoringPage() {
+  const resultsEl = document.getElementById('admin-mon-results');
+  if (!resultsEl) return;
+
+  const total = adminMonData.length;
+  if (total === 0) {
+    resultsEl.innerHTML = '<p class="admin-empty-hint">Sin resultados para los filtros seleccionados.</p>';
+    return;
+  }
+
+  const start = (adminMonPage - 1) * ADMIN_PAGE_SIZE;
+  const page = adminMonData.slice(start, start + ADMIN_PAGE_SIZE);
+
+  let html = `<table class="admin-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Mensaje</th><th>Usuario</th><th>Estado</th><th>Referencia</th><th>Origen</th></tr></thead><tbody>`;
+  page.forEach(item => {
+    const isError = (item.tipo || '').toUpperCase() === 'ERROR';
+    html += `<tr>
+      <td>${escapeHtml(formatDateTime(item.fecha))}</td>
+      <td><span class="admin-badge ${isError ? 'inactive' : 'active'}">${escapeHtml(item.tipo || '')}</span></td>
+      <td>${escapeHtml(item.categoria || '—')}</td>
+      <td title="${escapeHtml(item.detalle || '')}">${escapeHtml(item.mensaje || '—')}</td>
+      <td>${escapeHtml(item.usuario || '—')}</td>
+      <td>${escapeHtml(item.estado || '—')}</td>
+      <td>${escapeHtml(item.referencia || '—')}</td>
+      <td>${escapeHtml(item.origen || '—')}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  html += renderAdminPagination(adminMonPage, total, 'Mon');
+  resultsEl.innerHTML = html;
+}
+
+function downloadAdminMonitoringReport() {
+  if (!Array.isArray(adminMonData) || adminMonData.length === 0) {
+    showNotice('admin-notice', 'warning', 'No hay registros para descargar.');
+    return;
+  }
+
+  const headers = ['Fecha', 'Tipo', 'Categoria', 'Mensaje', 'Usuario', 'Estado', 'Referencia', 'Origen', 'Detalle'];
+  const rows = adminMonData.map(x => [
+    formatDateTime(x.fecha),
+    x.tipo,
+    x.categoria,
+    x.mensaje,
+    x.usuario,
+    x.estado,
+    x.referencia,
+    x.origen,
+    x.detalle
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Reporte_Monitoreo_Admin_${today()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function renderAdminPagination(currentPage, total, key) {
   const totalPages = Math.ceil(total / ADMIN_PAGE_SIZE);
   if (totalPages <= 1) return '';
@@ -2029,6 +2136,7 @@ function adminChangePage(key, page) {
   else if (key === 'Usr') { adminUsrPage = page; renderAdminUsrPage(); }
   else if (key === 'Jer') { adminJerPage = page; renderAdminJerPage(); }
   else if (key === 'Del') { adminDelPage = page; renderAdminDelPage(); }
+  else if (key === 'Mon') { adminMonPage = page; renderAdminMonitoringPage(); }
 }
 
 function renderStatusBadge(estado) {
@@ -2088,6 +2196,7 @@ function initLoginPage() {
 
 function initDashboardPage() {
   requireAuth();
+  const session = getSession();
   checkSessionValidityOnLoad();
   configureRoleUI();
   hydrateSessionDisplayName();
@@ -2096,7 +2205,9 @@ function initDashboardPage() {
   renderFuncionarioHistory();
   renderJefaturaRequests();
   renderRRHHTable();
-  renderSifcnpHistorico();
+  if (session?.role !== 'ROL_ADMIN') {
+    renderSifcnpHistorico();
+  }
   initAdminPanelIfNeeded();
 }
 
