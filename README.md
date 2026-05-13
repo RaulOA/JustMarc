@@ -10,6 +10,15 @@ Aplicacion para gestionar justificaciones de marca.
 - Backend .NET 8: API REST con autenticacion por headers.
 - SQL Server: scripts en docs/db para esquema y datos base.
 
+## Puertos en Uso
+
+| Componente | Puerto | Contexto | Nota |
+|---|---|---|---|
+| API (.NET) | 5093 | Desarrollo local | Default, configurable en launchSettings.json. Usado en start-full-stack |
+| Frontend (Python HTTP) | 8000 | Desarrollo local | Servido por `serve-frontend` task. Usado en start-full-stack |
+| IIS Local | 8080 | Validacion local pre-produccion | **NO se usa en start-full-stack**. Solo para validar en entorno IIS sin publicar |
+| SQL Server | 1433 | Produccion/Infraestructura | Puerto estandar, puede variar |
+
 ## Mapa rapido de arquitectura
 
 - Frontend: index.html, dashboard.html, app.js, style.css.
@@ -35,40 +44,77 @@ dotnet --version
 python --version
 ~~~
 
-## Checklist de primer arranque
+## Checklist de primer arranque (Flujo Recomendado: start-full-stack)
 
 1. Abrir esta carpeta en VS Code.
-2. Ejecutar task build-api.
-3. Ejecutar task run-api.
-4. Verificar health: http://localhost:5093/health.
+2. Terminal > Run Task > start-full-stack.
+3. Esperar mensaje en consola: **Application started. Press Ctrl+C to shut down.**
+4. Verificar API health: http://localhost:5093/health.
 5. Abrir Swagger: http://localhost:5093/swagger.
-6. Opcional UI: ejecutar task serve-frontend y abrir http://localhost:8000/index.html.
-7. Opcional API quick test: abrir el archivo .http y correr GET /health.
+6. Opcional UI: verificar http://localhost:8000/index.html (ya levantado por start-full-stack).
+7. Opcional API quick test: abrir archivo .http y ejecutar GET /health.
 
-## Inicio en un click desde VS Code
+## Flujo Completo de Levantamiento
 
-Ruta recomendada (sin comandos manuales):
+### Opcion A: Usar Tasks (Recomendado)
 
 1. Terminal > Run Task > start-full-stack.
-2. Si quieres depurar: Run and Debug > Full Stack Debug (API + Frontend) > F5.
+2. Esperar: **Application started. Press Ctrl+C to shut down.**
+3. API: http://localhost:5093/health
+4. Frontend: http://localhost:8000/index.html
 
-Esto usa tareas y perfiles ya incluidos en .vscode/tasks.json y .vscode/launch.json.
+Esta opcion ejecuta restore, build-api, run-api y serve-frontend en secuencia.
 
-Fallback por terminal (si no usas Tasks):
+### Opcion B: Fallback por Terminal Manual
+
+Si Tasks no funcionan, abre 3 terminales separadas:
 
 ~~~powershell
-# 1) Restaurar dependencias backend
+# Terminal 1: Restaurar y compilar
 dotnet restore backend/
-
-# 2) Compilar API
 dotnet build backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --configuration Debug
 
-# 3) Ejecutar API
+# Terminal 2: Ejecutar API
+# Espera: "Application started. Press Ctrl+C to shut down."
 dotnet run --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --no-build
 
-# 4) (Opcional) Servir frontend estatico en :8000
+# Terminal 3: Servir frontend (opcional)
 python -m http.server 8000 --directory .
 ~~~
+
+## Detener Todo
+
+### Metodo 1: Desde VS Code (Si usaste start-full-stack)
+
+1. En la terminal activa: presionar **Ctrl+C** una o mas veces.
+2. Esperar cierre de ambas terminales (API y Frontend).
+
+### Metodo 2: Task + Comando Manual
+
+1. Terminal > Run Task > stop-api-on-5093 (libera puerto 5093 para API).
+2. Para detener Frontend en puerto 8000 (no hay task dedicada), ejecuta en PowerShell:
+
+~~~powershell
+Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+~~~
+
+### Metodo 3: Comando Manual para Liberar Todos los Puertos
+
+Si necesitas liberar puertos manualmente en una sola operacion:
+
+~~~powershell
+# Liberar puerto 5093 (API)
+Get-NetTCPConnection -LocalPort 5093 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+
+# Liberar puerto 8000 (Frontend)
+Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+~~~
+
+### Opcion C: Debug Completo (IDE)
+
+1. Run and Debug > Full Stack Debug (API + Frontend).
+2. Presiona F5.
+3. VS Code pausara en breakpoints.
 
 ## Usar Swagger rapido
 
