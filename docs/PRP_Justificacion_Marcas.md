@@ -2,15 +2,16 @@
 > **Product Requirements Plan** | Consejo Nacional de Producción (CNP) & FANAL  
 > Versión: 1.1 | Basado en: Análisis y Diseño de SI v1.1 (16/10/2025)  
 > Organización: Unidad de Tecnologías de la Información (UTI)  
-> Última actualización: Abril 2026
+> Última actualización: Junio 2026
 
 ---
 
 ## 📋 Tabla de Contenidos
 
 1. [Resumen del Producto](#1-resumen-del-producto)
+1.1 [Estado actual de implementación](#11-estado-actual-de-implementacion)
 2. [Contexto y Problema](#2-contexto-y-problema)
-3. [Stack Tecnológico](#3-stack-tecnológico)
+3. [Stack Tecnológico](#3-stack-tecnologico)
 4. [Roles del Sistema](#4-roles-del-sistema)
 5. [Requerimientos Funcionales](#5-requerimientos-funcionales)
 6. [Requerimientos No Funcionales](#6-requerimientos-no-funcionales)
@@ -37,6 +38,24 @@
 | **Elaborado por** | Lic. Luis Diego Vega Soto, M.Ed. |
 | **Técnico programador** | Sr. Raúl Ortega Acuña |
 | **DBA** | Rudy Antonio Arias Rodríguez |
+| **Última actualización de implementación** | Junio 2026 |
+
+---
+
+## 1.1 Estado actual de implementación
+
+A junio de 2026, el proyecto cuenta con una implementación funcional de los flujos principales en frontend y backend. Lo ya disponible incluye:
+
+- API REST con autenticación basada en headers `X-User-Id` y `X-User-Role`.
+- Frontend estático con login y paneles por rol para `ROL_FUNC`, `ROL_JEFE`, `ROL_RRHH` y `ROL_ADMIN`.
+- Creación de justificaciones con cabecera + líneas, validación de mínimo 1 detalle y estado inicial `Pendiente Jefatura`.
+- Historial de justificaciones propias, listado de pendientes de jefatura, y resolución de boletas (aprobar/rechazar).
+- Consulta RRHH con filtros y descarga CSV en la interfaz.
+- Consulta histórica tipo SIFCNP de solo lectura con filtros por funcionario y rango de fechas.
+- Panel administrativo básico con endpoints y UI para dependencias, jerarquías, delegaciones y monitoreo de eventos/errores.
+- Esquema de base de datos `INTEGRA_CNP` con scripts de creación, catálogos y seed de datos principales.
+
+> Nota: la sincronización automática desde WIZDOM no está implementada aún; la tabla de usuarios se gestiona en el esquema local de `RecursosHumanos`.
 
 ---
 
@@ -402,89 +421,89 @@ INSERT INTO Roles (RolID, NombreRol) VALUES
 
 ### 🗄️ Base de Datos — INTEGRA_CNP
 
-- [ ] Crear base de datos `INTEGRA_CNP` en SQL Server 2019
-- [ ] Crear tabla `Roles` + insertar datos semilla
-- [ ] Crear tabla `Estados` + insertar datos semilla
-- [ ] Crear tabla `Cat_TiposJustificacion` + insertar datos semilla
-- [ ] Crear tabla `Cat_EstadosRegistro` + insertar datos semilla
-- [ ] Crear tabla `Cat_TiposEventoAuditoria` + insertar datos semilla
-- [ ] Crear tabla `Cat_ResultadosAuditoria` + insertar datos semilla
-- [ ] Crear tabla `Usuarios` con FK a `Roles`
-- [ ] Crear tabla `Jerarquias_Aprobacion`
-- [ ] Crear tabla `Delegaciones_Aprobacion`
-- [ ] Crear tabla `Justificaciones_Encabezado` con FKs a `Usuarios` y `Estados`
-- [ ] Crear tabla `Justificaciones_Detalle` con FKs a `Justificaciones_Encabezado` y `Cat_TiposJustificacion`
-- [ ] Crear tabla `Auditoria_Eventos`
-- [ ] Validar integridad referencial entre todas las tablas
-- [ ] Crear índices de rendimiento para aprobaciones, delegaciones y auditoría
+- [x] Crear base de datos `INTEGRA_CNP` en SQL Server 2019
+- [x] Crear tabla `Roles` + insertar datos semilla
+- [x] Crear tabla `Estados` + insertar datos semilla
+- [x] Crear tabla `Cat_TiposJustificacion` + insertar datos semilla
+- [x] Crear tabla `Cat_EstadosRegistro` + insertar datos semilla
+- [x] Crear tabla `Cat_TiposEventoAuditoria` + insertar datos semilla
+- [x] Crear tabla `Cat_ResultadosAuditoria` + insertar datos semilla
+- [x] Crear tabla `Usuarios` con FK a `Roles`
+- [x] Crear tabla `Jerarquias_Aprobacion`
+- [x] Crear tabla `Delegaciones_Aprobacion`
+- [x] Crear tabla `Justificaciones_Encabezado` con FKs a `Usuarios` y `Estados`
+- [x] Crear tabla `Justificaciones_Detalle` con FKs a `Justificaciones_Encabezado` y `Cat_TiposJustificacion`
+- [x] Crear tabla `Auditoria_Eventos`
+- [x] Validar integridad referencial entre todas las tablas
+- [x] Crear índices de rendimiento para aprobaciones, delegaciones y auditoría
 
 ### 🔌 Integraciones
 
 - [ ] Identificar y documentar las vistas disponibles en WIZDOM
 - [ ] Desarrollar capa de acceso a vistas de WIZDOM (solo lectura)
 - [ ] Desarrollar proceso de sincronización de usuarios desde WIZDOM a `Usuarios`
-- [ ] Validar acceso de solo lectura a BD SIFCNP
-- [ ] Desarrollar capa de consulta histórica a SIFCNP
+- [x] Validar acceso de solo lectura a BD SIFCNP
+- [x] Desarrollar capa de consulta histórica a SIFCNP
 
 ### 🔐 Autenticación y Roles
 
-- [ ] Definir mecanismo de autenticación (dominio CNP-FANAL)
-- [ ] Implementar autenticación de usuarios
-- [ ] Implementar control de acceso basado en roles (Funcionario / Jefatura / RRHH / Administrador)
-- [ ] Validar que cada rol solo accede a sus vistas y acciones permitidas
+- [x] Definir mecanismo de autenticación (dominio CNP-FANAL)
+- [x] Implementar autenticación de usuarios
+- [x] Implementar control de acceso basado en roles (Funcionario / Jefatura / RRHH / Administrador)
+- [x] Validar que cada rol solo accede a sus vistas y acciones permitidas
 
 ### 🖥️ Módulo: Gestión de Usuarios (RF-01)
 
-- [ ] Pantalla de administración de usuarios (sincronizados)
+- [x] Pantalla de administración de usuarios (sincronizados)
 - [ ] Proceso automático/manual de sincronización desde WIZDOM
-- [ ] Asignación de rol por usuario
+- [x] Asignación de rol por usuario
 
 ### 📝 Módulo: Creación de Justificación (RF-02)
 
-- [ ] Formulario de encabezado (motivo general)
-- [ ] Grilla de detalle: agregar líneas de detalle
-- [ ] Grilla de detalle: eliminar líneas de detalle
-- [ ] Selector de tipo de justificación (desde `Cat_TiposJustificacion`)
-- [ ] Selector de fecha de marca
-- [ ] Campo de observación por detalle (opcional)
-- [ ] Validación: mínimo 1 detalle antes de guardar (RN-01)
-- [ ] Guardar boleta con estado inicial `Pendiente Jefatura`
+- [x] Formulario de encabezado (motivo general)
+- [x] Grilla de detalle: agregar líneas de detalle
+- [x] Grilla de detalle: eliminar líneas de detalle
+- [x] Selector de tipo de justificación (desde `Cat_TiposJustificacion`)
+- [x] Selector de fecha de marca
+- [x] Campo de observación por detalle (opcional)
+- [x] Validación: mínimo 1 detalle antes de guardar (RN-01)
+- [x] Guardar boleta con estado inicial `Pendiente Jefatura`
 - [ ] Notificación automática a jefatura directa al crear boleta
 
 ### ✅ Módulo: Aprobación / Rechazo (RF-03)
 
-- [ ] Vista de jefatura: listado de justificaciones según jerarquía activa o delegación vigente
+- [x] Vista de jefatura: listado de justificaciones según jerarquía activa o delegación vigente
 - [ ] Filtro por estado (Pendientes, Aprobadas, Rechazadas)
-- [ ] Acción: Aprobar boleta → actualizar estado + registrar AprobadorID + FechaAprobacion
-- [ ] Acción: Rechazar boleta → actualizar estado + registrar AprobadorID + FechaAprobacion
-- [ ] Bloquear modificación de boletas ya procesadas (RN-04)
+- [x] Acción: Aprobar boleta → actualizar estado + registrar AprobadorID + FechaAprobacion
+- [x] Acción: Rechazar boleta → actualizar estado + registrar AprobadorID + FechaAprobacion
+- [x] Bloquear modificación de boletas ya procesadas (RN-04)
 
 ### 🛠️ Módulo: Administración (RF-07 a RF-10)
 
-- [ ] Dashboard administrativo de auditoría con paginación, filtros y descarga de reportes
-- [ ] Pantalla de mantenimiento de jerarquías de aprobación
-- [ ] Pantalla de mantenimiento de delegados o subaprobadores
-- [ ] Pantalla de mantenimiento de catálogos y estructuras organizacionales
-- [ ] Restricción de acceso exclusiva para `ROL_ADMIN`
+- [x] Dashboard administrativo de auditoría con paginación, filtros y descarga de reportes
+- [x] Pantalla de mantenimiento de jerarquías de aprobación
+- [x] Pantalla de mantenimiento de delegados o subaprobadores
+- [x] Pantalla de mantenimiento de catálogos y estructuras organizacionales
+- [x] Restricción de acceso exclusiva para `ROL_ADMIN`
 
 ### 🔎 Módulo: Consulta RRHH (RF-04)
 
-- [ ] Vista de RRHH: listado de todas las justificaciones
-- [ ] Filtros: por funcionario, estado, fecha de creación, compañía (CNP/FANAL)
-- [ ] Vista de detalle de cada boleta
-- [ ] (Opcional) Exportación a Excel/CSV para uso en planilla
+- [x] Vista de RRHH: listado de todas las justificaciones
+- [x] Filtros: por funcionario, estado, fecha de creación, compañía (CNP/FANAL)
+- [x] Vista de detalle de cada boleta
+- [x] (Opcional) Exportación a Excel/CSV para uso en planilla
 
 ### 👤 Módulo: Historial del Funcionario (RF-05)
 
-- [ ] Vista del funcionario: historial de sus propias boletas
-- [ ] Detalle de cada boleta: líneas, estado, aprobador, fecha resolución
-- [ ] Indicador visual de estado (pendiente / aprobado / rechazado)
+- [x] Vista del funcionario: historial de sus propias boletas
+- [x] Detalle de cada boleta: líneas, estado, aprobador, fecha resolución
+- [x] Indicador visual de estado (pendiente / aprobado / rechazado)
 
 ### 📂 Módulo: Consulta Histórica SIFCNP (RF-06)
 
-- [ ] Pantalla de consulta de registros históricos
-- [ ] Filtros básicos: funcionario, fecha, tipo de justificación
-- [ ] Vista de solo lectura (sin botones de edición)
+- [x] Pantalla de consulta de registros históricos
+- [x] Filtros básicos: funcionario, fecha, tipo de justificación
+- [x] Vista de solo lectura (sin botones de edición)
 
 ### 🧪 Pruebas y Calidad
 
