@@ -9,16 +9,25 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// En entornos no Development, la conexion principal es obligatoria para fallar en arranque
-// si falta configuracion critica y evitar errores diferidos en runtime.
-if (!builder.Environment.IsDevelopment())
+// La cadena de conexion principal NUNCA se versiona en archivos del repo: se inyecta por la
+// variable de entorno de usuario 'ConnectionStrings__IntegraCnp' (.NET la mapea a la clave
+// de configuracion ConnectionStrings:IntegraCnp). Ver docs/seguridad/gestion_credenciales_conexion_bd.md.
+var integraCnp = builder.Configuration.GetConnectionString("IntegraCnp");
+if (string.IsNullOrWhiteSpace(integraCnp))
 {
-    var integraCnp = builder.Configuration.GetConnectionString("IntegraCnp");
-    if (string.IsNullOrWhiteSpace(integraCnp))
+    const string aviso =
+        "ConnectionStrings:IntegraCnp no esta configurada. Defina la variable de entorno de usuario " +
+        "'ConnectionStrings__IntegraCnp' (ver docs/seguridad/gestion_credenciales_conexion_bd.md).";
+
+    // En entornos no Development es configuracion critica: fallar en arranque (fail-fast).
+    if (!builder.Environment.IsDevelopment())
     {
-        throw new InvalidOperationException(
-            "ConnectionStrings:IntegraCnp no esta configurada para entorno no-Development.");
+        throw new InvalidOperationException(aviso);
     }
+
+    // En Development avisamos sin abortar, para permitir trabajo de frontend/health sin BD.
+    Console.Error.WriteLine(
+        $"[ADVERTENCIA] {aviso} Las funciones que usan base de datos fallaran hasta configurarla.");
 }
 
 builder.Services.AddControllers();

@@ -389,7 +389,7 @@ backend/
     └── ...
 
 docs/
-└── SubAgent docs/
+└── specs/
     └── vscode_tasks_launch_spec.md   [THIS FILE]
 ```
 

@@ -1,6 +1,6 @@
 # Spec: Rediseño Panel de Administración
 
-**Archivo:** `docs/SubAgent docs/admin_panel_redesign_spec.md`  
+**Archivo:** `docs/specs/admin_panel_redesign_spec.md`  
 **Fecha:** 2026-05-03  
 **Estado:** Listo para implementación
 

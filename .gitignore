@@ -399,3 +399,9 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Claude Code local/personal config (no versionar)
+.claude/settings.local.json
+
+# Playwright MCP cache
+.playwright-mcp/

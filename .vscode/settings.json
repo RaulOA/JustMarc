@@ -1,5 +1,4 @@
 {
-    "chat.promptFilesRecommendations": {},
     "rest-client.environmentVariables": {
         "$shared": {
             "apiBaseUrl": "http://localhost:5093",

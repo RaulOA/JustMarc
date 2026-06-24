@@ -166,4 +166,4 @@ Agregar tests de integracion (recomendado):
 
 ## Archivo de salida
 
-- docs/SubAgent docs/fix_consulta_historica_jefatura_dependencia_spec.md
+- docs/specs/fix_consulta_historica_jefatura_dependencia_spec.md
