@@ -20,5 +20,16 @@ Eres el **reviewer** del proyecto Justificación de Marca. Aprobás o rechazás;
   sugerencia).
 - No editás; describís qué falta.
 
+## Control de hallazgos
+
+Cada **detalle menor** que detectes lo registrás en `progress/findings.md` (una línea + disposición) y lo
+**enrutás sin perder ninguno** —esto es **captura**, no diseño ni ejecución de la solución (los enfoques
+se ven después, en la compuerta del spec):
+
+- **Brecha de correctitud o de requisito** → bloquea: `CHANGES_REQUESTED` (no se "corrige al paso").
+- **Mejora** → la capturás en `progress/backlog.md` como **idea derivada**, clasificada por feature
+  (`id` existente o `nueva`), y la anotás en `findings.md` con disposición `→ idea backlog`.
+- **Cosa solo anotada** → queda en `findings.md` con disposición `solo-anotado`.
+
 Anexá tu veredicto a `progress/reports.md`.
 Salida: una línea, `APPROVED -> progress/reports.md` o `CHANGES_REQUESTED -> progress/reports.md`.

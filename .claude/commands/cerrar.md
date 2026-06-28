@@ -10,4 +10,6 @@ Ritual de cierre:
 3. Archivá specs de features `done` → `archive/specs/<feature>/`.
 4. Si `progress/reports.md` supera ~800 líneas, **rotalo** a `archive/reports/reports-<fecha>.md` y dejá
    un encabezado fresco.
-5. Dejá `progress/current.md` en su estado real. Reportá qué cerraste.
+5. `progress/findings.md`: **podá los hallazgos ya resueltos** (`corregido-ahora` / `→ idea backlog`) al
+   pasar el umbral, igual que `reports.md`. Conservá el encabezado.
+6. Dejá `progress/current.md` en su estado real. Reportá qué cerraste.
