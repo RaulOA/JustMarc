@@ -18,6 +18,7 @@
 | `Inicial.md` | historical | movido del working tree | — (prompt del prototipo visual original; superado por el estado actual) |
 | `docs/specs/` (29 archivos) | reusable (plantilla) + historical (instancias) | movido del working tree | plantilla/convención → `docs/specs.md`; las 29 specs son **registro histórico** de trabajo ya `done` (no se reconstruyen al formato 3-archivos; los specs nuevos van a `specs/<feature>/`) |
 | └ `docs/specs/fix_customization_diagnostics_copilot_instructions_spec.md` | historical | (incluido en `docs/specs/`) | documenta el arnés **Copilot** predecesor (ya migrado/removido) |
+| `docs/Cronograma_Final_Marcas.csv` (40 filas, 38 tareas) | historical (superado) | movido del working tree el 2026-06-28 | **reemplazado** por `docs/cronograma.xlsx` (nuevo cronograma vivo de jefatura, recibido 24-06-2026). El CSV era la vista retrospectiva baseline-vs-real (% avance, estado, varianza por tarea); el xlsx es la vista prospectiva de jefatura (horas pendientes + fechas del trabajo restante + columna `SEGUIMIENTO JEFATURA`). Mismas 38 tareas/fases/descripciones. Historial de cambios del cronograma vivo queda en git. |
 
 ## Notas
 

@@ -14,7 +14,12 @@ otra cosa, y es **una a la vez**.
 ( SDD: spec_author -> HUMANO aprueba -> implementer -> reviewer )
 /cerrar     -> ritual de cierre (verde, destila, archiva, rota)
 /planificar -> ordenar el backlog contra el cronograma
+/cronograma -> ritual SEMANAL: refleja estado real en el xlsx + evidencia para jefatura
 ```
+
+> `docs/cronograma.xlsx` es el cronograma de jefatura y la **columna vertebral** que `/planificar` usa
+> para ordenar el trabajo; `/cronograma` es el **ritual semanal** que actualiza el estado real de cada
+> tarea (nunca "hecho" sin evidencia) y arma el paquete de evidencia ejecutivo en `evidencias/`.
 
 ## Propósito de cada comando `/`
 
@@ -26,6 +31,9 @@ otra cosa, y es **una a la vez**.
   arregla, muestra evidencia.
 - `/planificar` — procesa `backlog.md`: agrupa, promueve a `pending`, deja "algún día" o descarta. No
   ejecuta.
+- `/cronograma` — ritual **semanal**: lee tablero + `progress/` + `git log`, refleja el estado real en
+  `docs/cronograma.xlsx` y genera evidencia ejecutiva (limpia, sin proceso interno) en `evidencias/`. No
+  cierra features ni implementa.
 - `/cerrar` — ritual de cierre (abajo).
 - `/estado` — vistazo de una pantalla. Sin acción.
 
