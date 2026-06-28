@@ -1,0 +1,44 @@
+{
+  "project": "Justificación de Marca (INTEGRA_CNP)",
+  "description": "Sistema web para gestionar boletas de justificación de marca de CNP/FANAL: frontend estático (HTML/CSS/JS vanilla) + API .NET 8 (Clean Architecture) + SQL Server INTEGRA_CNP. Autenticación por headers X-User-Id/X-User-Role.",
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "require_approved_spec_to_implement": true,
+    "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked"],
+    "sdd_required_when": "La feature es multi-archivo, riesgosa, o toca la interfaz/contrato. Cambios triviales o de un solo archivo van sin SDD (implementer directo)."
+  },
+  "features": [
+    {
+      "id": "F-001",
+      "name": "sync-wizdom-empleados",
+      "title": "Sincronización automática de empleados desde WIZDOM",
+      "description": "Hoy la tabla de usuarios se gestiona manualmente en RecursosHumanos. Implementar la sincronización de solo lectura desde WIZDOM (vistas de Integración) hacia INTEGRA_CNP, sin escribir nunca en WIZDOM.",
+      "acceptance": [
+        "Lee empleados desde las vistas de Integración (origen WIZDOM, solo lectura).",
+        "Inserta/actualiza en RecursosHumanos respetando las convenciones de BD.",
+        "Nunca ejecuta INSERT/UPDATE/DELETE contra WIZDOM/SIFCNP.",
+        "Es idempotente y registra un evento de auditoría por corrida."
+      ],
+      "sdd": true,
+      "status": "pending",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "F-002",
+      "name": "restringir-cors-produccion",
+      "title": "Restringir la política CORS en despliegues expuestos",
+      "description": "La política LocalFrontend permite cualquier origen/header/method (SetIsOriginAllowed(_ => true)). Restringir a orígenes configurables por entorno, manteniendo abierto solo en Development.",
+      "acceptance": [
+        "En entornos no-Development, CORS se limita a orígenes de una lista configurable.",
+        "En Development se conserva el comportamiento permisivo actual.",
+        "Los orígenes se inyectan por configuración sin versionar valores sensibles."
+      ],
+      "sdd": true,
+      "status": "pending",
+      "approved_by": null,
+      "approved_at": null
+    }
+  ]
+}

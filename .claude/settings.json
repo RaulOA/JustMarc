@@ -10,6 +10,9 @@
       "Bash(dotnet sln:*)",
       "Bash(dotnet --version)",
       "Bash(dotnet --info)",
+      "Bash(pwsh:*)",
+      "Bash(powershell:*)",
+      "Bash(python -m http.server:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -21,5 +24,28 @@
     ],
     "ask": [],
     "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ./.claude/hooks/post_edit.ps1"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& './init.ps1'; if ($LASTEXITCODE -ne 0) { exit 2 }\""
+          }
+        ]
+      }
+    ]
   }
 }
