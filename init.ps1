@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <#
   init.ps1 - Verificacion del arnes (Harness Engineering)
-  Forma estandar / comandos de ESTE proyecto (ver HARNESS-INSTALL.md).
+  Forma estandar / comandos de ESTE proyecto (ver bloque CONFIGURACION abajo y guia-del-arnes.md).
   Fail-fast: lo barato primero; corta al primer [FAIL]. Exit 0 = verde.
 #>
 

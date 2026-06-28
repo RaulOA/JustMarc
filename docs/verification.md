@@ -1,6 +1,6 @@
 # docs/verification.md — Verificación
 
-> Niveles adaptados al stack. Comandos reales en `HARNESS-INSTALL.md` y `init.ps1`.
+> Niveles adaptados al stack. Comandos reales en `init.ps1` (bloque de configuración).
 
 ## Niveles
 

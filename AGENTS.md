@@ -23,7 +23,7 @@
 | `progress/reports.md` | Informes detallados (anti-teléfono) | Al revisar un informe puntual |
 | `progress/backlog.md` | Ideas sueltas con fecha | `/idea`, `/planificar` |
 | `CHECKPOINTS.md` | Criterios de "estado final correcto" | Antes de cerrar / en review |
-| `HARNESS-INSTALL.md` | Stack, 5 comandos, rutas | Referencia de comandos |
+| `guia-del-arnes.md` | Cómo operar el arnés (humano): loop, comandos `/`, ceremonia SDD, hands-off | Para operar/arrancar |
 
 ## Reglas duras (resumen; manda la constitución)
 - Una feature a la vez (`one_feature_at_a_time`).

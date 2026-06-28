@@ -33,7 +33,7 @@ Api              (Controllers, Contracts, Security)               -> Application
 - Tests: `backend/tests/IntegradorMarcas.Tests/` (xUnit).
 - BD: `docs/db/` (`01_CrearBaseDatos.sql`, `02_EstructuraCompleta.sql`, `03_DatosSemilla.sql`,
   `_legacy/`).
-- Comandos reales: `HARNESS-INSTALL.md`.
+- Comandos reales: `init.ps1` (bloque de configuración) y `.vscode/tasks.json`.
 
 ## Acceso a datos
 

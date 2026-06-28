@@ -35,4 +35,5 @@ Operás siempre como **leader**. **Orquestás, no codificás.**
 - `docs/workflow.md` — modelo de trabajo diario y comandos `/`.
 
 > El conocimiento detallado del producto (arquitectura, auth por headers, acceso a datos, BD) vive en
-> `docs/architecture.md` y `docs/conventions.md`. Comandos y rutas reales: `HARNESS-INSTALL.md`.
+> `docs/architecture.md` y `docs/conventions.md`. Comandos: `init.ps1` (bloque de configuración) y
+> `.vscode/tasks.json`. Cómo operar el arnés: `guia-del-arnes.md`.
