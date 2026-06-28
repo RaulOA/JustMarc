@@ -19,4 +19,5 @@ public interface IAdminAprobacionesRepository
     Task<bool> ExistsUsuarioAsync(int usuarioId, CancellationToken cancellationToken);
     Task<bool> ExistsEstructuraAsync(int estructuraOrganizacionalId, CancellationToken cancellationToken);
     Task<bool> ExistsJerarquiaAsync(int jerarquiaAprobacionId, CancellationToken cancellationToken);
+    Task<bool> ExistsJerarquiaActivaDuplicadaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, int nivelAprobacion, int? jerarquiaAprobacionIdExcluida, CancellationToken cancellationToken);
 }

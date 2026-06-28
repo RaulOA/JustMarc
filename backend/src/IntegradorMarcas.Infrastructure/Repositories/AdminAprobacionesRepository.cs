@@ -238,4 +238,20 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
             },
             cancellationToken: cancellationToken));
     }
+
+    public async Task<bool> ExistsJerarquiaActivaDuplicadaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, int nivelAprobacion, int? jerarquiaAprobacionIdExcluida, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            AdminAprobacionesSql.ExistsJerarquiaActivaDuplicada,
+            new
+            {
+                AprobadorUsuarioID = aprobadorUsuarioId,
+                EstructuraOrganizacionalID = estructuraOrganizacionalId,
+                NivelAprobacion = nivelAprobacion,
+                JerarquiaAprobacionIDExcluida = jerarquiaAprobacionIdExcluida
+            },
+            cancellationToken: cancellationToken));
+    }
 }

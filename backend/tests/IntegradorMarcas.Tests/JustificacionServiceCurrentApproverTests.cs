@@ -90,6 +90,85 @@ public sealed class JustificacionServiceCurrentApproverTests
         Assert.Null(repository.LastSolicitanteUsuarioId);
     }
 
+    /// <summary>
+    /// R1: Solicitante sin jerarquia ni delegacion vigente -> aprobador nulo, sin excepcion.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrentApproverAsync_SinAprobadorVigente_RetornaAprobadorNuloSinExcepcion()
+    {
+        // R1
+        var repository = new FakeJustificacionRepository
+        {
+            CurrentApproverToReturn = new CurrentApproverDto
+            {
+                SolicitanteUsuarioId = 5,
+                Aprobador = null,
+                Origen = null
+            }
+        };
+        var service = new JustificacionService(repository, new FakeAuditEventRepository());
+        var user = new UserContextInfo { UserId = 5, Role = RolesSistema.RolFunc };
+
+        var result = await service.GetCurrentApproverAsync(user, CancellationToken.None);
+
+        Assert.Null(result.Aprobador);
+        Assert.Equal(5, result.SolicitanteUsuarioId);
+    }
+
+    /// <summary>
+    /// R3: Cuando coexisten jerarquia y delegacion vigente, el resultado con Origen='Delegacion' es el efectivo.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrentApproverAsync_DelegacionCoexisteConJerarquia_SeleccionaDelegacion()
+    {
+        // R3: El repositorio (TVF via OUTER APPLY con ORDER BY Delegacion primero) ya devuelve la delegacion.
+        // El servicio no filtra; confirma que el dato del repositorio se retorna sin alteracion.
+        var repository = new FakeJustificacionRepository
+        {
+            CurrentApproverToReturn = new CurrentApproverDto
+            {
+                SolicitanteUsuarioId = 7,
+                Origen = "Delegacion",
+                DeleganteUsuarioId = 8,
+                DeleganteNombre = "Ana Delegante",
+                Aprobador = new UsuarioResumenDto { UsuarioId = 15, NombreCompleto = "Pedro Delegado" }
+            }
+        };
+        var service = new JustificacionService(repository, new FakeAuditEventRepository());
+        var user = new UserContextInfo { UserId = 7, Role = RolesSistema.RolFunc };
+
+        var result = await service.GetCurrentApproverAsync(user, CancellationToken.None);
+
+        Assert.Equal("Delegacion", result.Origen);
+        Assert.Equal(15, result.Aprobador?.UsuarioId);
+        Assert.Equal(8, result.DeleganteUsuarioId);
+    }
+
+    /// <summary>
+    /// R6: ROL_JEFE sin aprobador vigente resuelto -> CurrentApproverDto con aprobador nulo, sin excepcion.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrentApproverAsync_RolJefeSinAprobadorVigente_RetornaAprobadorNuloSinExcepcion()
+    {
+        // R6
+        var repository = new FakeJustificacionRepository
+        {
+            CurrentApproverToReturn = new CurrentApproverDto
+            {
+                SolicitanteUsuarioId = 3,
+                Aprobador = null,
+                Origen = null
+            }
+        };
+        var service = new JustificacionService(repository, new FakeAuditEventRepository());
+        var user = new UserContextInfo { UserId = 3, Role = RolesSistema.RolJefe };
+
+        var result = await service.GetCurrentApproverAsync(user, CancellationToken.None);
+
+        Assert.Null(result.Aprobador);
+        Assert.Null(result.Origen);
+    }
+
     private sealed class FakeAuditEventRepository : IAuditEventRepository
     {
         public Task LogEventAsync(AuditEventEntry entry, CancellationToken cancellationToken)

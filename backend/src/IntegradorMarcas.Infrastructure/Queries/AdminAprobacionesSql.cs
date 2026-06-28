@@ -172,4 +172,15 @@ SELECT CAST(CASE WHEN EXISTS (
     FROM Operacion.JerarquiaAprobacion
     WHERE JerarquiaAprobacionId = @JerarquiaAprobacionID
 ) THEN 1 ELSE 0 END AS bit);";
+
+    public const string ExistsJerarquiaActivaDuplicada = @"
+SELECT CAST(CASE WHEN EXISTS (
+    SELECT 1
+    FROM Operacion.JerarquiaAprobacion
+    WHERE EstadoRegistroId = 1
+      AND AprobadorUsuarioId = @AprobadorUsuarioID
+      AND EstructuraOrganizacionalId = @EstructuraOrganizacionalID
+      AND NivelAprobacion = @NivelAprobacion
+      AND (@JerarquiaAprobacionIDExcluida IS NULL OR JerarquiaAprobacionId <> @JerarquiaAprobacionIDExcluida)
+) THEN 1 ELSE 0 END AS bit);";
 }

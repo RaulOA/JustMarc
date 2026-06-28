@@ -33,6 +33,7 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         EnsureAdmin(user);
         ValidateCreateJerarquia(request);
         await EnsureReferencesForJerarquiaAsync(request.AprobadorUsuarioId, request.EstructuraOrganizacionalId, cancellationToken);
+        await EnsureJerarquiaNoDuplicadaAsync(request.AprobadorUsuarioId, request.EstructuraOrganizacionalId, request.NivelAprobacion, null, cancellationToken);
 
         var created = await _repository.CreateJerarquiaAsync(request, user.UserId, cancellationToken);
 
@@ -67,6 +68,7 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         EnsureAdmin(user);
         ValidateUpdateJerarquia(request);
         await EnsureReferencesForJerarquiaAsync(request.AprobadorUsuarioId, request.EstructuraOrganizacionalId, cancellationToken);
+        await EnsureJerarquiaNoDuplicadaAsync(request.AprobadorUsuarioId, request.EstructuraOrganizacionalId, request.NivelAprobacion, jerarquiaAprobacionId, cancellationToken);
 
         var previous = await _repository.GetJerarquiaByIdAsync(jerarquiaAprobacionId, cancellationToken);
         if (previous is null)
@@ -280,6 +282,14 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             valoresAnteriores: previous,
             valoresNuevos: updated,
             cancellationToken: cancellationToken);
+    }
+
+    private async Task EnsureJerarquiaNoDuplicadaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, int nivelAprobacion, int? jerarquiaAprobacionIdExcluida, CancellationToken cancellationToken)
+    {
+        if (await _repository.ExistsJerarquiaActivaDuplicadaAsync(aprobadorUsuarioId, estructuraOrganizacionalId, nivelAprobacion, jerarquiaAprobacionIdExcluida, cancellationToken))
+        {
+            throw new AppException("Ya existe una jerarquia activa para esa combinacion de aprobador, estructura y nivel.", 409);
+        }
     }
 
     private async Task EnsureReferencesForJerarquiaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, CancellationToken cancellationToken)
