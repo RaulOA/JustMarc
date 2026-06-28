@@ -3,7 +3,7 @@
    ----------------------------------------------------------------------------
    Sistema:  Justificacion de Marca (INTEGRA_CNP) — CNP / FANAL
    Fecha:    2026-06-24
-   Motor:    SQL Server 2022
+   Motor:    SQL Server 2019+ (validado en 15.0.2135.5)
    Requiere: 01_CrearBaseDatos.sql y 02_EstructuraCompleta.sql ejecutados antes.
 
    CONTENIDO

@@ -3,17 +3,18 @@
    ----------------------------------------------------------------------------
    Sistema:  Justificacion de Marca (INTEGRA_CNP) — CNP / FANAL
    Fecha:    2026-06-24
-   Motor:    SQL Server 2022
+   Motor:    SQL Server 2019+ (validado en 15.0.2135.5)
    Requiere: 01_CrearBaseDatos.sql ejecutado previamente.
 
    PROPOSITO
      Crear TODA la estructura interna de la base, alineada exactamente con lo que
-     consume el backend .NET (Infrastructure/Queries/*.cs y repositorios):
+     consume el backend .NET (Infrastructure/Queries, archivos .cs, y repositorios):
        - Tablas de catalogo, RRHH, operacion y auditoria.
        - Constraints (PK, FK, CHECK, DEFAULT) e indices con nombre explicito.
        - Funcion de alcance de aprobadores  dbo.fn_AprobadoresVigentesPorSolicitante.
-       - Procedimiento de sincronizacion historica (opcional).
        - Vistas de integracion externa (WIZDOM / SIFCNP) y vista legada SIFCNP.
+     Nota: el SP de sincronizacion SIFCNP legado se RETIRA (asumia un esquema
+     SIFCNP ficticio; ver Seccion G y el informe de observaciones).
 
    TRIGGERS
      El sistema NO define triggers. La logica de negocio vive en la capa
@@ -567,96 +568,27 @@ RETURN
 GO
 
 /* ############################################################################
-   SECCION G — PROCEDIMIENTO DE SINCRONIZACION (OPCIONAL)
+   SECCION G — SINCRONIZACION SIFCNP  (NO IMPLEMENTADA — PENDIENTE DE RE-MAPEO)
    ----------------------------------------------------------------------------
-   Operacion.usp_SincronizarJustificacionesDesdeHistorico
-   Carga controlada de encabezados historicos desde [SIFCNP].[dbo].[RH_*].
-   SOLO se ejecuta cuando SIFCNP esta disponible; su creacion es segura aun sin
-   SIFCNP (resolucion de nombres diferida en procedimientos).
+   El SP legado (002) usp_SincronizarJustificacionesDesdeHistorico asumia un
+   esquema SIFCNP FICTICIO (id_justificacion_enc, cedula_funcionario,
+   motivo_general, estado_justificacion, comentario_resolucion, fecha_creacion)
+   que NO existe en la base SIFCNP real. Su CREATE falla con Msg 207.
 
-   CORRECCION: la version anterior (002) usaba 'LIMIT 1' (invalido en T-SQL),
-   por lo que el CREATE del SP fallaba. Aqui se usa una subconsulta con TOP 1.
+   Esquema REAL (verificado 2026-06-24):
+     SIFCNP.dbo.RH_JUSTIFICACIONES_ENC:
+       num_justificacion, cod_solicitante, cod_autoriza, fec_confeccion,
+       des_justificacion, cod_centro, cod_estado, fec_autorizacion, cod_aprueba,
+       fec_aprobacion, fec_anulacion, cod_anula, des_motivo, des_observaciones
+     SIFCNP.dbo.RH_JUSTIFICACIONES_DET:
+       num_justificacion, cod_linea, ind_concepto, fec_justificacion,
+       ind_rebajar_planilla
+
+   Como el modelo real es distinto (cod_solicitante es un codigo de funcionario,
+   no una cedula; no hay 'motivo_general' ni estados textuales) y el backend NO
+   invoca este SP, se RETIRA de la estructura. Reintroducir requiere un spec de
+   mapeo real. Ver docs/db/Observaciones_Consolidacion_SQL.md.
    ############################################################################ */
-
-CREATE OR ALTER PROCEDURE Operacion.usp_SincronizarJustificacionesDesdeHistorico
-    @UsuarioEjecucion VARCHAR(100),
-    @FechaInicio      DATETIME2 = NULL,
-    @FechaFin         DATETIME2 = NULL,
-    @MaximoRegistros  INT       = 1000
-AS
--- =============================================
--- Descripcion: Sincroniza encabezados de justificaciones desde el historico
---              SIFCNP hacia Operacion.Justificacion (upsert por JustificacionId).
--- Requiere:    Base externa SIFCNP accesible.
--- =============================================
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @FilasInsertadas INT = 0;
-
-    BEGIN TRY
-        WITH SifcnpEncabezados AS (
-            SELECT
-                CAST(j.id_justificacion_enc AS INT) AS JustificacionId,
-                (SELECT TOP 1 u.UsuarioId
-                   FROM RecursosHumanos.Usuario u
-                  WHERE u.Cedula COLLATE SQL_Latin1_General_CP1_CI_AS
-                        = j.cedula_funcionario COLLATE SQL_Latin1_General_CP1_CI_AS) AS UsuarioId,
-                j.motivo_general AS MotivoGeneral,
-                CASE
-                    WHEN j.estado_justificacion COLLATE SQL_Latin1_General_CP1_CI_AS = 'Pendiente' THEN 1
-                    WHEN j.estado_justificacion COLLATE SQL_Latin1_General_CP1_CI_AS = 'Aprobada'  THEN 2
-                    WHEN j.estado_justificacion COLLATE SQL_Latin1_General_CP1_CI_AS = 'Rechazada' THEN 3
-                    ELSE 1
-                END AS EstadoJustificacionId,
-                j.comentario_resolucion AS ComentarioResolucion,
-                j.fecha_creacion AS FechaCreacion
-            FROM [SIFCNP].[dbo].[RH_JUSTIFICACIONES_ENC] j
-            WHERE (@FechaInicio IS NULL OR j.fecha_creacion >= @FechaInicio)
-              AND (@FechaFin    IS NULL OR j.fecha_creacion <= @FechaFin)
-        )
-        MERGE INTO Operacion.Justificacion AS tgt
-        USING SifcnpEncabezados AS src
-            ON tgt.JustificacionId = src.JustificacionId
-        WHEN NOT MATCHED AND src.UsuarioId IS NOT NULL THEN
-            INSERT (UsuarioId, MotivoGeneral, ComentarioResolucion, EstadoJustificacionId,
-                    FechaCreacion, CreadoPor, FechaHoraCreacion)
-            VALUES (src.UsuarioId, src.MotivoGeneral, src.ComentarioResolucion, src.EstadoJustificacionId,
-                    src.FechaCreacion, @UsuarioEjecucion, SYSUTCDATETIME())
-        WHEN MATCHED THEN
-            UPDATE SET
-                MotivoGeneral         = src.MotivoGeneral,
-                ComentarioResolucion  = src.ComentarioResolucion,
-                EstadoJustificacionId = src.EstadoJustificacionId,
-                FechaCreacion         = src.FechaCreacion,
-                ModificadoPor         = @UsuarioEjecucion,
-                FechaHoraModificacion = SYSUTCDATETIME();
-
-        SET @FilasInsertadas = @@ROWCOUNT;
-
-        INSERT INTO Auditoria.EventoAuditoria
-            (NombreUsuario, RolCodigo, TipoEventoAuditoriaId, DescripcionEvento, ResultadoAuditoriaId, PayloadResumen)
-        VALUES
-            (@UsuarioEjecucion, 'SISTEMA', 4,
-             'Sincronizacion de justificaciones desde historico SIFCNP', 1,
-             CONCAT('Registros procesados: ', @FilasInsertadas));
-
-        PRINT CONCAT('Sincronizacion completada. Registros procesados: ', @FilasInsertadas);
-    END TRY
-    BEGIN CATCH
-        DECLARE @ErrorMessage NVARCHAR(MAX) = ERROR_MESSAGE();
-
-        INSERT INTO Auditoria.EventoAuditoria
-            (NombreUsuario, RolCodigo, TipoEventoAuditoriaId, DescripcionEvento, ResultadoAuditoriaId, PayloadResumen)
-        VALUES
-            (@UsuarioEjecucion, 'SISTEMA', 4,
-             'Sincronizacion fallida de justificaciones desde historico SIFCNP', 2,
-             CONCAT('Error: ', @ErrorMessage));
-
-        RAISERROR(@ErrorMessage, 16, 1);
-    END CATCH;
-END;
 GO
 
 /* ############################################################################
@@ -669,38 +601,53 @@ GO
 
 IF DB_ID('WIZDOM') IS NOT NULL
 BEGIN
-    EXEC('
-    CREATE OR ALTER VIEW Integracion.v_EmpleadoWizdom AS
-    SELECT
-        CAST(e.compania AS VARCHAR(10))                       COLLATE SQL_Latin1_General_CP1_CI_AS AS Compania,
-        CAST(e.codigo_empleado AS VARCHAR(50))               COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoEmpleado,
-        CAST(e.numero_identificacion AS VARCHAR(64))         COLLATE SQL_Latin1_General_CP1_CI_AS AS NumeroIdentificacion,
-        CAST(e.nombre AS VARCHAR(100))                       COLLATE SQL_Latin1_General_CP1_CI_AS AS Nombre,
-        CAST(e.primer_apellido AS VARCHAR(100))              COLLATE SQL_Latin1_General_CP1_CI_AS AS PrimerApellido,
-        CAST(e.segundo_apellido AS VARCHAR(100))             COLLATE SQL_Latin1_General_CP1_CI_AS AS SegundoApellido,
-        CAST(e.correo_electronico_principal AS VARCHAR(150)) COLLATE SQL_Latin1_General_CP1_CI_AS AS CorreoElectronicoPrincipal,
-        CAST(e.correo_electronico_alternativo AS VARCHAR(150)) COLLATE SQL_Latin1_General_CP1_CI_AS AS CorreoElectronicoAlternativo,
-        CAST(e.codigo_jefe AS VARCHAR(50))                   COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoJefe,
-        CAST(e.codigo_nodo_organigrama AS VARCHAR(50))       COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoNodoOrganigrama,
-        CAST(e.estado_empleado AS VARCHAR(30))               COLLATE SQL_Latin1_General_CP1_CI_AS AS EstadoEmpleado,
-        CAST(e.fecha_ingreso AS DATE)                                                              AS FechaIngreso,
-        CAST(e.fecha_egreso AS DATE)                                                               AS FechaEgreso,
-        CAST(e.tstamp AS DATETIME2)                                                                AS FechaActualizacion
-    FROM [WIZDOM].[dbo].[empleado] e;');
+    /* v_EmpleadoWizdom: columnas verificadas contra WIZDOM.dbo.empleado real. */
+    BEGIN TRY
+        EXEC('
+        CREATE OR ALTER VIEW Integracion.v_EmpleadoWizdom AS
+        SELECT
+            CAST(e.compania AS VARCHAR(10))                        COLLATE SQL_Latin1_General_CP1_CI_AS AS Compania,
+            CAST(e.codigo_empleado AS VARCHAR(50))                COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoEmpleado,
+            CAST(e.numero_identificacion AS VARCHAR(64))          COLLATE SQL_Latin1_General_CP1_CI_AS AS NumeroIdentificacion,
+            CAST(e.nombre AS VARCHAR(100))                        COLLATE SQL_Latin1_General_CP1_CI_AS AS Nombre,
+            CAST(e.primer_apellido AS VARCHAR(100))               COLLATE SQL_Latin1_General_CP1_CI_AS AS PrimerApellido,
+            CAST(e.segundo_apellido AS VARCHAR(100))              COLLATE SQL_Latin1_General_CP1_CI_AS AS SegundoApellido,
+            CAST(e.correo_electronico_principal AS VARCHAR(150))  COLLATE SQL_Latin1_General_CP1_CI_AS AS CorreoElectronicoPrincipal,
+            CAST(e.correo_electronico_alternativo AS VARCHAR(150)) COLLATE SQL_Latin1_General_CP1_CI_AS AS CorreoElectronicoAlternativo,
+            CAST(e.codigo_jefe AS VARCHAR(50))                    COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoJefe,
+            CAST(e.codigo_nodo_organigrama AS VARCHAR(50))        COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoNodoOrganigrama,
+            CAST(e.estado_empleado AS VARCHAR(30))                COLLATE SQL_Latin1_General_CP1_CI_AS AS EstadoEmpleado,
+            CAST(e.fecha_ingreso AS DATE)                                                               AS FechaIngreso,
+            CAST(e.fecha_egreso AS DATE)                                                                AS FechaEgreso,
+            CAST(e.tstamp AS DATETIME2)                                                                 AS FechaActualizacion
+        FROM [WIZDOM].[dbo].[empleado] e;');
+        PRINT 'Integracion.v_EmpleadoWizdom creada/actualizada.';
+    END TRY
+    BEGIN CATCH
+        PRINT 'Integracion.v_EmpleadoWizdom OMITIDA: ' + ERROR_MESSAGE();
+    END CATCH;
 
-    EXEC('
-    CREATE OR ALTER VIEW Integracion.v_OrganigramaWizdom AS
-    SELECT
-        CAST(o.codigo_nodo AS VARCHAR(50))        COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoNodo,
-        CAST(o.nombre_nodo AS VARCHAR(150))       COLLATE SQL_Latin1_General_CP1_CI_AS AS NombreNodo,
-        CAST(o.codigo_nodo_padre AS VARCHAR(50))  COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoNodoPadre,
-        CAST(o.tipo_nodo AS VARCHAR(50))          COLLATE SQL_Latin1_General_CP1_CI_AS AS TipoNodo,
-        CAST(o.nivel_jerarquia AS INT)                                                 AS NivelJerarquia,
-        CAST(o.estado_nodo AS VARCHAR(30))        COLLATE SQL_Latin1_General_CP1_CI_AS AS EstadoNodo,
-        CAST(o.tstamp AS DATETIME2)                                                    AS FechaActualizacion
-    FROM [WIZDOM].[dbo].[organigrama] o;');
-
-    PRINT 'Vistas de integracion WIZDOM creadas/actualizadas.';
+    /* v_OrganigramaWizdom: REALINEADA a WIZDOM.dbo.organigrama real
+       (codigo_nodo_organigrama, nombre_nodo_organigrama, *_padre, nivel, estado,
+       codigo_tipo_nodo). La version legada usaba nombres ficticios. */
+    BEGIN TRY
+        EXEC('
+        CREATE OR ALTER VIEW Integracion.v_OrganigramaWizdom AS
+        SELECT
+            CAST(o.compania AS VARCHAR(10))                       COLLATE SQL_Latin1_General_CP1_CI_AS AS Compania,
+            CAST(o.codigo_nodo_organigrama AS VARCHAR(50))        COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoNodo,
+            CAST(o.nombre_nodo_organigrama AS VARCHAR(150))       COLLATE SQL_Latin1_General_CP1_CI_AS AS NombreNodo,
+            CAST(o.codigo_nodo_organigrama_padre AS VARCHAR(50))  COLLATE SQL_Latin1_General_CP1_CI_AS AS CodigoNodoPadre,
+            CAST(o.codigo_tipo_nodo AS VARCHAR(50))               COLLATE SQL_Latin1_General_CP1_CI_AS AS TipoNodo,
+            CAST(o.nivel AS INT)                                                                        AS NivelJerarquia,
+            CAST(o.estado AS VARCHAR(30))                         COLLATE SQL_Latin1_General_CP1_CI_AS AS EstadoNodo,
+            CAST(o.tstamp AS DATETIME2)                                                                 AS FechaActualizacion
+        FROM [WIZDOM].[dbo].[organigrama] o;');
+        PRINT 'Integracion.v_OrganigramaWizdom creada/actualizada.';
+    END TRY
+    BEGIN CATCH
+        PRINT 'Integracion.v_OrganigramaWizdom OMITIDA: ' + ERROR_MESSAGE();
+    END CATCH;
 END
 ELSE
     PRINT 'WIZDOM no disponible: se omiten v_EmpleadoWizdom y v_OrganigramaWizdom.';
@@ -708,34 +655,52 @@ GO
 
 IF DB_ID('SIFCNP') IS NOT NULL
 BEGIN
-    EXEC('
-    CREATE OR ALTER VIEW Integracion.v_JustificacionEncabezadoSifcnp AS
-    SELECT
-        CAST(j.id_justificacion_enc AS BIGINT)                                            AS JustificacionEncabezadoId,
-        CAST(j.cedula_funcionario AS VARCHAR(64))   COLLATE SQL_Latin1_General_CP1_CI_AS  AS CedulaFuncionario,
-        CAST(j.motivo_general AS VARCHAR(500))      COLLATE SQL_Latin1_General_CP1_CI_AS  AS MotivoGeneral,
-        CAST(j.fecha_creacion AS DATETIME2)                                               AS FechaCreacion,
-        CAST(j.estado_justificacion AS VARCHAR(50)) COLLATE SQL_Latin1_General_CP1_CI_AS  AS EstadoJustificacion,
-        CAST(j.fecha_resolucion AS DATETIME2)                                             AS FechaResolucion,
-        CAST(j.comentario_resolucion AS VARCHAR(500)) COLLATE SQL_Latin1_General_CP1_CI_AS AS ComentarioResolucion,
-        CAST(j.tstamp AS DATETIME2)                                                       AS FechaActualizacion
-    FROM [SIFCNP].[dbo].[RH_JUSTIFICACIONES_ENC] j;');
+    /* REALINEADAS al esquema REAL de SIFCNP (verificado 2026-06-24). Exponen las
+       columnas reales con alias PascalCase. El backend NO las consume; son una
+       ventana de solo lectura sobre el historico SIFCNP. */
+    BEGIN TRY
+        EXEC('
+        CREATE OR ALTER VIEW Integracion.v_JustificacionEncabezadoSifcnp AS
+        SELECT
+            j.num_justificacion   AS NumJustificacion,
+            j.cod_solicitante     AS CodSolicitante,
+            j.cod_autoriza        AS CodAutoriza,
+            j.cod_aprueba         AS CodAprueba,
+            j.cod_centro          AS CodCentro,
+            j.cod_estado          AS CodEstado,
+            j.cod_anula           AS CodAnula,
+            j.fec_confeccion      AS FechaConfeccion,
+            j.fec_autorizacion    AS FechaAutorizacion,
+            j.fec_aprobacion      AS FechaAprobacion,
+            j.fec_anulacion       AS FechaAnulacion,
+            j.des_justificacion   AS DescripcionJustificacion,
+            j.des_motivo          AS DescripcionMotivo,
+            j.des_observaciones   AS DescripcionObservaciones
+        FROM [SIFCNP].[dbo].[RH_JUSTIFICACIONES_ENC] j;');
+        PRINT 'Integracion.v_JustificacionEncabezadoSifcnp creada/actualizada.';
+    END TRY
+    BEGIN CATCH
+        PRINT 'Integracion.v_JustificacionEncabezadoSifcnp OMITIDA: ' + ERROR_MESSAGE();
+    END CATCH;
 
-    EXEC('
-    CREATE OR ALTER VIEW Integracion.v_JustificacionDetalleSifcnp AS
-    SELECT
-        CAST(j.id_justificacion_det AS BIGINT)                                          AS JustificacionDetalleId,
-        CAST(j.id_justificacion_enc AS BIGINT)                                          AS JustificacionEncabezadoId,
-        CAST(j.tipo_justificacion AS VARCHAR(100)) COLLATE SQL_Latin1_General_CP1_CI_AS AS TipoJustificacion,
-        CAST(j.fecha_marca AS DATE)                                                     AS FechaMarca,
-        CAST(j.observacion_detalle AS VARCHAR(250)) COLLATE SQL_Latin1_General_CP1_CI_AS AS ObservacionDetalle,
-        CAST(j.tstamp AS DATETIME2)                                                     AS FechaActualizacion
-    FROM [SIFCNP].[dbo].[RH_JUSTIFICACIONES_DET] j;');
-
-    PRINT 'Vistas de integracion SIFCNP creadas/actualizadas.';
+    BEGIN TRY
+        EXEC('
+        CREATE OR ALTER VIEW Integracion.v_JustificacionDetalleSifcnp AS
+        SELECT
+            j.num_justificacion     AS NumJustificacion,
+            j.cod_linea             AS CodLinea,
+            j.ind_concepto          AS IndConcepto,
+            j.fec_justificacion     AS FechaJustificacion,
+            j.ind_rebajar_planilla  AS IndRebajarPlanilla
+        FROM [SIFCNP].[dbo].[RH_JUSTIFICACIONES_DET] j;');
+        PRINT 'Integracion.v_JustificacionDetalleSifcnp creada/actualizada.';
+    END TRY
+    BEGIN CATCH
+        PRINT 'Integracion.v_JustificacionDetalleSifcnp OMITIDA: ' + ERROR_MESSAGE();
+    END CATCH;
 END
 ELSE
-    PRINT 'SIFCNP no disponible: se omiten v_JustificacionEncabezadoSifcnp y v_JustificacionDetalleSifcnp.';
+    PRINT 'SIFCNP no disponible: se omiten las vistas v_*Sifcnp.';
 GO
 
 /* ############################################################################

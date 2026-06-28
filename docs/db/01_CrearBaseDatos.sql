@@ -4,7 +4,7 @@
    Sistema:     Justificacion de Marca (INTEGRA_CNP) — CNP / FANAL
    Responsable: Equipo de Base de Datos
    Fecha:       2026-06-24
-   Motor:       SQL Server 2022
+   Motor:       SQL Server 2019+ (validado en 15.0.2135.5)
 
    PROPOSITO
      Crear la base de datos y los esquemas funcionales. No crea tablas ni datos:
