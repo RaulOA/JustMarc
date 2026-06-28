@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capa Domain · DeepWiki local SIFCNP</title>
+<meta name="description" content="Entidades y constantes del nucleo del negocio.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html" class="active" aria-current="page">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Modulos (por capa)</span><span class="sep">/</span><span class="current">Capa Domain</span></nav>
+<div class="page-head-row">
+<h1>Capa Domain</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Entidades y constantes del nucleo del negocio.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>La capa <strong>Domain</strong> es el nucleo del backend: define QUE es una justificacion de marca y cuales son las reglas mas basicas del negocio (estados, roles), sin saber NADA de bases de datos, HTTP ni de las otras capas. Es el corazon de la <a href="arquitectura.html">arquitectura</a> Clean Architecture (el estilo de capas donde las dependencias apuntan siempre hacia adentro, al dominio). Por eso es codigo minimo, estable y facil de probar.</p>
+<blockquote class="callout why">📌 En la practica: si manana cambian de SQL Server a otra base, o de API REST a otra cosa, esta capa <strong>no se toca</strong>. Solo describe el negocio.</blockquote>
+<h2 id="que-es-la-capa-domain">Que es la capa Domain</h2>
+<p>En Clean Architecture el codigo se organiza en circulos concentricos, y la regla de oro es: <strong>las capas de afuera dependen de las de adentro, nunca al reves</strong>. Domain es el circulo mas interno. Lo confirma su archivo de proyecto, que no declara NINGUNA referencia a otros proyectos ni paquetes NuGet: solo el SDK base de .NET 8 (<code>net8.0</code>), ver <a href="../backend/src/IntegradorMarcas.Domain/IntegradorMarcas.Domain.csproj">IntegradorMarcas.Domain.csproj</a>.</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph TD
+    Api["Api&lt;br/&gt;(controllers, HTTP)"] --&gt; App["Application&lt;br/&gt;(servicios, DTOs)"]
+    Infra["Infrastructure&lt;br/&gt;(SQL, Dapper)"] --&gt; App
+    App --&gt; Dom["Domain&lt;br/&gt;(entidades + constantes)"]
+    Infra --&gt; Dom
+    style Dom fill:#2d6,stroke:#093,color:#000</pre></div>
+<blockquote class="callout note">Las flechas son "depende de". Todas terminan en Domain; de Domain no sale ninguna flecha. Eso es la <strong>regla de dependencia hacia adentro</strong>.</blockquote>
+<p>Domain contiene solo dos cosas, ambas sin logica de infraestructura:</p>
+<div class="table-wrap"><table><thead><tr><th>Carpeta</th><th>Que hay</th><th>Archivos</th></tr></thead><tbody><tr><td><code>Entities/</code></td><td>Las clases que representan los datos del negocio</td><td><code>JustificacionEncabezado</code>, <code>JustificacionDetalle</code></td></tr><tr><td><code>Constants/</code></td><td>Valores fijos del negocio (estados, roles)</td><td><code>EstadoIds</code>, <code>RolesSistema</code></td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 Tip: cuando quieras entender "de que esta hecha" una boleta de justificacion sin perderte en SQL ni en JSON, este es el primer lugar para mirar.</blockquote>
+<h2 id="entidades-el-modelo-encabezado-detalle">Entidades: el modelo encabezado-detalle</h2>
+<p>Una boleta de justificacion es un caso clasico de <strong>encabezado-detalle</strong> (en ingles <em>master-detail</em>): un encabezado con los datos generales y varias lineas hijas con el detalle. Pensalo como una factura: un encabezado (cliente, fecha, total) y muchas lineas (cada producto). Aca el encabezado es la solicitud de justificacion y cada linea es una marca de asistencia concreta que se justifica.</p>
+<h3 id="justificacionencabezado">JustificacionEncabezado</h3>
+<p>Representa la solicitud completa: quien la hizo, por que, en que estado esta y quien la aprobo. Ver <a href="../backend/src/IntegradorMarcas.Domain/Entities/JustificacionEncabezado.cs">JustificacionEncabezado.cs:3-14</a>.</p>
+<pre class="code"><code class="language-cs">public sealed class JustificacionEncabezado
+{
+    public int JustificacionId { get; set; }
+    public int UsuarioId { get; set; }
+    public string MotivoGeneral { get; set; } = string.Empty;
+    public int EstadoId { get; set; }
+    public DateTime FechaCreacion { get; set; }
+    public int? AprobadorId { get; set; }
+    public DateTime? FechaAprobacion { get; set; }
+    public string UsrRegistro { get; set; } = string.Empty;
+    public DateTime FecRegistro { get; set; }
+}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Que significa</th></tr></thead><tbody><tr><td><code>JustificacionId</code></td><td>Identificador unico de la boleta (la PK). Es el nexo con las lineas de detalle.</td></tr><tr><td><code>UsuarioId</code></td><td>El funcionario que crea/solicita la justificacion.</td></tr><tr><td><code>MotivoGeneral</code></td><td>Texto libre con el motivo global de la solicitud.</td></tr><tr><td><code>EstadoId</code></td><td>En que punto del flujo esta: 1 pendiente, 2 aprobada, 3 rechazada (ver <a href="#constantes-de-negocio">EstadoIds</a>).</td></tr><tr><td><code>FechaCreacion</code></td><td>Cuando se creo la boleta.</td></tr><tr><td><code>AprobadorId</code></td><td>Quien la aprobo/rechazo. Es <code>int?</code> (nullable) porque <strong>mientras esta pendiente no hay aprobador todavia</strong>.</td></tr><tr><td><code>FechaAprobacion</code></td><td>Cuando se resolvio. Tambien nullable por la misma razon.</td></tr><tr><td><code>UsrRegistro</code> / <code>FecRegistro</code></td><td>Datos de auditoria de registro (usuario y fecha del alta tecnica).</td></tr></tbody></table></div>
+<blockquote class="callout warn">⚠️ Notar el uso de <code>int?</code> y <code>DateTime?</code> (tipos nullable) en <code>AprobadorId</code> y <code>FechaAprobacion</code>: el lenguaje mismo expresa la regla de negocio de que esos datos no existen hasta que una jefatura resuelve la boleta.</blockquote>
+<h3 id="justificaciondetalle">JustificacionDetalle</h3>
+<p>Cada linea representa <strong>una marca de asistencia puntual</strong> que se quiere justificar, con su tipo y su fecha. Ver <a href="../backend/src/IntegradorMarcas.Domain/Entities/JustificacionDetalle.cs">JustificacionDetalle.cs:3-12</a>.</p>
+<pre class="code"><code class="language-cs">public sealed class JustificacionDetalle
+{
+    public int DetalleId { get; set; }
+    public int JustificacionId { get; set; }
+    public int TipoJustificacionId { get; set; }
+    public DateTime FechaMarca { get; set; }
+    public string? ObservacionDetalle { get; set; }
+    public string UsrRegistro { get; set; } = string.Empty;
+    public DateTime FecRegistro { get; set; }
+}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Que significa</th></tr></thead><tbody><tr><td><code>DetalleId</code></td><td>PK de la linea.</td></tr><tr><td><code>JustificacionId</code></td><td>La FK que apunta al encabezado dueno de esta linea (el "pegamento" encabezado-detalle).</td></tr><tr><td><code>TipoJustificacionId</code></td><td>Categoria de la justificacion (catalogo: omision de marca, permiso, etc.).</td></tr><tr><td><code>FechaMarca</code></td><td>La fecha/hora de la marca de asistencia que se justifica.</td></tr><tr><td><code>ObservacionDetalle</code></td><td>Comentario opcional de esa linea (<code>string?</code>, puede ser null).</td></tr><tr><td><code>UsrRegistro</code> / <code>FecRegistro</code></td><td>Auditoria de registro de la linea.</td></tr></tbody></table></div>
+<h3 id="relacion-1-a-muchos">Relacion 1 a muchos</h3>
+<p>Un encabezado tiene una o mas lineas de detalle, unidas por <code>JustificacionId</code>:</p>
+<div class="mermaid-wrap"><pre class="mermaid">erDiagram
+    JustificacionEncabezado ||--|{ JustificacionDetalle : "tiene"
+    JustificacionEncabezado {
+        int JustificacionId PK
+        int UsuarioId
+        string MotivoGeneral
+        int EstadoId
+        int AprobadorId "nullable"
+    }
+    JustificacionDetalle {
+        int DetalleId PK
+        int JustificacionId FK
+        int TipoJustificacionId
+        datetime FechaMarca
+    }</pre></div>
+<blockquote class="callout why">📌 Este mismo modelo es el que se persiste en SQL Server. Como se mapea cada campo a tablas y columnas se documenta en <a href="modelo-datos.html">Modelo de datos</a>, y como viaja hacia/desde el cliente, en <a href="modulo-application.html">Capa Application</a> (DTOs) y la <a href="api.html">API</a>.</blockquote>
+<h2 id="constantes-de-negocio">Constantes de negocio</h2>
+<p>Domain tambien guarda los <strong>valores magicos del negocio</strong> como constantes con nombre, para que el resto del codigo no escriba <code>1</code>, <code>2</code>, <code>3</code> o <code>"ROL_FUNC"</code> sueltos (que serian indescifrables y faciles de teclear mal).</p>
+<h3 id="estadoids-el-ciclo-de-vida-de-una-boleta">EstadoIds: el ciclo de vida de una boleta</h3>
+<p>Define los tres estados posibles de una justificacion. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs:3-8</a>.</p>
+<pre class="code"><code class="language-cs">public static class EstadoIds
+{
+    public const int PendienteJefatura = 1;
+    public const int Aprobado = 2;
+    public const int Rechazado = 3;
+}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>Constante</th><th>Valor</th><th>Significado</th></tr></thead><tbody><tr><td><code>PendienteJefatura</code></td><td>1</td><td>Recien creada, esperando que la jefatura resuelva.</td></tr><tr><td><code>Aprobado</code></td><td>2</td><td>La jefatura la aprobo.</td></tr><tr><td><code>Rechazado</code></td><td>3</td><td>La jefatura la rechazo.</td></tr></tbody></table></div>
+<p>El flujo de transiciones es lineal y sin retorno:</p>
+<div class="mermaid-wrap"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; PendienteJefatura: funcionario crea la boleta
+    PendienteJefatura --&gt; Aprobado: jefatura aprueba
+    PendienteJefatura --&gt; Rechazado: jefatura rechaza
+    Aprobado --&gt; [*]
+    Rechazado --&gt; [*]</pre></div>
+<p>Estas constantes no decoran: las aplican las capas de afuera para imponer la regla. Por ejemplo, al crear una boleta queda en <code>PendienteJefatura</code> (ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:56</a>), y al resolver, el servicio valida que el estado actual sea exactamente <code>PendienteJefatura</code> antes de pasar a <code>Aprobado</code> o <code>Rechazado</code> (ver <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:200-206</a>). El detalle del flujo completo esta en <a href="flujos.html">Flujos</a>.</p>
+<h3 id="rolessistema-roles-y-helpers-de-comparacion">RolesSistema: roles y helpers de comparacion</h3>
+<p>Define los cuatro roles del sistema con sus <strong>valores EXACTOS</strong> y, ademas, helpers <code>Es*</code> que comparan de forma tolerante. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs:3-33</a>.</p>
+<pre class="code"><code class="language-cs">public static class RolesSistema
+{
+    public const string RolFunc  = "ROL_FUNC";
+    public const string RolJefe  = "ROL_JEFE";
+    public const string RolRrhh  = "ROL_RRHH";
+    public const string RolAdmin = "ROL_ADMIN";
+
+    public static bool EsFuncionario(string? rol)
+    {
+        var normalized = (rol ?? string.Empty).Trim().ToUpperInvariant();
+        return normalized is RolFunc or "FUNCIONARIO" or "1";
+    }
+    // EsJefatura, EsRrhh, EsAdmin: misma forma
+}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>Constante</th><th>Valor exacto</th><th>Helper</th><th>Sinonimos que tambien acepta</th></tr></thead><tbody><tr><td><code>RolFunc</code></td><td><code>ROL_FUNC</code></td><td><code>EsFuncionario</code></td><td><code>FUNCIONARIO</code>, <code>1</code></td></tr><tr><td><code>RolJefe</code></td><td><code>ROL_JEFE</code></td><td><code>EsJefatura</code></td><td><code>JEFATURA</code>, <code>2</code></td></tr><tr><td><code>RolRrhh</code></td><td><code>ROL_RRHH</code></td><td><code>EsRrhh</code></td><td><code>RRHH</code>, <code>3</code></td></tr><tr><td><code>RolAdmin</code></td><td><code>ROL_ADMIN</code></td><td><code>EsAdmin</code></td><td><code>ADMIN</code>, <code>4</code></td></tr></tbody></table></div>
+<p>Los helpers <strong>normalizan</strong> la entrada antes de comparar: <code>Trim()</code> quita espacios y <code>ToUpperInvariant()</code> la pasa a mayusculas (ver lineas 12-13 de <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a>). Asi <code>" rol_func "</code>, <code>ROL_FUNC</code> o <code>1</code> se reconocen todos como funcionario. Tambien aceptan <code>null</code> sin reventar (<code>rol ?? string.Empty</code>).</p>
+<blockquote class="callout why">📌 Estos helpers son la base de la <strong>autorizacion</strong> del sistema. Como no hay JWT ni <code>[Authorize]</code>, cada servicio de <a href="modulo-application.html">Application</a> usa <code>RolesSistema.Es*(...)</code> como guard clause (una verificacion al inicio del metodo que corta la ejecucion si el rol no aplica). Mas en <a href="seguridad.html">Seguridad</a>.</blockquote>
+<h2 id="por-que-el-dominio-no-depende-de-nada">Por que el dominio no depende de nada</h2>
+<p>Que esta capa no referencie a ninguna otra (confirmado en el <a href="../backend/src/IntegradorMarcas.Domain/IntegradorMarcas.Domain.csproj">.csproj</a> sin <code>ProjectReference</code> ni <code>PackageReference</code>) tiene ventajas concretas:</p>
+<ul>
+<li><strong>Testeable sin infraestructura</strong>: para probar <code>RolesSistema.EsJefatura(...)</code> o las transiciones de estado no hace falta levantar una base de datos ni un servidor HTTP. Es logica pura.</li>
+<li><strong>Estable</strong>: es el codigo que menos cambia. Las reglas del negocio ("una boleta nace pendiente") son mas duraderas que la tecnologia (SQL Server, Dapper, ASP.NET).</li>
+<li><strong>Reusable</strong>: cualquier capa de afuera puede usar estas entidades y constantes sin arrastrar dependencias.</li>
+<li><strong>Direccion de dependencia clara</strong>: nadie "adentro" conoce a los de "afuera", lo que evita ciclos y acoplamientos accidentales.</li>
+</ul>
+<h2 id="nota-class1-cs-sobrante">Nota: Class1.cs sobrante</h2>
+<p>En la raiz del proyecto Domain queda un <a href="../backend/src/IntegradorMarcas.Domain/Class1.cs">Class1.cs</a> vacio (<code>public class Class1 {}</code>), residuo del scaffolding inicial de <code>dotnet new classlib</code>. No se usa en ninguna parte y se puede borrar; se documenta aca solo para que no confunda al explorar la carpeta.</p>
+<blockquote class="callout warn">⚠️ El mismo leftover de scaffolding existe en Application e Infrastructure (<code>Class1.cs</code>) y en los tests (<code>UnitTest1.cs</code>). Son inofensivos pero conviene limpiarlos.</blockquote>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Entities/JustificacionEncabezado.cs">JustificacionEncabezado.cs</a> — entidad encabezado de la boleta.</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Entities/JustificacionDetalle.cs">JustificacionDetalle.cs</a> — entidad linea de detalle.</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a> — constantes de estado (1/2/3).</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> — roles y helpers <code>Es*</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/IntegradorMarcas.Domain.csproj">IntegradorMarcas.Domain.csproj</a> — sin referencias externas (prueba de la regla de dependencia).</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Class1.cs">Class1.cs</a> — scaffolding sobrante.</li>
+<li>Uso de las constantes fuera de Domain: <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:200-220</a> · <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:56</a>.</li>
+</ul>
+<p>Paginas relacionadas: <a href="arquitectura.html">Arquitectura</a> · <a href="modulo-application.html">Capa Application</a> · <a href="modelo-datos.html">Modelo de datos</a> · <a href="flujos.html">Flujos</a> · <a href="seguridad.html">Seguridad</a> · <a href="glosario.html">Glosario</a>.</p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#que-es-la-capa-domain">Que es la capa Domain</a></li><li><a href="#entidades-el-modelo-encabezado-detalle">Entidades: el modelo encabezado-detalle</a></li><li><a href="#constantes-de-negocio">Constantes de negocio</a></li><li><a href="#por-que-el-dominio-no-depende-de-nada">Por que el dominio no depende de nada</a></li><li><a href="#nota-class1-cs-sobrante">Nota: Class1.cs sobrante</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

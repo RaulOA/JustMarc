@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flujos principales · DeepWiki local SIFCNP</title>
+<meta name="description" content="Crear y resolver boleta, alcance de aprobacion y auditoria.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html" class="active" aria-current="page">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Flujos internos</span><span class="sep">/</span><span class="current">Flujos principales</span></nav>
+<div class="page-head-row">
+<h1>Flujos principales</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Crear y resolver boleta, alcance de aprobacion y auditoria.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>Esta pagina sigue, de punta a punta, los dos flujos de negocio centrales del sistema: <strong>crear una boleta</strong> de justificacion de marca (lo hace el funcionario o la jefatura) y <strong>resolverla</strong> (aprobarla o rechazarla, lo hace la jefatura). Vas a ver como una peticion HTTP del navegador atraviesa las cuatro capas — Controller, Service, Repository y SQL Server — hasta cambiar el estado de la boleta, y como una funcion de base de datos (<code>dbo.fn_AprobadoresVigentesPorSolicitante</code>) decide quien tiene permiso de aprobar. Es la pagina donde "se juntan" todas las demas: <a href="arquitectura.html">arquitectura</a>, <a href="api.html">API</a>, <a href="modulo-application.html">Application</a>, <a href="modulo-infraestructura.html">Infraestructura</a> y <a href="modelo-datos.html">modelo de datos</a>.</p>
+<blockquote class="callout why">📌 En la practica: si querés entender "que pasa cuando le doy clic a Guardar boleta" o "por que esta jefatura no ve esta boleta", esta es la pagina. Cada paso esta anclado a la linea de codigo real que lo hace.</blockquote>
+<h2 id="el-recorrido-de-una-peticion-las-4-capas">El recorrido de una peticion (las 4 capas)</h2>
+<p>El sistema usa <strong>Clean Architecture</strong>: una forma de organizar el codigo en capas donde las de adentro (reglas de negocio) no conocen a las de afuera (web, base de datos). Eso permite probar la logica sin levantar un servidor ni una BD. Para el detalle ver <a href="arquitectura.html">arquitectura</a>.</p>
+<p>En ambos flujos la peticion viaja por la misma cadena. Cada capa tiene una sola responsabilidad:</p>
+<div class="table-wrap"><table><thead><tr><th>Capa</th><th>Archivo</th><th>Responsabilidad en estos flujos</th></tr></thead><tbody><tr><td><strong>Controller</strong> (Api)</td><td><a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs</a> · <a href="../backend/src/IntegradorMarcas.Api/Controllers/JefaturaController.cs">JefaturaController.cs</a></td><td>Recibe el HTTP, lee la identidad por headers (<code>GetCurrent()</code>), traduce el Request (wire) a un DTO y devuelve el Response. No hay logica de negocio.</td></tr><tr><td><strong>Service</strong> (Application)</td><td><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs</a></td><td>Aplica las reglas: quien puede (rol), que es valido, que transiciones de estado se permiten. Orquesta repositorio + auditoria.</td></tr><tr><td><strong>Repository</strong> (Infrastructure)</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs</a></td><td>Abre la conexion y ejecuta el SQL con <strong>Dapper</strong> (libreria que mapea filas SQL a objetos C# sin un ORM pesado). Mapea filas a DTOs.</td></tr><tr><td><strong>SQL</strong></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a></td><td>Todo el SQL vive aqui como <code>const string</code>. Inserta, consulta y actualiza tablas <code>Operacion.*</code>.</td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 Tip: un <strong>DTO</strong> (Data Transfer Object) es un objeto plano que solo transporta datos entre capas; no tiene logica. Asi la forma del JSON de la API (<code>Contracts</code>) queda desacoplada de como se mueven los datos por dentro (<code>DTOs</code>).</blockquote>
+<h2 id="estados-de-una-boleta">Estados de una boleta</h2>
+<p>Toda boleta vive en uno de tres estados, definidos como constantes en <a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a>. El backend nunca usa numeros "magicos": siempre referencia estas constantes.</p>
+<div class="table-wrap"><table><thead><tr><th>Estado</th><th>Valor</th><th>Constante C#</th><th>Quien lo asigna</th></tr></thead><tbody><tr><td>Pendiente Jefatura</td><td><code>1</code></td><td><code>EstadoIds.PendienteJefatura</code></td><td>Al crear la boleta (<code>CreateAsync</code>)</td></tr><tr><td>Aprobado</td><td><code>2</code></td><td><code>EstadoIds.Aprobado</code></td><td>Jefatura, al resolver con accion <code>APROBAR</code></td></tr><tr><td>Rechazado</td><td><code>3</code></td><td><code>EstadoIds.Rechazado</code></td><td>Jefatura, al resolver con accion <code>RECHAZAR</code></td></tr></tbody></table></div>
+<p>El ciclo de vida es estricto y de un solo paso: una boleta nace en <code>1</code> y solo puede pasar a <code>2</code> <strong>o</strong> <code>3</code>. No hay vuelta atras ni re-edicion; eso lo garantiza la regla <strong>RN-04</strong> (ver mas abajo).</p>
+<div class="mermaid-wrap"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Pendiente: crear boleta (POST)
+    Pendiente --&gt; Aprobado: resolver APROBAR
+    Pendiente --&gt; Rechazado: resolver RECHAZAR
+    Aprobado --&gt; [*]
+    Rechazado --&gt; [*]
+    note right of Pendiente
+        Estado 1
+        unico estado resoluble
+    end note</pre></div>
+<h2 id="diagrama-de-secuencia-crear-y-resolver">Diagrama de secuencia (crear y resolver)</h2>
+<p>Este diagrama muestra los dos flujos completos cruzando las cuatro capas mas el registro de auditoria. Es el mismo que se usa en el manual tecnico (<a href="../docs/manual-tecnico/capturas/03-secuencia-crear-resolver.mmd">03-secuencia-crear-resolver.mmd</a>).</p>
+<div class="mermaid-wrap"><pre class="mermaid">sequenceDiagram
+    actor Func as "Funcionario / Jefatura (navegador)"
+    participant Ctrl as "API Controller&lt;br/&gt;Justificaciones / Jefatura"
+    participant Svc as "JustificacionService&lt;br/&gt;(Application)"
+    participant Repo as "JustificacionRepository&lt;br/&gt;(Infrastructure)"
+    participant Audit as "IAuditEventRepository"
+    participant DB as "SQL Server&lt;br/&gt;INTEGRA_CNP (Dapper)"
+
+    rect rgb(235, 245, 255)
+    Note over Func,DB: CREAR boleta — POST /api/justificaciones (estado 1 Pendiente)
+    Func-&gt;&gt;Ctrl: POST /api/justificaciones&lt;br/&gt;headers X-User-Id / X-User-Role
+    Ctrl-&gt;&gt;Ctrl: GetCurrent() -&gt; UserContextInfo
+    Ctrl-&gt;&gt;Svc: CreateAsync(user, dto)
+    Svc-&gt;&gt;Svc: guard EsFuncionario || EsJefatura (si no, 403)
+    Svc-&gt;&gt;Repo: GetExistingTipoJustificacionIdsAsync(tipos)
+    Repo-&gt;&gt;DB: SELECT tipos validos
+    DB--&gt;&gt;Repo: ids existentes
+    Svc-&gt;&gt;Repo: CreateAsync(userId, request)
+    Repo-&gt;&gt;DB: BEGIN TRAN + InsertEncabezado (Estado=1)
+    Repo-&gt;&gt;DB: InsertDetalle (x N lineas) + COMMIT
+    DB--&gt;&gt;Repo: JustificacionId (SCOPE_IDENTITY)
+    Repo--&gt;&gt;Svc: justificacionId
+    Svc-&gt;&gt;Audit: LogEventAsync(TipoEvento=1, Creacion)
+    Audit-&gt;&gt;DB: INSERT Auditoria.EventoAuditoria
+    Svc--&gt;&gt;Ctrl: justificacionId
+    Ctrl--&gt;&gt;Func: 201 Created&lt;br/&gt;{ JustificacionID, EstadoID=1, Pendiente Jefatura }
+    end
+
+    rect rgb(235, 255, 240)
+    Note over Func,DB: RESOLVER boleta — PATCH /api/jefatura/justificaciones/{id}/resolver
+    Func-&gt;&gt;Ctrl: PATCH .../{id}/resolver&lt;br/&gt;{ Accion: APROBAR | RECHAZAR, Comentario }
+    Ctrl-&gt;&gt;Svc: ResolverAsync(user, id, dto)
+    Svc-&gt;&gt;Svc: guard EsJefatura (si no, 403) + ValidarAccion
+    Svc-&gt;&gt;Repo: GetResolverValidationAsync(id, userId)
+    Repo-&gt;&gt;DB: SELECT existe / alcance / EstadoId
+    DB--&gt;&gt;Repo: validacion
+    Svc-&gt;&gt;Svc: si !existe 404 · !alcance 403 · Estado&lt;&gt;1 -&gt; 409
+    Svc-&gt;&gt;Repo: ResolverAsync(id, userId, estado=2|3, comentario)
+    Repo-&gt;&gt;DB: UPDATE Operacion.Justificacion&lt;br/&gt;Estado=2|3 WHERE Estado=1 AND fn_AprobadoresVigentes...
+    DB--&gt;&gt;Repo: filas afectadas
+    Svc-&gt;&gt;Svc: si afectadas=0 -&gt; 409 (cambio de estado)
+    Svc-&gt;&gt;Audit: LogEventAsync(TipoEvento=2 Aprobada | 3 Rechazada)
+    Audit-&gt;&gt;DB: INSERT Auditoria.EventoAuditoria
+    Svc--&gt;&gt;Ctrl: (void)
+    Ctrl--&gt;&gt;Func: 204 No Content
+    end</pre></div>
+<h2 id="flujo-1-crear-una-boleta">Flujo 1 — Crear una boleta</h2>
+<p>Endpoint: <code>POST /api/justificaciones</code>. La crea un funcionario para si mismo (o una jefatura). Una boleta es un <strong>encabezado</strong> (<code>Operacion.Justificacion</code>: motivo general, estado, autor) mas una o varias <strong>lineas de detalle</strong> (<code>Operacion.JustificacionDetalle</code>: tipo de justificacion + fecha de marca + observacion).</p>
+<h3 id="paso-a-paso">Paso a paso</h3>
+<ol>
+<li><strong>Controller recibe y traduce</strong> — <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:23-51</a>. <code>Create</code> lee la identidad con <code>_userContext.GetCurrent()</code> (deriva de los headers <code>X-User-Id</code> / <code>X-User-Role</code>; ver <a href="seguridad.html">seguridad</a>), convierte el <code>CreateJustificacionRequest</code> (campos con sufijo <code>ID</code>, forma del JSON) en un <code>CreateJustificacionDto</code> (campos con sufijo <code>Id</code>) y llama al servicio. Notá el cruce de naming <code>ID</code> -&gt; <code>Id</code> que se hace a mano.</li>
+</ol>
+<ol>
+<li><strong>Service: guard de rol (autorizacion)</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:20-25</a>. Lo primero es un <strong>guard clause</strong> (una validacion al inicio del metodo que aborta si no se cumple). No hay atributos <code>[Authorize]</code>: la autorizacion vive dentro del servicio.</li>
+</ol>
+<p>   ``<code>cs    if (!RolesSistema.EsFuncionario(user.Role) &amp;&amp; !RolesSistema.EsJefatura(user.Role))    {        throw new AppException("Solo funcionario o jefatura pueden crear boletas.", 403);    }    </code>``</p>
+<ol>
+<li><strong>Service: validacion de forma (RN-01)</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:27</a> invoca <code>JustificacionValidator.ValidateCreate</code>. Alli (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs:14-43</a>) se exige: <code>MotivoGeneral</code> presente y &lt;= 500 caracteres; al menos una linea de detalle (<strong>RN-01</strong>); cada <code>TipoJustificacionId &gt; 0</code>; <code>FechaMarca</code> presente; <code>ObservacionDetalle</code> &lt;= 250 caracteres. Cualquier fallo lanza <code>AppException(400)</code>.</li>
+</ol>
+<ol>
+<li><strong>Service: validacion de catalogo</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:29-38</a>. Toma los <code>TipoJustificacionId</code> distintos y consulta cuales existen realmente en <code>Configuracion.TipoJustificacion</code> via <code>GetExistingTipoJustificacionIdsAsync</code>. Si el conteo no coincide, <strong>400</strong>: "Uno o mas TipoJustificacionID no existen en catalogo." Asi se evita insertar un detalle con un tipo invalido.</li>
+</ol>
+<ol>
+<li><strong>Repository: insercion transaccional</strong> — <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:42-86</a>. Aqui esta el corazon. Como hay que insertar encabezado <strong>y</strong> N detalles de forma atomica (todo o nada), se abre una <strong>transaccion</strong> explicita:</li>
+</ol>
+<p>   ``<code>cs    await connection.OpenAsync(cancellationToken);    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);    try    {        var justificacionId = await connection.ExecuteScalarAsync&lt;int&gt;(/* InsertEncabezado */);        foreach (var detalle in request.Detalles) { /* InsertDetalle */ }        await transaction.CommitAsync(cancellationToken);        return justificacionId;    }    catch { await transaction.RollbackAsync(cancellationToken); throw; }    </code>``</p>
+<p>   El <code>InsertEncabezado</code> (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:5-20</a>) inserta en <code>Operacion.Justificacion</code> con <code>EstadoJustificacionId = 1</code> y devuelve el id nuevo con <code>SELECT CAST(SCOPE_IDENTITY() AS INT)</code>. Luego un <code>InsertDetalle</code> por cada linea (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:22-38</a>). La <code>FechaMarca</code> se guarda truncada a fecha (<code>detalle.FechaMarca.Date</code>).</p>
+<p>   &gt; ⚠️ Si una sola linea de detalle falla, el <code>catch</code> hace <code>RollbackAsync</code> y <strong>nada</strong> queda persistido: no quedan encabezados huerfanos.</p>
+<ol>
+<li><strong>Service: registro de auditoria</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:42-52</a>. Tras crear, registra un evento (<code>TipoEventoAuditoriaId = 1</code>, "Creacion de boleta de justificacion.") en <code>Auditoria.EventoAuditoria</code> via <code>IAuditEventRepository.LogEventAsync</code>. El <code>PayloadResumen</code> guarda cuantos detalles y el estado destino.</li>
+</ol>
+<ol>
+<li><strong>Controller responde 201</strong> — <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:42-50</a>. Devuelve <code>201 Created</code> con <code>CreatedAtAction</code> apuntando a <code>ListMine</code>, y un cuerpo <code>{ JustificacionID, EstadoID = 1, EstadoDescripcion = "Pendiente Jefatura" }</code>.</li>
+</ol>
+<h3 id="resumen-de-respuestas-crear">Resumen de respuestas (crear)</h3>
+<div class="table-wrap"><table><thead><tr><th>Situacion</th><th>HTTP</th><th>Origen</th></tr></thead><tbody><tr><td>Creada OK</td><td><code>201</code></td><td>Controller (<code>CreatedAtAction</code>)</td></tr><tr><td>Sin headers / identidad invalida</td><td><code>401</code></td><td><code>GetCurrent()</code> (ver <a href="seguridad.html">seguridad</a>)</td></tr><tr><td>Rol distinto de FUNC/JEFE</td><td><code>403</code></td><td>guard en <code>CreateAsync</code></td></tr><tr><td>Falla validacion de forma (RN-01, longitudes)</td><td><code>400</code></td><td><code>JustificacionValidator.ValidateCreate</code></td></tr><tr><td>Tipo de justificacion inexistente</td><td><code>400</code></td><td>validacion de catalogo en <code>CreateAsync</code></td></tr></tbody></table></div>
+<h2 id="flujo-2-resolver-una-boleta">Flujo 2 — Resolver una boleta</h2>
+<p>Endpoint: <code>PATCH /api/jefatura/justificaciones/{id}/resolver</code>. Solo la jefatura <strong>con alcance de aprobacion vigente</strong> sobre esa boleta puede aprobarla o rechazarla. El cuerpo lleva <code>{ Accion, Comentario }</code> donde <code>Accion</code> es <code>APROBAR</code> o <code>RECHAZAR</code>.</p>
+<h3 id="paso-a-paso">Paso a paso</h3>
+<ol>
+<li><strong>Controller recibe</strong> — <a href="../backend/src/IntegradorMarcas.Api/Controllers/JefaturaController.cs">JefaturaController.cs:119-133</a>. <code>Resolver</code> lee la identidad, arma un <code>ResolverJustificacionDto { Accion, Comentario }</code> y delega en <code>ResolverAsync</code>. Si todo va bien responde <code>204 No Content</code> (operacion exitosa sin cuerpo).</li>
+</ol>
+<ol>
+<li><strong>Service: guard de jefatura (RN-03)</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:180-185</a>. Solo <code>EsJefatura</code>; si no, <code>AppException("RN-03: solo jefatura puede resolver boletas.", 403)</code>.</li>
+</ol>
+<ol>
+<li><strong>Service: validar la accion</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:187</a> llama <code>JustificacionValidator.ValidateAccion</code> (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs:45-54</a>), que normaliza con <code>Trim().ToUpperInvariant()</code> y exige exactamente <code>APROBAR</code> o <code>RECHAZAR</code>, o lanza <strong>400</strong>.</li>
+</ol>
+<ol>
+<li><strong>Service: validacion previa (existe / alcance / estado)</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:188-203</a>. Antes de tocar nada, una sola consulta (<code>GetResolverValidationAsync</code>) trae tres datos. El servicio decide en cascada:</li>
+</ol>
+<div class="table-wrap"><table><thead><tr><th>Condicion</th><th>HTTP</th><th>Mensaje</th></tr></thead><tbody><tr><td><code>!validation.Exists</code></td><td><code>404</code></td><td>"No existe la boleta indicada."</td></tr><tr><td><code>!validation.IsInApprovalScope</code></td><td><code>403</code></td><td>"La boleta no pertenece al alcance de aprobacion vigente..."</td></tr><tr><td><code>validation.EstadoId != PendienteJefatura</code></td><td><code>409</code></td><td>"RN-04: la boleta ya fue resuelta y no puede modificarse."</td></tr></tbody></table></div>
+<p>   El SQL que produce esa validacion es <code>GetResolverValidation</code> (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:288-305</a>): un <code>LEFT JOIN</code> a la boleta mas un <code>OUTER APPLY</code> sobre <code>dbo.fn_AprobadoresVigentesPorSolicitante</code> para saber si el usuario autenticado esta en el alcance, priorizando <code>Origen='Delegacion'</code>.</p>
+<ol>
+<li><strong>Service: calcular estado destino y normalizar comentario</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:205-206</a>. <code>APROBAR</code> -&gt; <code>EstadoIds.Aprobado</code> (2); cualquier otro caso valido (<code>RECHAZAR</code>) -&gt; <code>EstadoIds.Rechazado</code> (3). El comentario se normaliza (trim, vacio -&gt; <code>null</code>, &lt;= 500 caracteres) con <code>NormalizeComentarioResolucion</code> (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs:56-75</a>).</li>
+</ol>
+<ol>
+<li><strong>Repository: UPDATE condicional</strong> — <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:318-334</a> ejecuta <code>ResolverPendiente</code> (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:359-376</a>). El <code>UPDATE</code> graba estado, <code>AprobadorId</code>, <code>FechaAprobacion</code>, comentario y <code>RolResolucion</code>, pero <strong>solo si</strong> la boleta sigue en pendiente, el solicitante no es el propio aprobador y el aprobador sigue en alcance:</li>
+</ol>
+<p>   ``<code>sql    UPDATE je    SET je.EstadoJustificacionId = @EstadoID, je.AprobadorId = @AprobadorUsuarioID,        je.FechaAprobacion = GETDATE(), je.ComentarioResolucion = @Comentario, je.RolResolucion = @RolResolucion    FROM Operacion.Justificacion je    WHERE je.JustificacionId = @JustificacionID      AND je.EstadoJustificacionId = @EstadoPendiente      AND je.UsuarioID &lt;&gt; @AprobadorUsuarioID      AND EXISTS (SELECT 1 FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa                  WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID);    </code>``</p>
+<p>   &gt; 📌 Esto es <strong>control de concurrencia optimista</strong>: la condicion <code>EstadoJustificacionId = @EstadoPendiente</code> esta dentro del propio <code>UPDATE</code>. Si entre la validacion del paso 4 y este <code>UPDATE</code> otra jefatura ya resolvio la boleta, el <code>UPDATE</code> afecta <strong>0 filas</strong>.</p>
+<ol>
+<li><strong>Service: detectar carrera</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:209-212</a>. Si <code>affected == 0</code>, lanza <strong>409</strong> "No fue posible resolver la boleta porque ya cambió de estado." Es la red de seguridad por si dos jefaturas resuelven a la vez.</li>
+</ol>
+<ol>
+<li><strong>Service: auditoria</strong> — <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:214-226</a>. Registra <code>TipoEventoAuditoriaId = 2</code> (aprobada) o <code>3</code> (rechazada), con <code>PayloadResumen</code> que incluye el <code>ScopeSource</code> (jerarquia o delegacion) y el delegante si aplica.</li>
+</ol>
+<h3 id="resumen-de-respuestas-resolver">Resumen de respuestas (resolver)</h3>
+<div class="table-wrap"><table><thead><tr><th>Situacion</th><th>HTTP</th><th>Origen</th></tr></thead><tbody><tr><td>Resuelta OK</td><td><code>204</code></td><td>Controller (<code>NoContent</code>)</td></tr><tr><td>Sin headers / identidad invalida</td><td><code>401</code></td><td><code>GetCurrent()</code></td></tr><tr><td>Rol no jefatura (RN-03)</td><td><code>403</code></td><td>guard en <code>ResolverAsync</code></td></tr><tr><td>Accion no es APROBAR/RECHAZAR</td><td><code>400</code></td><td><code>ValidateAccion</code></td></tr><tr><td>Boleta inexistente</td><td><code>404</code></td><td>validacion previa</td></tr><tr><td>Fuera del alcance de aprobacion</td><td><code>403</code></td><td>validacion previa</td></tr><tr><td>Ya resuelta (RN-04)</td><td><code>409</code></td><td>validacion previa o <code>affected == 0</code></td></tr></tbody></table></div>
+<h2 id="flujo-3-alcance-de-aprobacion-quien-puede-aprobar">Flujo 3 — Alcance de aprobacion (quien puede aprobar)</h2>
+<p>La pregunta clave del negocio es: dada una boleta de un solicitante, <strong>¿quien es su aprobador valido hoy?</strong> La respuesta no se calcula en C#: vive en la funcion de tabla <code>dbo.fn_AprobadoresVigentesPorSolicitante(@SolicitanteUsuarioId, @FechaRef)</code> (<a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:517-568</a>). Todas las consultas de jefatura (listar pendientes, ver detalle, validar resolucion) la invocan; por eso es el "guardian" del flujo 2.</p>
+<blockquote class="callout why">📌 Por que en la BD y no en C#: el alcance depende de jerarquia organizacional y delegaciones que ya viven en tablas SQL, con vigencias por fecha. Resolverlo con un <code>EXISTS</code> contra la funcion evita traer esos datos a memoria y mantiene la regla en un solo lugar. La funcion esta en el esquema <code>dbo</code> (no <code>Operacion</code>) <strong>a proposito</strong>, porque el backend la invoca asi.</blockquote>
+<h3 id="como-decide-la-funcion">Como decide la funcion</h3>
+<p>La funcion combina dos origenes de aprobacion y los devuelve unidos (<code>UNION ALL</code>), cada fila con su <code>Origen</code>:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart TD
+    S["Solicitante (UsuarioId)"] --&gt; U["su UnidadId"]
+    U --&gt; EO["EstructuraOrganizacional&lt;br/&gt;vigente (EstadoRegistroId=1,&lt;br/&gt;VigenciaDesde/Hasta)"]
+    EO --&gt; JA["JerarquiaAprobacion vigente&lt;br/&gt;para esa estructura"]
+    JA --&gt; AP1["Aprobador por JERARQUIA&lt;br/&gt;Origen='Jerarquia'"]
+    JA --&gt; DA["DelegacionAprobacion vigente&lt;br/&gt;donde el delegante ES&lt;br/&gt;un aprobador por jerarquia"]
+    DA --&gt; AP2["Aprobador por DELEGACION&lt;br/&gt;Origen='Delegacion'&lt;br/&gt;(+ DeleganteUsuarioId)"]</pre></div>
+<ol>
+<li><strong>Jerarquia</strong> (<a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:526-545</a>): del solicitante toma su <code>UnidadId</code>, resuelve la(s) <code>RecursosHumanos.EstructuraOrganizacional</code> vigente(s) (estado activo y dentro de <code>VigenciaDesde</code>/<code>VigenciaHasta</code>), y de ahi las <code>Operacion.JerarquiaAprobacion</code> vigentes. Esos aprobadores salen con <code>Origen = 'Jerarquia'</code> y <code>DeleganteUsuarioId = NULL</code>.</li>
+</ol>
+<ol>
+<li><strong>Delegacion</strong> (<a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:547-566</a>): toma las <code>Operacion.DelegacionAprobacion</code> vigentes <strong>cuyo delegante es a su vez un aprobador por jerarquia</strong>. El delegado sale con <code>Origen = 'Delegacion'</code> y se conserva quien delego (<code>DeleganteUsuarioId</code>). Es decir, una delegacion solo es valida si quien delega realmente tenia la potestad.</li>
+</ol>
+<h3 id="prioridad-y-consumo-desde-el-backend">Prioridad y consumo desde el backend</h3>
+<p>Cuando el codigo necesita <strong>un solo</strong> aprobador o el origen del alcance, ordena dando prioridad a la delegacion: <code>ORDER BY CASE WHEN fa.Origen = 'Delegacion' THEN 0 ELSE 1 END</code>. Esto aparece en <code>GetResolverValidation</code> (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:297-305</a>) y en <code>GetCurrentApproverBySolicitante</code> (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:347-353</a>).</p>
+<p>La funcion se usa en cuatro puntos del flujo:</p>
+<div class="table-wrap"><table><thead><tr><th>Consulta SQL</th><th>Para que</th><th>Referencia</th></tr></thead><tbody><tr><td><code>ListPendientesJefatura</code></td><td>Una jefatura solo ve las boletas pendientes de solicitantes para los que esta en alcance</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:103-107</a></td></tr><tr><td><code>GetDetalleJefaturaEncabezado</code></td><td>Ver el detalle solo si esta en alcance</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:270-274</a></td></tr><tr><td><code>GetResolverValidation</code></td><td>Validar 403/404/409 antes de resolver</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:297-305</a></td></tr><tr><td><code>ResolverPendiente</code></td><td>Filtro final en el propio <code>UPDATE</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:372-375</a></td></tr></tbody></table></div>
+<blockquote class="callout warn">⚠️ En todas las consultas hay tambien la condicion <code>je.UsuarioID &lt;&gt; @AprobadorUsuarioID</code>: una jefatura <strong>no</strong> puede aprobarse a si misma, aunque por estructura figurara como su propio aprobador.</blockquote>
+<p>El endpoint <code>GET /api/justificaciones/aprobador-actual</code> (<a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:83-109</a>) expone esta logica al funcionario: le dice quien resolveria su boleta hoy, el <code>Origen</code> y, si es por delegacion, quien delego. Lo sirve <code>GetCurrentApproverAsync</code> (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:57-65</a>).</p>
+<h2 id="reglas-de-negocio-mencionadas">Reglas de negocio mencionadas</h2>
+<p>Las reglas referenciadas en codigo con su codigo <code>RN-xx</code>:</p>
+<div class="table-wrap"><table><thead><tr><th>Codigo</th><th>Regla</th><th>Donde se aplica</th></tr></thead><tbody><tr><td><strong>RN-01</strong></td><td>Una boleta debe incluir al menos una linea de detalle</td><td><a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs:21-24</a></td></tr><tr><td><strong>RN-03</strong></td><td>Solo jefatura puede resolver boletas</td><td><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:182-185</a></td></tr><tr><td><strong>RN-04</strong></td><td>Una boleta ya resuelta no puede modificarse</td><td><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:200-203</a> y filtro del <code>UPDATE</code></td></tr></tbody></table></div>
+<blockquote class="callout note">TODO: en el codigo solo aparecen explicitamente RN-01, RN-03 y RN-04. No se localiza una "RN-02" en estos archivos; revisar specs/PRP si existe en la documentacion de negocio.</blockquote>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs</a> — <code>Create</code> (POST), <code>GetCurrentApprover</code>, <code>ListMine</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/JefaturaController.cs">JefaturaController.cs</a> — <code>Resolver</code> (PATCH), <code>ListPendientes</code>, <code>GetDetalle</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs</a> — <code>CreateAsync</code>, <code>ResolverAsync</code>, <code>GetCurrentApproverAsync</code> (guards, validaciones, auditoria).</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs</a> — RN-01, <code>ValidateAccion</code>, normalizacion de comentario.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs</a> — insercion transaccional, <code>ResolverAsync</code>, mapeo de filas.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a> — todo el SQL: <code>InsertEncabezado</code>, <code>InsertDetalle</code>, <code>GetResolverValidation</code>, <code>ResolverPendiente</code>, <code>GetCurrentApproverBySolicitante</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a> — constantes de estado (1/2/3).</li>
+<li><a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:517-568</a> — definicion de <code>dbo.fn_AprobadoresVigentesPorSolicitante</code>.</li>
+<li><a href="../docs/manual-tecnico/capturas/03-secuencia-crear-resolver.mmd">03-secuencia-crear-resolver.mmd</a> — diagrama de secuencia fuente.</li>
+</ul>
+<p>Paginas relacionadas: <a href="api.html">API</a> · <a href="modulo-application.html">Application</a> · <a href="modulo-infraestructura.html">Infraestructura</a> · <a href="modelo-datos.html">modelo de datos</a> · <a href="seguridad.html">seguridad</a> · <a href="glosario.html">glosario</a>.</p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#el-recorrido-de-una-peticion-las-4-capas">El recorrido de una peticion (las 4 capas)</a></li><li><a href="#estados-de-una-boleta">Estados de una boleta</a></li><li><a href="#diagrama-de-secuencia-crear-y-resolver">Diagrama de secuencia (crear y resolver)</a></li><li><a href="#flujo-1-crear-una-boleta">Flujo 1 — Crear una boleta</a></li><li><a href="#flujo-2-resolver-una-boleta">Flujo 2 — Resolver una boleta</a></li><li><a href="#flujo-3-alcance-de-aprobacion-quien-puede-aprobar">Flujo 3 — Alcance de aprobacion (quien puede aprobar)</a></li><li><a href="#reglas-de-negocio-mencionadas">Reglas de negocio mencionadas</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

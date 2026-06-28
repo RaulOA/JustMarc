@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capa Application · DeepWiki local SIFCNP</title>
+<meta name="description" content="Servicios, DTOs, interfaces y validacion (logica de negocio).">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html" class="active" aria-current="page">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Modulos (por capa)</span><span class="sep">/</span><span class="current">Capa Application</span></nav>
+<div class="page-head-row">
+<h1>Capa Application</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Servicios, DTOs, interfaces y validacion (logica de negocio).</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>La capa <strong>Application</strong> es el cerebro del backend: ahi viven las <strong>reglas de negocio</strong> (quien puede hacer que, que datos son validos, en que estado se puede aprobar una boleta). Lo importante es lo que NO sabe: no sabe de HTTP (no conoce <code>HttpContext</code> ni status codes salvo el numero que mete en una excepcion), ni de SQL (nunca arma una consulta ni abre una conexion). Para hablar con el mundo exterior define <strong>puertos</strong> (interfaces) que otras capas implementan. Esto es el corazon de la <strong>Clean Architecture</strong> del proyecto (ver <a href="arquitectura.html">Arquitectura</a>): la dependencia apunta hacia adentro, asi que Application solo conoce a <a href="modulo-dominio.html">Domain</a> y a si misma.</p>
+<blockquote class="callout why">📌 En la practica: si manana cambias SQL Server por PostgreSQL, o la API REST por una consola, esta capa NO se toca. Las reglas viven aca, aisladas de la tecnologia.</blockquote>
+<h2 id="por-que-existe-una-capa-en-el-medio">Por que existe una capa "en el medio"</h2>
+<p>En un sistema tipico la tentacion es poner toda la logica en el controlador (el codigo que recibe el request HTTP). El problema: ahi se mezcla "que devuelve cada endpoint" con "quien puede aprobar una boleta y bajo que condiciones". Cuando crece, nadie sabe donde esta una regla.</p>
+<p>La capa Application separa esas dos cosas. El controlador en <a href="modulo-api.html">modulo-api</a> se vuelve delgado (traduce request -&gt; DTO, llama al servicio, traduce DTO -&gt; response). Toda la decision de negocio queda en un <strong>service</strong> de Application. Y como el service no toca la base de datos directamente, sino a traves de interfaces, se puede <strong>probar con tests</strong> sin necesitar SQL Server real.</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph TD
+    subgraph "Capa Api (afuera)"
+        C["Controllers"]
+        UC["HeaderUserContext&lt;br/&gt;(implementa IUserContext)"]
+    end
+    subgraph "Capa Application (en el medio)"
+        S["Services&lt;br/&gt;(reglas de negocio)"]
+        V["JustificacionValidator&lt;br/&gt;(validacion)"]
+        D["DTOs&lt;br/&gt;(transporte)"]
+        I["Interfaces / puertos"]
+        E["AppException"]
+    end
+    subgraph "Capa Infrastructure (afuera)"
+        R["Repositories&lt;br/&gt;(implementan los puertos)"]
+    end
+    subgraph "Capa Domain (adentro)"
+        K["Constantes y entidades"]
+    end
+    C --&gt;|"llama"| S
+    S --&gt;|"usa"| V
+    S --&gt;|"usa"| D
+    S --&gt;|"depende de"| I
+    S --&gt;|"lanza"| E
+    S --&gt;|"usa"| K
+    UC -.-&gt;|"implementa"| I
+    R -.-&gt;|"implementa"| I</pre></div>
+<h2 id="la-logica-vive-en-services">La logica vive en Services</h2>
+<p>Hay <strong>tres servicios</strong>, uno por area funcional. Cada uno es una clase <code>sealed</code> (no se puede heredar de ella, convencion del proyecto) que recibe sus dependencias por el constructor (eso es <strong>inyeccion de dependencias</strong>: en vez de crear sus colaboradores, se los pasan ya armados, lo que facilita reemplazarlos por dobles de prueba en los tests).</p>
+<div class="table-wrap"><table><thead><tr><th>Servicio</th><th>Interface (puerto)</th><th>Responsabilidad</th><th>Roles que atiende</th></tr></thead><tbody><tr><td><code>JustificacionService</code></td><td><code>IJustificacionService</code></td><td>Ciclo de vida de las boletas: crear, listar, ver detalle, resolver (aprobar/rechazar)</td><td>ROL_FUNC, ROL_JEFE, ROL_RRHH</td></tr><tr><td><code>AdminAprobacionesService</code></td><td><code>IAdminAprobacionesService</code></td><td>ABM de jerarquias de aprobacion y delegaciones</td><td>ROL_ADMIN</td></tr><tr><td><code>AdminOrganizacionService</code></td><td><code>IAdminOrganizacionService</code></td><td>ABM de dependencias organizacionales y asignacion/estado de usuarios</td><td>ROL_ADMIN</td></tr></tbody></table></div>
+<h3 id="justificacionservice-el-flujo-central-de-boletas">JustificacionService — el flujo central de boletas</h3>
+<p>Es el servicio mas usado. Su interface declara los metodos que el controlador puede invocar (<a href="../backend/src/IntegradorMarcas.Application/Interfaces/IJustificacionService.cs">IJustificacionService.cs:5-16</a>). En el constructor recibe dos puertos: el repositorio de datos y el de eventos de auditoria (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:11-18</a>).</p>
+<div class="table-wrap"><table><thead><tr><th>Metodo</th><th>Que hace</th><th>Quien puede</th></tr></thead><tbody><tr><td><code>CreateAsync</code></td><td>Crea una boleta nueva con sus lineas de detalle</td><td>funcionario o jefatura (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:22-25</a>)</td></tr><tr><td><code>GetCurrentApproverAsync</code></td><td>Devuelve quien es el aprobador vigente del solicitante</td><td>funcionario, jefatura o RRHH (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:57-65</a>)</td></tr><tr><td><code>ListMineAsync</code></td><td>Lista las boletas propias del usuario</td><td>funcionario, jefatura o RRHH (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:67-76</a>)</td></tr><tr><td><code>ListMineLineasAsync</code></td><td>Detalle (lineas) de una boleta propia</td><td>funcionario, jefatura o RRHH (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:89-103</a>)</td></tr><tr><td><code>ListPendientesJefaturaAsync</code></td><td>Cola de boletas pendientes de aprobar</td><td>solo jefatura (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:78-87</a>)</td></tr><tr><td><code>ListRrhhAsync</code></td><td>Vista global de todas las boletas</td><td>solo RRHH (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:105-117</a>)</td></tr><tr><td><code>ListHistoricoAsync</code></td><td>Historico con <strong>scoping</strong> segun rol (ver mas abajo)</td><td>funcionario, jefatura o RRHH (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:119-151</a>)</td></tr><tr><td><code>GetDetalleJefaturaAsync</code></td><td>Detalle de una boleta para aprobarla</td><td>solo jefatura, y solo si esta en su alcance (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:153-178</a>)</td></tr><tr><td><code>ResolverAsync</code></td><td>Aprueba o rechaza una boleta</td><td>solo jefatura (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:180-227</a>)</td></tr></tbody></table></div>
+<p><code>CreateAsync</code> es un buen ejemplo de todo lo que hace un service: chequea rol, valida el request, verifica contra el catalogo que los <code>TipoJustificacionId</code> existan, delega la insercion al repositorio y registra un evento de auditoria (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:20-55</a>). Notar que el service <strong>nunca</strong> escribe SQL: pide <code>_repository.CreateAsync(...)</code> y confia en que <a href="modulo-infraestructura.html">Infrastructure</a> lo implemente.</p>
+<h3 id="adminaprobacionesservice-jerarquias-y-delegaciones">AdminAprobacionesService — jerarquias y delegaciones</h3>
+<p>Gestiona quien aprueba a quien. Recibe <strong>tres</strong> puertos: el repositorio, el de eventos de auditoria y ademas el de auditoria detallada de acciones admin (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs:15-23</a>). Cada operacion de escritura sigue un patron consistente:</p>
+<ol>
+<li><code>EnsureAdmin(user)</code> — guard de rol.</li>
+<li>Validacion del request (<code>ValidateCreateJerarquia</code>, etc.).</li>
+<li><code>EnsureReferences...Async</code> — verifica que las FK referenciadas existan en BD (que el aprobador exista, que no haya auto-delegacion, etc.) (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs:285-319</a>).</li>
+<li>Operacion en el repositorio.</li>
+<li>Doble auditoria: un evento resumen (<code>LogSummaryEventAsync</code>) y un registro detallado con snapshots JSON antes/despues (<code>LogDetailedAuditAsync</code>, <a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">:326-354</a>).</li>
+</ol>
+<blockquote class="callout tip">💡 Para <code>Update</code> y <code>ChangeState</code>, el service primero lee el estado <strong>previo</strong> del registro (para el snapshot "antes"), aplica el cambio y vuelve a leer el "despues". Ese before/after se serializa a JSON y va a la pista de auditoria admin.</blockquote>
+<h3 id="adminorganizacionservice-dependencias-y-usuarios">AdminOrganizacionService — dependencias y usuarios</h3>
+<p>Maneja el organigrama y la asignacion de usuarios (rol, unidad, jefatura, estado activo). Mismo patron de tres puertos y misma secuencia guard -&gt; validar -&gt; verificar referencias -&gt; operar -&gt; auditar (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">AdminOrganizacionService.cs:15-23</a>). Aca aparecen reglas de integridad estructural mas finas:</p>
+<ul>
+<li>Una dependencia no puede ser su propia padre (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">:237-240</a>) y no se permite crear ciclos jerarquicos (<code>WouldCreateDependenciaCycleAsync</code>, <a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">:46-49</a>).</li>
+<li>Un usuario no puede ser su propia jefatura ni formar un ciclo directo de jefatura (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">:114-130</a>).</li>
+</ul>
+<h2 id="guard-clauses-la-autorizacion-vive-aqui">Guard clauses: la autorizacion vive aqui</h2>
+<p>Una <strong>guard clause</strong> es una verificacion al inicio de un metodo que corta la ejecucion temprano si no se cumple una condicion (el patron "valido primero, sigo despues"). En este proyecto, <strong>la autorizacion ES la guard clause</strong>: no hay atributos <code>[Authorize]</code> ni middleware de auth. Cada metodo de service empieza preguntando por el rol y lanza <code>AppException(403)</code> si no aplica.</p>
+<pre class="code"><code class="language-cs">public async Task&lt;IReadOnlyList&lt;JustificacionResumenDto&gt;&gt; ListPendientesJefaturaAsync(...)
+{
+    if (!RolesSistema.EsJefatura(user.Role))
+    {
+        throw new AppException("Solo jefatura puede ver pendientes.", 403);
+    }
+    // ... a partir de aqui ya se que el usuario es jefatura
+}</code></pre>
+<p>El guard usa los helpers de <code>RolesSistema</code> (<a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs:10-32</a>), que normalizan el string del rol con <code>Trim().ToUpperInvariant()</code> y aceptan sinonimos (<code>ROL_JEFE</code>, <code>JEFATURA</code> o <code>2</code> cuentan todos como jefatura). En los servicios admin el guard esta extraido a un metodo privado <code>EnsureAdmin</code> para no repetirlo (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs:356-362</a>, <a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">AdminOrganizacionService.cs:212-218</a>).</p>
+<blockquote class="callout warn">⚠️ Como toda la autorizacion vive dentro de los services, cualquier endpoint nuevo que <strong>no</strong> pase por un service de Application queda sin proteccion. Esto es relevante para <code>SessionController</code> y <code>AdminMonitoringController</code>, que corren SQL inline sin pasar por esta capa (ver <a href="seguridad.html">Seguridad</a>).</blockquote>
+<h3 id="mas-alla-del-rol-alcance-de-aprobacion">Mas alla del rol: alcance de aprobacion</h3>
+<p>Para resolver o ver el detalle de una boleta, no basta con ser jefatura: la boleta tiene que estar dentro del <strong>alcance de aprobacion vigente</strong> del usuario. <code>GetDetalleJefaturaAsync</code> y <code>ResolverAsync</code> consultan al repositorio una validacion de scope antes de actuar (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:160-169</a> y <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:188-203</a>). El repositorio resuelve esto contra la TVF <code>dbo.fn_AprobadoresVigentesPorSolicitante</code> (ver <a href="modelo-datos.html">Modelo de datos</a>) y devuelve un DTO con banderas:</p>
+<pre class="code"><code class="language-cs">public sealed class AprobacionScopeValidationDto
+{
+    public bool Exists { get; set; }            // la boleta existe?
+    public int EstadoId { get; set; }           // en que estado esta
+    public bool IsInApprovalScope { get; set; } // este jefe puede aprobarla?
+    public string? ScopeSource { get; set; }    // jerarquia o delegacion?
+    public int? DeleganteUsuarioId { get; set; }
+}</code></pre>
+<p><code>ResolverAsync</code> ademas chequea que la boleta siga en <code>PendienteJefatura</code> antes de cambiarla; si ya fue resuelta lanza un <code>409</code> (regla de negocio RN-04) (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:200-203</a>). Estas constantes de estado (<code>PendienteJefatura=1</code>, <code>Aprobado=2</code>, <code>Rechazado=3</code>) viven en <a href="modulo-dominio.html">Domain</a> (<a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs:5-7</a>).</p>
+<h2 id="scoping-de-listhistorico-por-rol">Scoping de ListHistorico por rol</h2>
+<p><code>ListHistoricoAsync</code> es el caso mas interesante de logica de negocio: el <strong>mismo endpoint</strong> devuelve datos distintos segun el rol, recortando ("scoping") lo que cada quien puede ver (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:119-151</a>).</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph LR
+    H["ListHistoricoAsync(user, filtros)"]
+    H --&gt; F{"rol?"}
+    F --&gt;|"ROL_FUNC"| FF["usuarioIdScope = user.UserId&lt;br/&gt;(solo lo propio;&lt;br/&gt;filtro Funcionario ignorado)"]
+    F --&gt;|"ROL_JEFE"| JJ["aprobadorUsuarioIdScope = user.UserId&lt;br/&gt;excluye las propias&lt;br/&gt;(el set que aprueba, sin las suyas)"]
+    F --&gt;|"ROL_RRHH"| RR["sin scope&lt;br/&gt;(vista global)"]
+    FF --&gt; REPO["_repository.ListHistoricoAsync(...)"]
+    JJ --&gt; REPO
+    RR --&gt; REPO</pre></div>
+<p>La logica concreta:</p>
+<ul>
+<li><strong>Funcionario</strong>: se fuerza <code>usuarioIdScope = user.UserId</code> y se anula el filtro <code>Funcionario</code> que venga del request (no puede buscar boletas de otros) (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:133, 138</a>).</li>
+<li><strong>Jefatura</strong>: se setea <code>aprobadorUsuarioIdScope = user.UserId</code> y <code>excluirPropiosEnScopeAprobador = true</code>, para ver el historico que le toca aprobar pero <strong>excluyendo sus propias</strong> boletas (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">:134-135</a>).</li>
+<li><strong>RRHH</strong>: ambos scopes quedan en <code>null</code>, es decir vista global sin recorte.</li>
+</ul>
+<p>El service arma un <code>FiltroRrhhJustificacionesDto</code> "scoped" y se lo pasa al repositorio, que traduce esos parametros a la consulta. El service decide <strong>que</strong> ver; el repositorio sabe <strong>como</strong> consultarlo.</p>
+<h2 id="validacion-justificacionvalidator">Validacion: JustificacionValidator</h2>
+<p>La validacion de entrada esta centralizada en una clase estatica, <code>JustificacionValidator</code> (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs</a>). Cada metodo valida una cosa y, si falla, lanza <code>AppException(..., 400)</code>. Asi el service queda limpio: solo invoca el validador.</p>
+<div class="table-wrap"><table><thead><tr><th>Metodo</th><th>Valida</th><th>Regla</th></tr></thead><tbody><tr><td><code>ValidateCreate</code></td><td>El alta de boleta</td><td><code>MotivoGeneral</code> requerido y &lt;=500; al menos 1 linea (RN-01); cada linea con tipo y fecha; observacion &lt;=250 (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">:14-43</a>)</td></tr><tr><td><code>ValidateAccion</code></td><td>La accion de resolucion</td><td>Debe ser <code>APROBAR</code> o <code>RECHAZAR</code> (normaliza a mayusculas) (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">:45-54</a>)</td></tr><tr><td><code>NormalizeComentarioResolucion</code></td><td>El comentario</td><td>Trim; vacio -&gt; <code>null</code>; &lt;=500 caracteres (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">:56-75</a>)</td></tr><tr><td><code>ValidateRangoFechas</code></td><td>Filtros de fecha</td><td><code>Desde</code> no puede ser mayor que <code>Hasta</code> (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">:77-83</a>)</td></tr><tr><td><code>ValidateCompania</code></td><td>Filtro de compania</td><td>Solo <code>CNP</code> o <code>FANAL</code> (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">:85-96</a>)</td></tr><tr><td><code>ValidateTextoBusqueda</code></td><td>Busqueda por funcionario</td><td>&lt;=150 caracteres (<a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">:98-104</a>)</td></tr></tbody></table></div>
+<blockquote class="callout why">📌 Notar que <code>ValidateAccion</code> no solo valida: <strong>devuelve</strong> el valor normalizado. El service lo usa para decidir el estado destino (<code>APROBAR</code> -&gt; <code>Aprobado</code>, sino <code>Rechazado</code>), evitando comparar strings sucios mas adelante.</blockquote>
+<p>Los servicios admin no usan este validador: traen su propia validacion inline en metodos privados estaticos (<code>ValidateCreateJerarquia</code>, <code>ValidateCreateDelegacion</code>, <code>ValidateDependencia</code>, <code>ValidateEstadoRegistro</code>, etc.), porque las reglas son especificas de cada entidad (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs:364-490</a>, <a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">AdminOrganizacionService.cs:220-246</a>).</p>
+<h2 id="dtos-el-transporte-entre-capas">DTOs: el transporte entre capas</h2>
+<p>Un <strong>DTO</strong> (Data Transfer Object) es una clase boba, sin logica, que solo carga datos de un lado a otro. Sirve para que cada capa hable un idioma estable sin acoplarse a las demas. En este proyecto los DTOs son el lenguaje <strong>entre</strong> la capa Api y la Infrastructure, pasando por Application.</p>
+<blockquote class="callout why">📌 Hay tres niveles de objetos: <strong>Api/Contracts</strong> (forma del JSON que viaja por la red, con sufijo <code>ID</code>), <strong>Application/DTOs</strong> (lo que se mueve entre capas, con sufijo <code>Id</code>) y <strong>Domain/Entities</strong> (las entidades de negocio). Los controladores traducen Contract &lt;-&gt; DTO a mano; ver <a href="modulo-api.html">modulo-api</a> y <a href="modulo-dominio.html">modulo-dominio</a>.</blockquote>
+<p>Categorias de DTOs que viven aca:</p>
+<ul>
+<li><strong>Entrada (requests de negocio)</strong>: <code>CreateJustificacionDto</code> + <code>JustificacionDetalleDto</code>, <code>ResolverJustificacionDto</code>, <code>CreateJerarquiaDto</code>, <code>UpdateDelegacionDto</code>, <code>UpdateDependenciaDto</code>, etc. Son simples bolsas de propiedades (<a href="../backend/src/IntegradorMarcas.Application/DTOs/CreateJustificacionDto.cs">CreateJustificacionDto.cs</a>, <a href="../backend/src/IntegradorMarcas.Application/DTOs/JustificacionDetalleDto.cs">JustificacionDetalleDto.cs</a>).</li>
+<li><strong>Filtros</strong>: <code>FiltroJustificacionesDto</code>, <code>FiltroRrhhJustificacionesDto</code>.</li>
+<li><strong>Salida (resumenes y detalles)</strong>: <code>JustificacionResumenDto</code>, <code>RrhhJustificacionResumenDto</code>, <code>JustificacionCompletaDto</code>, <code>JustificacionDetalleLineaDto</code>, <code>CurrentApproverDto</code>, los <code>Admin*Dto</code>.</li>
+<li><strong>Validacion interna</strong>: <code>AprobacionScopeValidationDto</code> y <code>ResolverValidationDto</code> — los devuelve el repositorio para que el service tome decisiones de scope/estado (<a href="../backend/src/IntegradorMarcas.Application/DTOs/AprobacionScopeValidationDto.cs">AprobacionScopeValidationDto.cs</a>).</li>
+<li><strong>Auditoria</strong>: <code>AuditEventEntry</code> (evento resumen, <a href="../backend/src/IntegradorMarcas.Application/DTOs/AuditEventEntry.cs">AuditEventEntry.cs</a>) y <code>AdminActionAuditEntry</code> (accion admin con snapshots JSON, <a href="../backend/src/IntegradorMarcas.Application/DTOs/AdminActionAuditEntry.cs">AdminActionAuditEntry.cs</a>).</li>
+</ul>
+<h2 id="interfaces-puertos-y-quien-las-implementa">Interfaces (puertos) y quien las implementa</h2>
+<p>Aqui esta la clave de la Clean Architecture: Application <strong>define</strong> las interfaces que necesita, pero <strong>no las implementa</strong>. Las implementaciones viven en capas de afuera. Asi Application no depende de nadie concreto; depende de abstracciones que otros cumplen (principio de inversion de dependencias).</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph TD
+    subgraph "Application define los puertos"
+        IJS["IJustificacionService"]
+        IAAS["IAdminAprobacionesService"]
+        IAOS["IAdminOrganizacionService"]
+        IUC["IUserContext"]
+        IJR["IJustificacionRepository"]
+        IAAR["IAdminAprobacionesRepository"]
+        IAOR["IAdminOrganizacionRepository"]
+        IAER["IAuditEventRepository"]
+        IELR["IErrorLogRepository"]
+        IAAUD["IAdminActionAuditRepository"]
+    end
+
+    JS["JustificacionService"] -.implementa.-&gt; IJS
+    AAS["AdminAprobacionesService"] -.implementa.-&gt; IAAS
+    AOS["AdminOrganizacionService"] -.implementa.-&gt; IAOS
+
+    HUC["HeaderUserContext&lt;br/&gt;(capa Api)"] -.implementa.-&gt; IUC
+
+    JR["JustificacionRepository"] -.implementa.-&gt; IJR
+    AAR["AdminAprobacionesRepository"] -.implementa.-&gt; IAAR
+    AOR["AdminOrganizacionRepository"] -.implementa.-&gt; IAOR
+    AER["AuditEventRepository"] -.implementa.-&gt; IAER
+    ELR["ErrorLogRepository"] -.implementa.-&gt; IELR
+    AAUDR["AdminActionAuditRepository"] -.implementa.-&gt; IAAUD
+
+    classDef infra fill:#e8f0fe;
+    class JR,AAR,AOR,AER,ELR,AAUDR infra;
+    classDef api fill:#fef3e8;
+    class HUC api;
+    classDef app fill:#e8fee8;
+    class JS,AAS,AOS app;</pre></div>
+<div class="table-wrap"><table><thead><tr><th>Puerto (interface)</th><th>Lo implementa</th><th>Para que sirve</th></tr></thead><tbody><tr><td><code>IJustificacionService</code></td><td><code>JustificacionService</code> (Application)</td><td>API de negocio de boletas que consume el controlador</td></tr><tr><td><code>IAdminAprobacionesService</code></td><td><code>AdminAprobacionesService</code> (Application)</td><td>API de negocio de jerarquias/delegaciones</td></tr><tr><td><code>IAdminOrganizacionService</code></td><td><code>AdminOrganizacionService</code> (Application)</td><td>API de negocio de organizacion/usuarios</td></tr><tr><td><code>IUserContext</code></td><td><code>HeaderUserContext</code> (capa Api)</td><td>Da el usuario/rol actual; lee los headers <code>X-User-Id</code> / <code>X-User-Role</code></td></tr><tr><td><code>IJustificacionRepository</code></td><td><code>JustificacionRepository</code> (Infrastructure)</td><td>Persistencia de boletas y validaciones de scope</td></tr><tr><td><code>IAdminAprobacionesRepository</code></td><td><code>AdminAprobacionesRepository</code> (Infrastructure)</td><td>Persistencia de jerarquias/delegaciones</td></tr><tr><td><code>IAdminOrganizacionRepository</code></td><td><code>AdminOrganizacionRepository</code> (Infrastructure)</td><td>Persistencia de dependencias/usuarios</td></tr><tr><td><code>IAuditEventRepository</code></td><td><code>AuditEventRepository</code> (Infrastructure)</td><td>Inserta eventos en <code>Auditoria.EventoAuditoria</code></td></tr><tr><td><code>IErrorLogRepository</code></td><td><code>ErrorLogRepository</code> (Infrastructure)</td><td>Inserta errores en <code>Auditoria.ErrorApi</code></td></tr><tr><td><code>IAdminActionAuditRepository</code></td><td><code>AdminActionAuditRepository</code> (Infrastructure)</td><td>Inserta acciones admin con before/after en <code>Auditoria.AdminAccionAuditoria</code></td></tr></tbody></table></div>
+<p>Notas sobre los puertos:</p>
+<ul>
+<li><strong><code>IUserContext</code> lo implementa la capa Api, no Infrastructure</strong>. Es la unica fuente de identidad que conoce Application: recibe un <code>UserContextInfo</code> (solo <code>UserId</code> y <code>Role</code>, <a href="../backend/src/IntegradorMarcas.Application/Interfaces/UserContextInfo.cs">UserContextInfo.cs</a>) y a partir de ahi aplica los guards. Application no sabe que ese rol viene de un header HTTP; eso es problema de la capa Api (ver <a href="seguridad.html">Seguridad</a>).</li>
+<li>Las interfaces de <strong>service</strong> tienen como primer parametro un <code>UserContextInfo</code>, mientras que las de <strong>repository</strong> reciben ya el <code>usuarioId</code> desgranado. Comparar <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IJustificacionService.cs">IJustificacionService.cs:7</a> con <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IJustificacionRepository.cs">IJustificacionRepository.cs:8</a>: el service decide la autorizacion, el repo solo persiste.</li>
+<li>Todos los metodos son <code>async Task</code> y reciben un <code>CancellationToken</code> que se hila controller -&gt; service -&gt; repository -&gt; Dapper, para poder cancelar operaciones largas.</li>
+<li><code>IErrorLogRepository</code> es el unico puerto cuyo metodo (<code>LogAsync</code>) <strong>no</strong> lleva <code>CancellationToken</code>: el logging de errores es best-effort y no debe cancelarse a media respuesta (<a href="../backend/src/IntegradorMarcas.Application/Interfaces/IErrorLogRepository.cs">IErrorLogRepository.cs:5</a>).</li>
+</ul>
+<h2 id="appexception-la-unica-excepcion-de-control-de-flujo">AppException: la unica excepcion de control de flujo</h2>
+<p>Cuando una regla de negocio no se cumple, el service no devuelve codigos de error ni <code>null</code>: lanza <code>AppException</code>, que es una excepcion <code>sealed</code> con un <code>StatusCode</code> HTTP adentro (<a href="../backend/src/IntegradorMarcas.Application/Common/AppException.cs">AppException.cs</a>).</p>
+<pre class="code"><code class="language-cs">public sealed class AppException : Exception
+{
+    public AppException(string message, int statusCode) : base(message)
+        =&gt; StatusCode = statusCode;
+
+    public int StatusCode { get; }
+}</code></pre>
+<blockquote class="callout why">📌 Esto es un patron deliberado: Application "habla" en numeros HTTP (400, 403, 404, 409, 500) pero <strong>no genera la respuesta HTTP</strong>. Solo lanza la excepcion con el numero. La capa Api la atrapa en un manejador global (<code>UseExceptionHandler</code> en <code>Program.cs</code>) y la convierte en <code>ProblemDetails</code> con ese status. Asi Application no depende de ASP.NET.</blockquote>
+<p>Los status codes que vas a ver salir de los services:</p>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>Significado en este sistema</th><th>Ejemplo</th></tr></thead><tbody><tr><td>400</td><td>Datos invalidos / regla de validacion</td><td><code>ValidateCreate</code> falla; auto-delegacion (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs:300-303</a>)</td></tr><tr><td>403</td><td>Rol incorrecto o boleta fuera de alcance</td><td>guards <code>EsJefatura</code>, scope de aprobacion (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:166-169</a>)</td></tr><tr><td>404</td><td>El registro no existe</td><td>jerarquia/dependencia/usuario inexistente</td></tr><tr><td>409</td><td>Conflicto de estado</td><td>boleta ya resuelta, RN-04 (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:200-203</a>)</td></tr><tr><td>500</td><td>No se pudo recuperar tras escribir</td><td><code>"No se pudo recuperar..."</code> (<a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs:213-214</a>)</td></tr></tbody></table></div>
+<p>El manejo de <code>AppException</code> y como se traduce a <code>ProblemDetails</code> con <code>correlationId</code> se detalla en <a href="modulo-api.html">modulo-api</a>. El recorrido completo de un request por todas las capas esta en <a href="flujos.html">Flujos</a>.</p>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li>Servicios:</li>
+<ul class="sub">
+<li><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs</a> — boletas: crear, listar, scoping de historico, resolver</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Services/AdminAprobacionesService.cs">AdminAprobacionesService.cs</a> — jerarquias y delegaciones</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Services/AdminOrganizacionService.cs">AdminOrganizacionService.cs</a> — dependencias y asignacion de usuarios</li>
+</ul>
+<li>Validacion: <a href="../backend/src/IntegradorMarcas.Application/Validation/JustificacionValidator.cs">JustificacionValidator.cs</a></li>
+<li>Excepcion de control de flujo: <a href="../backend/src/IntegradorMarcas.Application/Common/AppException.cs">AppException.cs</a></li>
+<li>Puertos de service: <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IJustificacionService.cs">IJustificacionService.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IAdminAprobacionesService.cs">IAdminAprobacionesService.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IAdminOrganizacionService.cs">IAdminOrganizacionService.cs</a></li>
+<li>Puertos de repositorio: <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IJustificacionRepository.cs">IJustificacionRepository.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IAdminAprobacionesRepository.cs">IAdminAprobacionesRepository.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IAdminOrganizacionRepository.cs">IAdminOrganizacionRepository.cs</a></li>
+<li>Puertos de auditoria/identidad: <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IAuditEventRepository.cs">IAuditEventRepository.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IErrorLogRepository.cs">IErrorLogRepository.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IAdminActionAuditRepository.cs">IAdminActionAuditRepository.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IUserContext.cs">IUserContext.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/Interfaces/UserContextInfo.cs">UserContextInfo.cs</a></li>
+<li>DTOs citados: <a href="../backend/src/IntegradorMarcas.Application/DTOs/CreateJustificacionDto.cs">CreateJustificacionDto.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/DTOs/JustificacionDetalleDto.cs">JustificacionDetalleDto.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/DTOs/AprobacionScopeValidationDto.cs">AprobacionScopeValidationDto.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/DTOs/ResolverValidationDto.cs">ResolverValidationDto.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/DTOs/AuditEventEntry.cs">AuditEventEntry.cs</a> · <a href="../backend/src/IntegradorMarcas.Application/DTOs/AdminActionAuditEntry.cs">AdminActionAuditEntry.cs</a></li>
+<li>Constantes de Domain usadas por los guards y estados: <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> · <a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a></li>
+</ul>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#por-que-existe-una-capa-en-el-medio">Por que existe una capa "en el medio"</a></li><li><a href="#la-logica-vive-en-services">La logica vive en Services</a></li><li><a href="#guard-clauses-la-autorizacion-vive-aqui">Guard clauses: la autorizacion vive aqui</a></li><li><a href="#scoping-de-listhistorico-por-rol">Scoping de ListHistorico por rol</a></li><li><a href="#validacion-justificacionvalidator">Validacion: JustificacionValidator</a></li><li><a href="#dtos-el-transporte-entre-capas">DTOs: el transporte entre capas</a></li><li><a href="#interfaces-puertos-y-quien-las-implementa">Interfaces (puertos) y quien las implementa</a></li><li><a href="#appexception-la-unica-excepcion-de-control-de-flujo">AppException: la unica excepcion de control de flujo</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

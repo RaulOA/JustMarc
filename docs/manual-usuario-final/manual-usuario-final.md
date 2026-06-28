@@ -8,7 +8,7 @@
 | **Versión del manual** | 1.0.0 |
 | **Fecha** | 27 de junio de 2026 |
 | **Público objetivo** | Funcionarios, jefaturas y personal de Recursos Humanos (RRHH) del CNP y FANAL |
-| **Organización emisora** | _TODO: confirmar unidad responsable (p. ej. Unidad de Tecnologías de Información del CNP)_ |
+| **Organización emisora** | Unidad de Tecnologías de Información (UTI) — Consejo Nacional de Producción (CNP) |
 | **Idioma** | Español (Costa Rica) |
 
 > **¿Para qué sirve este manual?** Para que cualquier persona del CNP o FANAL aprenda, paso a paso, a usar SIFCNP por primera vez: cómo ingresar, cómo llenar una boleta de justificación de marca, cómo aprobarla o rechazarla, y cómo consultar el historial. Está escrito en lenguaje sencillo, sin términos técnicos.
@@ -46,7 +46,9 @@ El sistema acompaña todo el recorrido de esa boleta:
 
 Cada persona ve solo lo que le corresponde según su rol.
 
-> 📷 _Captura pendiente:_ `capturas/01-pantalla-ingreso.png` — Pantalla de ingreso de SIFCNP. **(TODO: generar con Playwright)**
+![Pantalla de ingreso de SIFCNP: tarjeta de acceso con los campos Usuario y Contraseña y el botón Ingresar.](capturas/01-pantalla-ingreso.png)
+
+*Figura 1. Pantalla de ingreso de SIFCNP.*
 
 ---
 
@@ -71,7 +73,7 @@ Antes de usar el sistema, conviene tener claros estos términos:
 Para usar SIFCNP necesitás:
 
 - Una **computadora con conexión a la red institucional**.
-- Un **navegador de internet actualizado** (por ejemplo, Microsoft Edge, Google Chrome o Mozilla Firefox en sus versiones recientes). _TODO: confirmar la lista oficial de navegadores soportados._
+- Un **navegador de internet actualizado**: **Microsoft Edge, Google Chrome o Mozilla Firefox** en una versión reciente (Chrome o Edge 90 o más nuevo, Firefox 90 o más nuevo), o **Safari 14 o más nuevo** en equipos Apple. **No funciona en Internet Explorer ni en versiones de Microsoft Edge anteriores a 2020**; en esos navegadores la página se vería en blanco o con errores. Lo más sencillo es mantener el navegador al día: cuando aparezca un aviso de actualización, aceptalo. _Supuesto: el sistema no declara una lista oficial de navegadores; este conjunto se derivó de las funciones modernas que usa el propio código (el piso técnico real es Chrome/Edge 85, Firefox 77 y Safari 13.1)._
 - Tu **cuenta institucional** (la misma de tu correo con dominio `@cnp.go.cr`).
 - La **dirección del sistema**, que te indica la institución (por ejemplo, la dirección interna donde está publicado SIFCNP).
 
@@ -94,7 +96,9 @@ Si el usuario o la contraseña no cumplen el mínimo requerido, el sistema muest
 
 Al ingresar correctamente, llegás al **panel principal**. Arriba a la derecha vas a ver tu **nombre**, tu **rol** y, si corresponde, tu **Aprobador actual**.
 
-> 📷 _Captura pendiente:_ `capturas/01-pantalla-ingreso.png` — Campos Usuario, Contraseña y botón Ingresar. **(TODO)**
+![Pantalla de ingreso de SIFCNP: tarjeta de acceso con los campos Usuario y Contraseña y el botón Ingresar.](capturas/01-pantalla-ingreso.png)
+
+*Figura 2. Campos Usuario, Contraseña y botón Ingresar.*
 
 ### 4.2 Salir
 
@@ -109,7 +113,9 @@ Por seguridad, si dejás el sistema **sin actividad durante 5 minutos**, aparece
 
 Si no respondés a tiempo, el sistema cierra la sesión solo y muestra: **"Sesión expirada por inactividad (5 minutos). Por favor, inicie sesión nuevamente."**
 
-> 📷 _Captura pendiente:_ `capturas/10-aviso-sesion.png` — Ventana de aviso de sesión por expirar. **(TODO)**
+![Ventana «Sesión por Expirar» con la cuenta regresiva y los botones Permanecer Conectado y Cerrar Sesión.](capturas/10-aviso-sesion.png)
+
+*Figura 3. Ventana de aviso de sesión por expirar.*
 
 ---
 
@@ -135,8 +141,13 @@ Al guardarse, el sistema muestra **"Boleta registrada en estado Pendiente Jefatu
 
 > **Tené en cuenta:** una boleta necesita el **motivo general** y **al menos una línea de detalle**. Cada línea necesita su **tipo** y su **fecha**. Si falta algo, el sistema te lo avisa (ver [sección 9](#9-solución-de-problemas-y-mensajes)).
 
-> 📷 _Captura pendiente:_ `capturas/02-panel-funcionario-formulario.png` — Formulario "Nueva Justificación". **(TODO)**
-> 📷 _Captura pendiente:_ `capturas/03-agregar-linea-detalle.png` — Tabla de líneas de detalle agregadas. **(TODO)**
+![Panel del Funcionario con el formulario «Nueva Justificación»: campo Motivo General y la sección para agregar líneas de detalle.](capturas/02-panel-funcionario-formulario.png)
+
+*Figura 4. Formulario "Nueva Justificación".*
+
+![Formulario «Nueva Justificación» con dos líneas de detalle agregadas (tipo de justificación, fecha de marca y observación).](capturas/03-agregar-linea-detalle.png)
+
+*Figura 5. Tabla de líneas de detalle agregadas.*
 
 ### 5.2 Ver mi historial de justificaciones
 
@@ -147,7 +158,9 @@ Al guardarse, el sistema muestra **"Boleta registrada en estado Pendiente Jefatu
 
 Cuando una boleta ya fue **Aprobada** o **Rechazada**, el historial puede mostrar el **comentario de resolución** de la jefatura (si lo hubo).
 
-> 📷 _Captura pendiente:_ `capturas/04-mi-historial.png` — Tabla "Mi Historial de Justificaciones". **(TODO)**
+![Tabla «Mi Historial de Justificaciones» con las boletas del funcionario, su estado y el botón Ver detalle.](capturas/04-mi-historial.png)
+
+*Figura 6. Tabla "Mi Historial de Justificaciones".*
 
 ### 5.3 Consulta Histórica (SIFCNP)
 
@@ -160,7 +173,9 @@ Esta sección muestra el histórico de marcas justificadas.
 
 > **Nota para funcionarios:** en esta sección **solo vas a ver tus propios registros**. El sistema muestra el aviso "Mostrando solo sus registros históricos." y oculta el campo para buscar por otra persona.
 
-> 📷 _Captura pendiente:_ `capturas/09-consulta-historica-sifcnp.png` — Consulta Histórica con filtros de fecha. **(TODO)**
+![Consulta Histórica (SIFCNP) con los filtros de funcionario y fechas y la tabla de resultados.](capturas/09-consulta-historica-sifcnp.png)
+
+*Figura 7. Consulta Histórica con filtros de fecha.*
 
 ---
 
@@ -175,7 +190,9 @@ Como **jefatura**, además de **crear tus propias boletas** (igual que un funcio
 3. Podés **ordenar** la tabla haciendo clic en los títulos de las columnas (funcionario, motivo, tipo, fecha, estado).
 4. Si hay muchas, la lista se divide en **páginas** (15 por página).
 
-> 📷 _Captura pendiente:_ `capturas/05-panel-jefatura-pendientes.png` — Tabla "Solicitudes Pendientes". **(TODO)**
+![Panel de Jefatura con la tabla «Solicitudes Pendientes» y el contador de pendientes en la parte superior.](capturas/05-panel-jefatura-pendientes.png)
+
+*Figura 8. Tabla "Solicitudes Pendientes".*
 
 ### 6.2 Ver el detalle de una boleta
 
@@ -184,7 +201,9 @@ Antes de decidir, conviene revisar el detalle:
 1. En la fila de la boleta, hacé clic en **Ver detalle ▼**.
 2. Se despliega la información: quién la presentó, su unidad, el tipo principal y el resumen de las líneas.
 
-> 📷 _Captura pendiente:_ `capturas/07-detalle-boleta.png` — Detalle desplegado de una boleta. **(TODO)**
+![Detalle desplegado de una boleta en el Panel de Jefatura: funcionario, motivo, tipo, número de líneas y detalle completo.](capturas/07-detalle-boleta.png)
+
+*Figura 9. Detalle desplegado de una boleta.*
 
 ### 6.3 Aprobar o rechazar una boleta
 
@@ -196,7 +215,9 @@ Antes de decidir, conviene revisar el detalle:
 
 > **Tené en cuenta:** una boleta solo se puede resolver **una vez**. Si ya fue aprobada o rechazada, no se puede volver a cambiar.
 
-> 📷 _Captura pendiente:_ `capturas/06-aprobar-rechazar.png` — Botones Aprobar y Rechazar en una fila. **(TODO)**
+![Filas de solicitudes pendientes en el Panel de Jefatura con los botones Aprobar, Rechazar y Ver detalle.](capturas/06-aprobar-rechazar.png)
+
+*Figura 10. Botones Aprobar y Rechazar en una fila.*
 
 ### 6.4 Descargar el reporte de pendientes
 
@@ -221,7 +242,9 @@ Como personal de **RRHH**, tu función es **consultar y dar seguimiento** a toda
 
 La tabla muestra: funcionario, compañía, motivo, tipo, fecha, estado y resolución.
 
-> 📷 _Captura pendiente:_ `capturas/08-panel-rrhh-filtros.png` — Panel RRHH con la barra de filtros. **(TODO)**
+![Panel de Recursos Humanos con las tarjetas de resumen, la barra de filtros y la tabla global de justificaciones.](capturas/08-panel-rrhh-filtros.png)
+
+*Figura 11. Panel RRHH con la barra de filtros.*
 
 ### 7.2 Consulta Histórica (SIFCNP)
 
@@ -280,7 +303,7 @@ Esta tabla reúne los avisos más comunes, qué significan y qué hacer.
 | "La API tardó demasiado en responder. Intente de nuevo." | El sistema no respondió a tiempo. | Esperá un momento y reintentá; si sigue, avisá a soporte. |
 | "No fue posible conectar con la API. Verifique backend, URL y CORS." | No hay conexión con el servicio del sistema. | Revisá tu conexión; si persiste, avisá a la Unidad de TI. |
 
-> **¿A quién acudir?** Si un problema persiste, comunicate con la mesa de ayuda institucional. _TODO: completar el contacto de soporte (correo / teléfono / unidad)._
+> **¿A quién acudir?** Si un problema persiste, comunicate con la **Unidad de Tecnologías de Información (UTI) del Consejo Nacional de Producción (CNP)**: abrí un ticket en la **mesa de ayuda institucional**, escribí al correo **uti@cnp.go.cr**, o usá los **canales internos de Microsoft Teams**.
 
 ---
 
@@ -304,7 +327,7 @@ SIFCNP busca ser fácil de usar para todas las personas. Para eso:
 - El sistema está en **español**.
 - Si usás teclado, podés **ingresar con la tecla Enter** desde la pantalla de inicio.
 
-> Si tenés alguna dificultad de accesibilidad (por ejemplo, contraste o tamaño de texto), avisá a la mesa de ayuda. _TODO: confirmar canal de soporte de accesibilidad._
+> Si tenés alguna dificultad de accesibilidad (por ejemplo, contraste o tamaño de texto), avisá a la **Unidad de Tecnologías de Información (UTI)** por la mesa de ayuda institucional o al correo **uti@cnp.go.cr**.
 
 ---
 

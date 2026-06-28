@@ -16,9 +16,11 @@ Formato: versión, fecha y cambios.
 - Encuadre de identidad institucional Microsoft 365 / Entra (@cnp.go.cr).
 - Glosario, tabla de trazabilidad con las normas y sección de fuentes.
 
+### Completado — 2026-06-27
+- Capturas de pantalla **reales** (10) generadas navegando la app con Microsoft Edge headless vía CDP (Node nativo), no mockups: ingreso, formulario y líneas de detalle del funcionario, historial, panel de jefatura (pendientes, aprobar/rechazar y detalle), panel de RRHH, consulta histórica (SIFCNP) y aviso de sesión por expirar. Insertadas con texto alternativo descriptivo (WCAG 2.2 §1.1.1) y leyenda de figura numerada.
+- Organización emisora: **Unidad de Tecnologías de Información (UTI) — Consejo Nacional de Producción (CNP)**.
+- Contacto de soporte: mesa de ayuda institucional, correo uti@cnp.go.cr y canales internos de Microsoft Teams (incluida la atención de accesibilidad).
+- Navegadores soportados derivados del propio código: Chrome/Edge 90+, Firefox 90+ y Safari 14+ (Internet Explorer y Edge legado no son compatibles).
+
 ### Pendiente (TODO)
-- Capturas de pantalla reales (placeholders en `capturas/`); generar con Playwright.
-- Organización emisora responsable.
-- Contacto de la mesa de ayuda / soporte.
-- Lista oficial de navegadores soportados.
-- Fecha/estado de activación de la autenticación Microsoft 365.
+- Fecha/estado de activación de la autenticación Microsoft 365 en el entorno destino.

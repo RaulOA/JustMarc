@@ -1,0 +1,100 @@
+erDiagram
+    Rol {
+        int RolId PK
+        varchar Descripcion
+    }
+    EstadoJustificacion {
+        int EstadoJustificacionId PK
+        varchar Descripcion
+    }
+    TipoJustificacion {
+        int TipoJustificacionId PK
+        varchar Descripcion
+    }
+    EstadoRegistro {
+        int EstadoRegistroId PK
+        varchar Descripcion
+    }
+    TipoEventoAuditoria {
+        int TipoEventoAuditoriaId PK
+        varchar Descripcion
+    }
+    ResultadoAuditoria {
+        int ResultadoAuditoriaId PK
+        varchar Descripcion
+    }
+    Usuario {
+        int UsuarioId PK
+        int JefaturaId FK
+        int RolId FK
+        int UnidadId "logico CodigoOrigen"
+        varchar Compania
+    }
+    EstructuraOrganizacional {
+        int EstructuraOrganizacionalId PK
+        int EstructuraPadreId FK
+        int EstadoRegistroId FK
+        varchar CodigoOrigen
+    }
+    Justificacion {
+        int JustificacionId PK
+        int UsuarioId FK
+        int EstadoJustificacionId FK
+        int AprobadorId FK
+    }
+    JustificacionDetalle {
+        int JustificacionDetalleId PK
+        int JustificacionId FK
+        int TipoJustificacionId FK
+        date FechaMarca
+    }
+    JerarquiaAprobacion {
+        int JerarquiaAprobacionId PK
+        int AprobadorUsuarioId FK
+        int EstructuraOrganizacionalId FK
+        int EstadoRegistroId FK
+    }
+    DelegacionAprobacion {
+        int DelegacionAprobacionId PK
+        int DeleganteUsuarioId FK
+        int DelegadoUsuarioId FK
+        int JerarquiaAprobacionId FK
+        int EstadoRegistroId FK
+    }
+    EventoAuditoria {
+        bigint EventoAuditoriaId PK
+        int UsuarioId FK
+        int TipoEventoAuditoriaId FK
+        int ResultadoAuditoriaId FK
+    }
+    AdminAccionAuditoria {
+        bigint AdminAccionAuditoriaId PK
+        int UsuarioActorId FK
+        int ResultadoAuditoriaId FK
+    }
+    ErrorApi {
+        int ErrorApiId PK
+        uniqueidentifier CorrelationId
+    }
+
+    Rol                      ||--o{ Usuario : "clasifica"
+    Usuario                  ||--o{ Usuario : "jefe directo"
+    EstructuraOrganizacional ||--o{ EstructuraOrganizacional : "padre"
+    EstadoRegistro           ||--o{ EstructuraOrganizacional : "vigencia"
+    Usuario                  ||--o{ Justificacion : "solicita"
+    Usuario                  |o--o{ Justificacion : "aprueba"
+    EstadoJustificacion      ||--o{ Justificacion : "estado"
+    Justificacion            ||--o{ JustificacionDetalle : "contiene"
+    TipoJustificacion        ||--o{ JustificacionDetalle : "tipifica"
+    Usuario                  ||--o{ JerarquiaAprobacion : "aprobador"
+    EstructuraOrganizacional ||--o{ JerarquiaAprobacion : "ambito"
+    EstadoRegistro           ||--o{ JerarquiaAprobacion : "vigencia"
+    Usuario                  ||--o{ DelegacionAprobacion : "delegante"
+    Usuario                  ||--o{ DelegacionAprobacion : "delegado"
+    JerarquiaAprobacion      |o--o{ DelegacionAprobacion : "sobre jerarquia"
+    EstadoRegistro           ||--o{ DelegacionAprobacion : "vigencia"
+    Usuario                  |o--o{ EventoAuditoria : "actor"
+    TipoEventoAuditoria      ||--o{ EventoAuditoria : "tipo"
+    ResultadoAuditoria       ||--o{ EventoAuditoria : "resultado"
+    Usuario                  ||--o{ AdminAccionAuditoria : "actor"
+    ResultadoAuditoria       ||--o{ AdminAccionAuditoria : "resultado"

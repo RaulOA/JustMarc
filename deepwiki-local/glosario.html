@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glosario · DeepWiki local SIFCNP</title>
+<meta name="description" content="Terminos tecnicos y del dominio en lenguaje sencillo.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html" class="active" aria-current="page">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Referencia</span><span class="sep">/</span><span class="current">Glosario</span></nav>
+<div class="page-head-row">
+<h1>Glosario</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Terminos tecnicos y del dominio en lenguaje sencillo.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>Esta pagina es el diccionario de apoyo del wiki: te explica en lenguaje sencillo cada termino tecnico y cada palabra del dominio que aparece en el resto de las paginas. La idea es que un programador novato pueda leer cualquier seccion sin trabarse y que un dev senior tenga a mano la definicion exacta tal como la usa ESTE proyecto (no la teoria general). Cada termino arranca por lo practico ("para que sirve") y, cuando aplica, apunta al codigo real donde vive.</p>
+<p>El glosario esta partido en dos grandes grupos: <strong>Stack / tecnico</strong> (conceptos de .NET, web, SQL, arquitectura) y <strong>Dominio</strong> (lo propio del negocio de justificacion de marcas de CNP/FANAL). Dentro de cada grupo va alfabetico.</p>
+<hr>
+<h2 id="mapa-de-los-terminos-del-proyecto">Mapa de los terminos del proyecto</h2>
+<p>El siguiente diagrama ubica los terminos mas importantes dentro de las tres piezas del sistema, para que veas a que parte pertenece cada palabra antes de leer su definicion.</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart TB
+    subgraph FE["Frontend (raiz del repo)"]
+        SPA["SPA / app.js&lt;br/&gt;sessionStorage · CORS · headers HTTP"]
+    end
+    subgraph API["API .NET 8 (backend/)"]
+        direction TB
+        APIc["Api: endpoint · ProblemDetails · correlationId"]
+        APP["Application: servicio · DTO · interfaz/puerto · guard clause"]
+        INF["Infrastructure: repositorio · Dapper · ADO.NET · connection string"]
+        DOM["Domain: entidad · constantes de rol/estado"]
+        APIc --&gt; APP
+        INF --&gt; APP
+        APP --&gt; DOM
+        INF --&gt; DOM
+    end
+    subgraph DB["SQL Server"]
+        BD["INTEGRA_CNP&lt;br/&gt;transaccion · SCOPE_IDENTITY · TVF aprobadores"]
+        EXT["WIZDOM · SIFCNP (solo lectura)"]
+    end
+    SPA --&gt;|"X-User-Id / X-User-Role"| APIc
+    INF --&gt;|"Kestrel/IIS hospedan la API"| BD
+    BD -.-&gt;|"vistas de integracion"| EXT</pre></div>
+<blockquote class="callout why">📌 La <strong>regla de dependencia</strong> (las flechas apuntan "hacia adentro": todo conoce a Domain, Domain no conoce a nadie) es la columna vertebral de la <a href="arquitectura.html">arquitectura</a>. Si entendes esa flecha, entendes el resto.</blockquote>
+<hr>
+<h2 id="stack-tecnico">Stack / tecnico</h2>
+<h3 id="ado-net">ADO.NET</h3>
+<p>Es la libreria base de .NET para hablar con una base de datos: abrir una conexion, mandar SQL, leer filas. Este proyecto lo usa "crudo" (sin un <a href="#orm">ORM</a> pesado encima), apoyado en <a href="#dapper">Dapper</a> para el mapeo. Provee <code>SqlConnection</code>, <code>OpenAsync</code>, etc. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs</a>.</p>
+<h3 id="capa-layer">Capa (layer)</h3>
+<p>Una "capa" es un grupo de codigo con una responsabilidad clara que solo se comunica con sus vecinas siguiendo reglas. Aca hay cuatro capas en el backend: <strong>Domain</strong>, <strong>Application</strong>, <strong>Infrastructure</strong> y <strong>Api</strong>. Separarlas evita que un cambio en la base de datos rompa la logica de negocio. Ver <a href="arquitectura.html">arquitectura</a> y <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="clean-architecture">Clean Architecture</h3>
+<p>Estilo de organizacion del codigo donde las reglas de negocio quedan en el centro y los detalles tecnicos (BD, web, UI) quedan afuera, dependiendo siempre hacia adentro. Sirve para que el nucleo del sistema no dependa de frameworks ni de la base de datos concreta. El backend la implementa con las cuatro capas descritas en <a href="arquitectura.html">arquitectura</a>. Ver <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="connection-string-cadena-de-conexion">connection string (cadena de conexion)</h3>
+<p>El texto con los datos para conectarse a SQL Server (servidor, base, credenciales). Aca la base es <code>INTEGRA_CNP</code> y la cadena se llama <code>IntegraCnp</code>. <strong>No se versiona</strong>: se inyecta por la variable de entorno <code>ConnectionStrings__IntegraCnp</code>. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs</a> y <a href="seguridad.html">seguridad</a>.</p>
+<h3 id="cors-cross-origin-resource-sharing">CORS (Cross-Origin Resource Sharing)</h3>
+<p>Mecanismo de seguridad del navegador que controla si una pagina servida desde un origen (p. ej. <code>localhost:8000</code>) puede llamar a una API en otro origen (p. ej. <code>localhost:5093</code>). En este proyecto la politica <code>LocalFrontend</code> esta <strong>abierta</strong> (acepta cualquier origen) y eso debe restringirse en produccion. Ver <a href="seguridad.html">seguridad</a> y el gotcha de CORS en <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="correlationid">correlationId</h3>
+<p>Un identificador unico que la API genera por cada peticion. Sirve para rastrear una sola llamada a traves de logs y respuestas de error: aparece tanto en el cuerpo del error (<a href="#problemdetails">ProblemDetails</a>, campo <code>extensions.correlationId</code>) como en el header <code>X-Correlation-Id</code>. Ver el manejador de errores en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs</a> y <a href="modulo-api.html">modulo-api</a>.</p>
+<h3 id="dapper">Dapper</h3>
+<p>Una libreria liviana ("micro-ORM") que convierte filas de SQL en objetos C# con poco codigo, pero dejandote escribir el SQL a mano. Resuelve el tedio de mapear columnas a propiedades sin esconder el SQL como haria un <a href="#orm">ORM</a> completo. Aca se usa Dapper 2.1.72 con metodos como <code>QueryAsync</code>/<code>ExecuteScalarAsync</code>. Ver <a href="modulo-infraestructura.html">modulo-infraestructura</a> y <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="dto-data-transfer-object">DTO (Data Transfer Object)</h3>
+<p>Un objeto simple cuyo unico trabajo es transportar datos entre capas, sin logica. Sirve para que la capa Application mueva informacion sin exponer ni las <a href="#entidad">entidades</a> del dominio ni la forma del JSON de la API. Viven en <code>Application/DTOs</code>. Ojo: las propiedades de DTO usan sufijo <code>Id</code> (<code>JustificacionId</code>), mientras los Contracts de la API usan <code>ID</code>. Ver <a href="modulo-application.html">modulo-application</a>.</p>
+<h3 id="endpoint">endpoint</h3>
+<p>Una direccion concreta de la API a la que se le hace una peticion HTTP, p. ej. <code>GET /health</code> o las rutas de justificaciones. Cada endpoint es un metodo de un controller. Todos los endpoints de negocio devuelven <strong>401</strong> si faltan los headers de identidad. Ver <a href="api.html">api</a> y <a href="modulo-api.html">modulo-api</a>.</p>
+<h3 id="entidad-entity">entidad (entity)</h3>
+<p>Un objeto que representa una "cosa" del negocio con identidad propia y vive en la capa Domain, p. ej. <code>JustificacionEncabezado</code> y <code>JustificacionDetalle</code>. Es el modelo mas cercano al negocio, sin saber nada de BD ni de web. Ver <a href="modulo-dominio.html">modulo-dominio</a>.</p>
+<h3 id="guard-clause-clausula-de-guarda">guard clause (clausula de guarda)</h3>
+<p>Una verificacion al inicio de un metodo que corta la ejecucion si algo no se cumple (en vez de anidar <code>if</code>s). Aca es el corazon de la <strong>autorizacion</strong>: cada servicio de Application valida el rol al entrar (<code>RolesSistema.Es*</code>) y lanza <code>AppException(403)</code> si no aplica. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> y <a href="seguridad.html">seguridad</a>.</p>
+<h3 id="header-http">header HTTP</h3>
+<p>Un par clave-valor que viaja con cada peticion/respuesta HTTP, aparte del cuerpo. Aca son centrales porque la <strong>identidad</strong> del usuario viaja en dos headers: <code>X-User-Id</code> y <code>X-User-Role</code> (sin login real, sin JWT). Ver <a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a> y <a href="seguridad.html">seguridad</a>.</p>
+<h3 id="iis-internet-information-services">IIS (Internet Information Services)</h3>
+<p>El servidor web de Windows que hospeda la API en produccion. En desarrollo la API corre con <a href="#kestrel">Kestrel</a>; para produccion se publica con <code>dotnet publish</code> y la corre IIS (el servidor de produccion no tiene SDK). Ver <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="interfaz-puerto-interface-port">interfaz / puerto (interface / port)</h3>
+<p>Un "contrato" que dice <strong>que</strong> operaciones existen sin decir <strong>como</strong> se implementan (p. ej. <code>IJustificacionRepository</code>, <code>IUserContext</code>). Sirve para que la capa Application pida cosas sin atarse a una implementacion concreta; eso es la base de la <a href="#inversion-de-dependencias">inversion de dependencias</a>. Las interfaces se definen en <code>Application/Interfaces</code> y se implementan hacia afuera. Ver <a href="modulo-application.html">modulo-application</a>.</p>
+<h3 id="inversion-de-dependencias-dependency-inversion">inversion de dependencias (Dependency Inversion)</h3>
+<p>Principio que dice: las capas de adentro definen las interfaces y las de afuera las implementan, de modo que la flecha de dependencia "se invierte" respecto al flujo de datos. En la practica: Application declara <code>IJustificacionRepository</code> (una <a href="#interfaz--puerto-interface--port">interfaz</a>) e Infrastructure provee la clase concreta. Asi el nucleo no depende de la BD. Ver <a href="arquitectura.html">arquitectura</a>.</p>
+<h3 id="kestrel">Kestrel</h3>
+<p>El servidor web liviano que trae .NET y que corre la API en desarrollo (puertos 5093 http / 7129 https). Es lo que arranca cuando haces <code>dotnet run</code>. En produccion el rol lo toma <a href="#iis-internet-information-services">IIS</a>. Ver la tabla de puertos en <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="mermaid">Mermaid</h3>
+<p>Un lenguaje de texto para dibujar diagramas (flujos, secuencias, jerarquias) que el wiki convierte en imagenes. Sirve para explicar arquitectura y flujos sin tener que adjuntar imagenes externas. Los bloques se escriben con ```<code> </code>`<code>mermaid </code>```. Lo usa este mismo wiki en varias paginas.</p>
+<h3 id="orm-object-relational-mapper">ORM (Object-Relational Mapper)</h3>
+<p>Una herramienta que traduce automaticamente entre tablas de BD y objetos del lenguaje, a veces generando el SQL por vos (ejemplo tipico: Entity Framework). <strong>Este proyecto NO usa un ORM completo (sin EF Core)</strong>: prefiere <a href="#adonet">ADO.NET</a> + <a href="#dapper">Dapper</a> para tener control total del SQL. Ver <a href="modulo-infraestructura.html">modulo-infraestructura</a>.</p>
+<h3 id="problemdetails">ProblemDetails</h3>
+<p>El formato estandar (RFC 7807) en que la API devuelve los errores como JSON: incluye titulo, estado y extensiones. Aca cada error sale como <code>ProblemDetails</code> con <code>extensions.correlationId</code> y header <code>X-Correlation-Id</code>. Lo arma el manejador global en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs</a>. Ver <a href="modulo-api.html">modulo-api</a>.</p>
+<h3 id="repositorio-repository">repositorio (repository)</h3>
+<p>La clase que sabe como leer/escribir un grupo de datos en la BD (un "agregado"), aislando el resto del codigo del SQL. Aca hay uno <code>sealed</code> por agregado (<code>JustificacionRepository</code>, <code>AdminAprobacionesRepository</code>, etc.), cada uno recibe <code>ISqlConnectionFactory</code> y usa <a href="#dapper">Dapper</a>. Ver <a href="modulo-infraestructura.html">modulo-infraestructura</a>.</p>
+<h3 id="sealed-clase-sellada">sealed (clase sellada)</h3>
+<p>Modificador de C# que impide que otra clase herede de esta. Aca es la <strong>convencion por defecto</strong>: controllers, services, repositories, entities, DTOs y excepciones son <code>sealed</code> (unica excepcion: <code>SessionController</code>). Mantiene el diseno cerrado y predecible. Ver <a href="../backend/src/IntegradorMarcas.Application/Common/AppException.cs">AppException.cs</a> y <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="servicio-application-service">servicio (Application service)</h3>
+<p>Una clase de la capa Application que orquesta un caso de uso del negocio (p. ej. crear una boleta, listar el historico): valida el rol con <a href="#guard-clause-clausula-de-guarda">guard clauses</a>, llama a los <a href="#repositorio-repository">repositorios</a> y devuelve <a href="#dto-data-transfer-object">DTOs</a>. Es donde vive la logica, no en el controller ni en la BD. Ver <a href="modulo-application.html">modulo-application</a>.</p>
+<h3 id="sessionstorage">sessionStorage</h3>
+<p>Un almacen del navegador donde el frontend guarda datos que duran lo que dura la pestania (se borran al cerrarla). Aca guarda el usuario/rol y otros estados de sesion, con claves prefijadas <code>sjm_</code>. Ver <a href="../app.js">app.js</a> y <a href="modulo-frontend.html">modulo-frontend</a>.</p>
+<h3 id="scope-identity">SCOPE_IDENTITY</h3>
+<p>Funcion de SQL Server que devuelve el ID autogenerado de la <strong>ultima fila insertada en el contexto actual</strong>. Sirve para saber que ID recibio una boleta recien creada. Aca los inserts hacen <code>ExecuteScalarAsync&lt;int&gt;</code> con <code>SELECT CAST(SCOPE_IDENTITY() AS INT)</code>. Ver <a href="modulo-infraestructura.html">modulo-infraestructura</a>.</p>
+<h3 id="spa-single-page-application">SPA (Single Page Application)</h3>
+<p>Una app web que vive en una sola pagina y actualiza el contenido con JavaScript en vez de recargar paginas enteras. Aca es una SPA muy simple: <code>dashboard.html</code> + <code>app.js</code> cambian de "vista" segun el rol, sin framework ni bundler. Ojo: no hay SPA fallback (404 en rutas desconocidas). Ver <a href="modulo-frontend.html">modulo-frontend</a>.</p>
+<h3 id="transaccion-transaction">transaccion (transaction)</h3>
+<p>Un grupo de operaciones de BD que se confirman todas juntas o se deshacen todas juntas ("todo o nada"). Sirve para no dejar datos a medias: si insertar el encabezado funciona pero falla el detalle, se revierte todo. Aca los multi-insert usan <code>BeginTransactionAsync</code>/Commit/Rollback explicito. Ver <a href="modulo-infraestructura.html">modulo-infraestructura</a>.</p>
+<h3 id="tvf-table-valued-function">TVF (Table-Valued Function)</h3>
+<p>Una funcion de SQL Server que devuelve una <strong>tabla</strong> en vez de un valor simple. La clave del negocio es <code>dbo.fn_AprobadoresVigentesPorSolicitante(usuarioId, GETDATE())</code>, que devuelve quienes pueden aprobar las boletas de una persona hoy. Ver <a href="modelo-datos.html">modelo-datos</a> y <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql</a>.</p>
+<blockquote class="callout tip">💡 Cuando una pagina diga "headers de identidad" se refiere a <code>X-User-Id</code> / <code>X-User-Role</code>. Cuando diga "guard clause de rol" se refiere a la validacion <code>RolesSistema.Es*</code> al inicio de cada servicio. Son los dos mecanismos que reemplazan al login tradicional.</blockquote>
+<hr>
+<h2 id="dominio">Dominio</h2>
+<h3 id="aprobador">aprobador</h3>
+<p>La persona habilitada para aprobar o rechazar las boletas de otra. Quien puede aprobar a quien lo resuelve la <a href="#tvf-table-valued-function">TVF</a> <code>dbo.fn_AprobadoresVigentesPorSolicitante</code>, que considera la <a href="#jerarquia-de-aprobacion">jerarquia</a> y las <a href="#delegacion">delegaciones</a>. Ver <a href="flujos.html">flujos</a> y <a href="modelo-datos.html">modelo-datos</a>.</p>
+<h3 id="boleta-de-justificacion">boleta de justificacion</h3>
+<p>El documento que un funcionario crea para justificar una <a href="#marca">marca</a> de asistencia. Es la entidad central del sistema: tiene un encabezado (<code>JustificacionEncabezado</code>) con el <a href="#motivo-general">motivo general</a> y una o varias <a href="#linea-de-detalle">lineas de detalle</a>. Ver <a href="modulo-dominio.html">modulo-dominio</a> y <a href="flujos.html">flujos</a>.</p>
+<h3 id="cnp">CNP</h3>
+<p>Consejo Nacional de Produccion: la institucion para la que existe este sistema. Junto con FANAL son las organizaciones cuyas marcas se justifican. Ver <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="delegacion">delegacion</h3>
+<p>Un permiso temporal por el cual una persona aprueba boletas en lugar de otra (p. ej. mientras la jefatura titular esta de vacaciones). En la <a href="#tvf-table-valued-function">TVF</a> de aprobadores, una fila con <code>Origen='Delegacion'</code> <strong>tiene prioridad</strong> sobre la <a href="#jerarquia-de-aprobacion">jerarquia</a>. La gestiona el rol <a href="#rol_admin">ROL_ADMIN</a>. Ver <a href="modelo-datos.html">modelo-datos</a> y <a href="flujos.html">flujos</a>.</p>
+<h3 id="estado">estado</h3>
+<p>La situacion en que esta una boleta dentro del flujo de aprobacion. Hay tres, definidos en <a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a>:</p>
+<div class="table-wrap"><table><thead><tr><th>Constante</th><th>Id</th><th>Significado</th></tr></thead><tbody><tr><td><code>PendienteJefatura</code></td><td>1</td><td>Creada, esperando que la jefatura la revise</td></tr><tr><td><code>Aprobado</code></td><td>2</td><td>La jefatura la aprobo</td></tr><tr><td><code>Rechazado</code></td><td>3</td><td>La jefatura la rechazo</td></tr></tbody></table></div>
+<p>Ver <a href="modulo-dominio.html">modulo-dominio</a> y <a href="flujos.html">flujos</a>.</p>
+<h3 id="estructura-organizacional">estructura organizacional</h3>
+<p>El organigrama de la institucion (unidades, dependencias y quien depende de quien). De ahi se deriva la <a href="#jerarquia-de-aprobacion">jerarquia de aprobacion</a>. Vive en tablas como <code>RecursosHumanos.EstructuraOrganizacional</code> (y un shim legado <code>dbo.Estructuras_Organizacionales</code>). La administra <a href="#rol_admin">ROL_ADMIN</a>. Ver <a href="modelo-datos.html">modelo-datos</a>.</p>
+<h3 id="fanal">FANAL</h3>
+<p>Fabrica Nacional de Licores: la otra organizacion (junto con <a href="#cnp">CNP</a>) cuyas marcas de asistencia se justifican en este sistema. Ver <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="integra-cnp">INTEGRA_CNP</h3>
+<p>El nombre de la <strong>base de datos SQL Server</strong> propia de este sistema, donde ocurre toda la escritura. Tiene cinco esquemas funcionales: <code>Configuracion</code>, <code>RecursosHumanos</code>, <code>Operacion</code>, <code>Auditoria</code> e <code>Integracion</code>. Ver <a href="modelo-datos.html">modelo-datos</a> y los scripts en <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql</a>.</p>
+<h3 id="jerarquia-de-aprobacion">jerarquia de aprobacion</h3>
+<p>La cadena de mando que define, segun la <a href="#estructura-organizacional">estructura organizacional</a>, que jefatura aprueba las boletas de cada funcionario. Es la fuente "normal" de <a href="#aprobador">aprobadores</a>, pero una <a href="#delegacion">delegacion</a> puede sobreescribirla. Ver <a href="flujos.html">flujos</a>.</p>
+<h3 id="linea-de-detalle">linea de detalle</h3>
+<p>Cada renglon dentro de una <a href="#boleta-de-justificacion">boleta</a> que justifica una marca puntual (fecha/hora especifica). Se modela como <code>JustificacionDetalle</code> y una boleta puede tener varias. Ver <a href="modulo-dominio.html">modulo-dominio</a>.</p>
+<h3 id="marca-time-mark">marca (time-mark)</h3>
+<p>El registro de entrada/salida de un funcionario (la "marca" del reloj de asistencia). El sistema completo existe para <strong>justificar</strong> marcas que quedaron incompletas o irregulares. Ver <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="motivo-general">motivo general</h3>
+<p>La razon de alto nivel por la que se crea la <a href="#boleta-de-justificacion">boleta</a>, guardada en el encabezado (a diferencia de las <a href="#linea-de-detalle">lineas de detalle</a>, que son por marca). Ver <a href="modulo-dominio.html">modulo-dominio</a>.</p>
+<h3 id="rol-admin">ROL_ADMIN</h3>
+<p>Rol de administrador. Gestiona jerarquias, delegaciones y la organizacion. Valor exacto <code>ROL_ADMIN</code>; helper <code>EsAdmin</code>; sinonimos aceptados <code>ADMIN</code>, <code>4</code>. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> y <a href="seguridad.html">seguridad</a>.</p>
+<h3 id="rol-func">ROL_FUNC</h3>
+<p>Rol de funcionario. Crea sus propias <a href="#boleta-de-justificacion">boletas</a> y solo ve su propio historico. Valor exacto <code>ROL_FUNC</code>; helper <code>EsFuncionario</code>; sinonimos aceptados <code>FUNCIONARIO</code>, <code>1</code>. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a>.</p>
+<h3 id="rol-jefe">ROL_JEFE</h3>
+<p>Rol de jefatura. Aprueba o rechaza las boletas de los funcionarios a su cargo (su set de aprobador, excluyendose a si misma). Valor exacto <code>ROL_JEFE</code>; helper <code>EsJefatura</code>; sinonimos <code>JEFATURA</code>, <code>2</code>. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> y <a href="flujos.html">flujos</a>.</p>
+<h3 id="rol-rrhh">ROL_RRHH</h3>
+<p>Rol de Recursos Humanos. Consulta global (ve el historico de todos), sin aprobar. Valor exacto <code>ROL_RRHH</code>; helper <code>EsRrhh</code>; sinonimos <code>RRHH</code>, <code>3</code>. Ver <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a>.</p>
+<h3 id="sifcnp">SIFCNP</h3>
+<p>El nombre del sistema (Sistema de... CNP) y tambien una base externa de <strong>solo lectura</strong> de la que <code>INTEGRA_CNP</code> lee via vistas de integracion (nunca escribe ahi). Por compatibilidad con SIFCNP existe la vista legada <code>dbo.V_JUSTIFICACIONES_DETALLE</code> en MAYUSCULAS_SNAKE. Ver <a href="modelo-datos.html">modelo-datos</a> y <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<h3 id="wizdom">WIZDOM</h3>
+<p>Otra base de datos externa de <strong>solo lectura</strong> que alimenta datos a <code>INTEGRA_CNP</code> a traves de las vistas del esquema <code>Integracion</code>. El sistema nunca hace INSERT/UPDATE/DELETE sobre WIZDOM. Ver <a href="modelo-datos.html">modelo-datos</a> y <a href="../CLAUDE.md">CLAUDE.md</a>.</p>
+<blockquote class="callout warn">⚠️ WIZDOM y SIFCNP son <strong>solo lectura</strong>: cualquier escritura ocurre exclusivamente en <a href="#integra_cnp">INTEGRA_CNP</a>. Confundir esto es un error de diseno con consecuencias.</blockquote>
+<hr>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../CLAUDE.md">CLAUDE.md</a> — fuente principal de la mayoria de los terminos (dominio, stack, convenciones).</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> — valores exactos de los roles <code>ROL_*</code> y helpers <code>Es*</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a> — los tres estados de una boleta (Pendiente/Aprobado/Rechazado).</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Common/AppException.cs">AppException.cs</a> — la excepcion <code>sealed</code> con <code>StatusCode</code> que sostiene los errores 401/403/400.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a> — lectura de los headers de identidad <code>X-User-Id</code> / <code>X-User-Role</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs</a> — connection string <code>IntegraCnp</code> y creacion de conexiones ADO.NET.</li>
+<li><a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql</a> — TVF de aprobadores, vistas de integracion y vista legada SIFCNP.</li>
+<li><a href="../app.js">app.js</a> — frontend SPA: sessionStorage <code>sjm_</code>, CORS, headers de identidad.</li>
+</ul>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#mapa-de-los-terminos-del-proyecto">Mapa de los terminos del proyecto</a></li><li><a href="#stack-tecnico">Stack / tecnico</a></li><li><a href="#dominio">Dominio</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

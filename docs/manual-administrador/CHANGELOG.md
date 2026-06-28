@@ -14,11 +14,15 @@ Formato: versión, fecha y cambios.
 - Sección de seguridad y limitaciones conocidas, incluido el encuadre de identidad Microsoft 365 / Entra (@cnp.go.cr).
 - Glosario, tabla de trazabilidad con las normas y sección de fuentes.
 
+### Completado — 2026-06-27
+- Capturas de pantalla **reales** (10) generadas navegando el Panel de Administración con Microsoft Edge headless vía CDP (Node nativo), no mockups: ingreso del administrador, vista general de los cinco apartados, dependencias y su edición, usuarios y su edición de asignación, jerarquías y su creación, delegaciones y su creación, y registros de monitoreo/auditoría (con filtros). Insertadas con texto alternativo descriptivo (WCAG 2.2 §1.1.1) y leyenda de figura numerada.
+- Organización emisora: **Unidad de Tecnologías de Información (UTI) — Consejo Nacional de Producción (CNP)**.
+- Contacto de soporte técnico: mesa de ayuda institucional, correo uti@cnp.go.cr y canales internos de Microsoft Teams.
+- Navegadores soportados derivados del propio código: Chrome/Edge 90+, Firefox 90+ y Safari 14+ (Internet Explorer y Edge legado no son compatibles).
+- Gobernanza del rol Administrador: lo define la coordinación/jefatura de la UTI; no es de autoasignación.
+- Acceso a la información de auditoría por instancias sin rol Administrador: se solicita a la UTI por los canales oficiales (no hay acceso directo al sistema).
+
 ### Pendiente (TODO)
-- Capturas de pantalla reales (placeholders en `capturas/`); generar con Playwright.
-- Organización emisora responsable.
-- Contacto de soporte técnico.
-- Lista oficial de navegadores soportados.
 - Política real de respaldos (frecuencia, herramienta, responsable, restauración).
 - Procedimiento institucional de publicación de versiones y ventana de mantenimiento.
 - Dirección de producción y estado de activación de Microsoft 365.

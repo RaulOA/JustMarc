@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview del proyecto · DeepWiki local SIFCNP</title>
+<meta name="description" content="Que es SIFCNP, stack, arquitectura de alto nivel y mapa de modulos.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html" class="active" aria-current="page">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span class="current">Overview del proyecto</span></nav>
+<div class="page-head-row">
+<h1>Overview del proyecto</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Que es SIFCNP, stack, arquitectura de alto nivel y mapa de modulos.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>SIFCNP (Sistema de Justificacion de Marcas) es una aplicacion web para que el personal de CNP/FANAL justifique sus <em>marcas</em> de asistencia (las marcas de entrada/salida del reloj marcador) cuando algo sale de lo normal: llegaron tarde, se les olvido marcar, salieron antes, etc. En lugar de tramitar eso en papel, el funcionario crea una boleta digital, su jefatura la aprueba o rechaza, RRHH la consulta de forma global y un administrador configura quien aprueba a quien. Existe porque el flujo de aprobacion de justificaciones necesita trazabilidad, control por rol y conexion con los sistemas de RH existentes (<a href="../README.md">README.md</a>, <a href="../CLAUDE.md">CLAUDE.md:1-7</a>).</p>
+<blockquote class="callout why">📌 En la practica: es la version digital del tramite "se me paso marcar, justifico el motivo y mi jefe lo firma", con bitacora de quien hizo que.</blockquote>
+<h2 id="que-problema-resuelve">Que problema resuelve</h2>
+<p>Una <em>marca</em> es el registro de hora de entrada o salida de un empleado. Cuando una marca falta o es anomala (llegada tarde, omision de marca, ausencia), debe quedar <strong>justificada</strong> para efectos de planilla y control de asistencia. SIFCNP centraliza ese tramite:</p>
+<div class="table-wrap"><table><thead><tr><th>Situacion real</th><th>En el sistema</th></tr></thead><tbody><tr><td>Llegue tarde y necesito explicarlo</td><td>El funcionario crea una boleta con el tipo "Marca Tardia"</td></tr><tr><td>Se me olvido marcar la entrada</td><td>Tipo "Omision Marca de Entrada"</td></tr><tr><td>Mi jefe debe revisar mis justificaciones</td><td>La jefatura ve sus pendientes y aprueba/rechaza</td></tr><tr><td>RRHH necesita ver todo para reportes</td><td>RRHH consulta de forma global</td></tr></tbody></table></div>
+<p>Los tipos de justificacion estan definidos en el frontend en <a href="../app.js">app.js:152-158</a> (<code>JUSTIFICACION_TIPO_IDS</code>): <code>Marca Tardia</code>, <code>Omision Marca de Entrada</code>, <code>Omision Marca de Salida</code>, <code>Marca antes Hora de Salida</code> y <code>Ausencia</code>.</p>
+<h2 id="los-4-roles-y-el-flujo-de-negocio">Los 4 roles y el flujo de negocio</h2>
+<p>El sistema gira alrededor de cuatro roles. Sus valores exactos (constantes <code>ROL_*</code>) viven en el dominio, en <code>RolesSistema</code> (<a href="../CLAUDE.md">CLAUDE.md:113-122</a>), y el frontend los reconoce por nombre de usuario en <code>MOCK_USER_DIRECTORY</code> (<a href="../app.js">app.js:141-150</a>):</p>
+<div class="table-wrap"><table><thead><tr><th>Rol</th><th>Constante</th><th>Que hace</th></tr></thead><tbody><tr><td>Funcionario</td><td><code>ROL_FUNC</code></td><td>Crea boletas de justificacion y consulta su propio historial</td></tr><tr><td>Jefatura</td><td><code>ROL_JEFE</code></td><td>Revisa, aprueba o rechaza las solicitudes de su gente</td></tr><tr><td>RRHH</td><td><code>ROL_RRHH</code></td><td>Consulta todas las justificaciones (vista global) y descarga reportes</td></tr><tr><td>Administrador</td><td><code>ROL_ADMIN</code></td><td>Gestiona dependencias, jerarquias y delegaciones de aprobacion</td></tr></tbody></table></div>
+<p>El flujo tipico es secuencial:</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+  F["Funcionario&lt;br/&gt;ROL_FUNC"] --&gt;|"crea boleta"| P(["Pendiente&lt;br/&gt;Jefatura"])
+  P --&gt; J{"Jefatura&lt;br/&gt;ROL_JEFE"}
+  J --&gt;|"aprueba"| A(["Aprobado"])
+  J --&gt;|"rechaza"| R(["Rechazado"])
+  A --&gt; RH["RRHH&lt;br/&gt;ROL_RRHH&lt;br/&gt;(consulta global)"]
+  R --&gt; RH
+  ADM["Admin&lt;br/&gt;ROL_ADMIN"] -.-&gt;|"configura quien aprueba&lt;br/&gt;a quien (jerarquia/delegacion)"| J</pre></div>
+<p>Los estados de una boleta (<code>Pendiente Jefatura</code>, <code>Aprobado</code>, <code>Rechazado</code>) estan en <code>ESTADOS</code> en <a href="../app.js">app.js:96-100</a>. Quien aprueba a quien no esta cableado a mano: lo resuelve la funcion de base de datos <code>dbo.fn_AprobadoresVigentesPorSolicitante</code>, donde una <em>delegacion</em> (cuando un jefe delega temporalmente la aprobacion en otro) tiene prioridad sobre la jerarquia normal (<a href="../CLAUDE.md">CLAUDE.md:136</a>). Vea <a href="flujos.html">Flujos</a> para el detalle paso a paso y <a href="seguridad.html">Seguridad</a> para como se controla cada rol.</p>
+<h2 id="las-3-piezas-y-el-stack">Las 3 piezas y el stack</h2>
+<p>El proyecto son tres piezas que se despliegan por separado (<a href="../CLAUDE.md">CLAUDE.md:3</a>):</p>
+<div class="table-wrap"><table><thead><tr><th>Pieza</th><th>Tecnologia</th><th>Version</th><th>Ubicacion</th></tr></thead><tbody><tr><td>Frontend</td><td>HTML + CSS + JavaScript <em>vanilla</em> (sin framework, sin bundler)</td><td>v1.0.0 (login)</td><td>raiz del repo: <a href="../index.html">index.html</a>, <a href="../dashboard.html">dashboard.html</a>, <a href="../app.js">app.js</a>, <a href="../style.css">style.css</a></td></tr><tr><td>API REST</td><td>.NET / ASP.NET Core</td><td>net8.0</td><td><a href="../backend/src/IntegradorMarcas.Api/Program.cs">backend/src/</a> (Clean Architecture, 4 proyectos)</td></tr><tr><td>Base de datos</td><td>SQL Server</td><td>2022</td><td>scripts en <a href="../docs/db/02_EstructuraCompleta.sql">docs/db/</a> (base <code>INTEGRA_CNP</code>)</td></tr><tr><td>Acceso a datos</td><td>Dapper sobre ADO.NET (<code>Microsoft.Data.SqlClient</code>)</td><td>Dapper 2.1.72 · SqlClient 7.0.0</td><td>capa Infrastructure (<a href="../CLAUDE.md">CLAUDE.md:130</a>)</td></tr><tr><td>Documentacion API</td><td>Swashbuckle (Swagger)</td><td>10.1.7</td><td><a href="../backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj">IntegradorMarcas.Api.csproj:11</a></td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 <em>Vanilla</em> JavaScript significa "JavaScript a secas, sin librerias ni paso de compilacion". <em>Clean Architecture</em> es un estilo de organizar el codigo en capas concentricas donde las dependencias apuntan siempre hacia adentro (lo de negocio no conoce lo de infraestructura). <em>Dapper</em> es un mini-mapeador que ejecuta SQL escrito a mano y convierte las filas en objetos C#, sin el peso de un ORM completo como EF Core. Vea el <a href="glosario.html">Glosario</a> para mas terminos.</blockquote>
+<p>Notas importantes del stack: <strong>no hay archivo <code>.sln</code></strong> (cada comando <code>dotnet</code> apunta al <code>.csproj</code> explicito), <strong>no se usa EF Core</strong> (SQL a mano con Dapper), y la <strong>identidad va por headers HTTP</strong> <code>X-User-Id</code> / <code>X-User-Role</code>, sin JWT ni cookies (<a href="../CLAUDE.md">CLAUDE.md:5</a>, <a href="../CLAUDE.md">CLAUDE.md:104-109</a>).</p>
+<h2 id="arquitectura-de-alto-nivel">Arquitectura de alto nivel</h2>
+<p>El navegador habla con el frontend estatico; el frontend llama por HTTP a la API enviando los headers de identidad; la API consulta la base <code>INTEGRA_CNP</code> con Dapper; y esa base lee (solo lectura) de dos bases externas, <code>WIZDOM</code> y <code>SIFCNP</code>, a traves de vistas de integracion (<a href="../docs/manual-tecnico/capturas/01-diagrama-despliegue.mmd">docs/manual-tecnico/capturas/01-diagrama-despliegue.mmd</a>):</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph TD
+  Nav["Navegador del usuario&lt;br/&gt;(funcionario, jefatura, RRHH, admin)"]
+  subgraph PROD["Servidor de produccion (IIS)"]
+    FE["Frontend estatico&lt;br/&gt;index.html · dashboard.html · app.js · style.css&lt;br/&gt;(dev: http.server :8000)"]
+    API["API REST .NET 8&lt;br/&gt;Kestrel :5093 http / :7129 https (dev)&lt;br/&gt;IIS + .NET Hosting Bundle (prod)&lt;br/&gt;GET /health"]
+  end
+  subgraph BD["Servidor de base de datos (SQL Server :1433)"]
+    DB[("INTEGRA_CNP&lt;br/&gt;Configuracion · RecursosHumanos&lt;br/&gt;Operacion · Auditoria · Integracion")]
+  end
+  subgraph EXT["Bases externas (SOLO LECTURA)"]
+    WIZ[("WIZDOM&lt;br/&gt;empleado · organigrama")]
+    SIF[("SIFCNP&lt;br/&gt;RH_JUSTIFICACIONES_ENC / DET")]
+  end
+  Nav --&gt;|"HTTP"| FE
+  FE --&gt;|"fetch() + headers&lt;br/&gt;X-User-Id / X-User-Role"| API
+  API --&gt;|"ADO.NET + Dapper&lt;br/&gt;(connection string IntegraCnp)"| DB
+  DB -.-&gt;|"vistas Integracion.*&lt;br/&gt;(solo lectura)"| WIZ
+  DB -.-&gt;|"vistas Integracion.*&lt;br/&gt;(solo lectura)"| SIF</pre></div>
+<p>Dentro de la API, la regla de dependencia de Clean Architecture es: <strong>Domain &amp;larr; Application &amp;larr; Infrastructure &amp;larr; Api</strong> (las flechas apuntan hacia lo mas interno; Domain no referencia a nadie). Vea <a href="arquitectura.html">Arquitectura</a> para el detalle por capa.</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph TD
+  Api["Api&lt;br/&gt;(Controllers, Contracts, Security)"] --&gt; App["Application&lt;br/&gt;(DTOs, Interfaces, Services)"]
+  Infra["Infrastructure&lt;br/&gt;(Data, Queries, Repositories)"] --&gt; App
+  Api --&gt; Infra
+  App --&gt; Dom["Domain&lt;br/&gt;(Entities, Constants)"]
+  Infra --&gt; Dom</pre></div>
+<h2 id="puntos-de-entrada">Puntos de entrada</h2>
+<div class="table-wrap"><table><thead><tr><th>Pieza</th><th>Punto de entrada</th><th>Que ocurre ahi</th></tr></thead><tbody><tr><td>Frontend</td><td><a href="../index.html">index.html</a></td><td>Pantalla de login. El boton "Ingresar" llama a <code>handleLogin()</code></td></tr><tr><td>Frontend</td><td><a href="../dashboard.html">dashboard.html</a></td><td>La app por roles; carga el unico script global <a href="../app.js">app.js</a></td></tr><tr><td>API</td><td><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:1-167</a></td><td>Arranque del host: valida la connection string, registra servicios (DI), configura CORS, el manejador global de errores y mapea controllers + <code>/health</code></td></tr></tbody></table></div>
+<p>Detalles de los puntos de entrada anclados al codigo:</p>
+<ul>
+<li><strong>Login (frontend):</strong> <code>handleLogin()</code> (<a href="../app.js">app.js:521-550</a>) <strong>no envia el password a ningun lado</strong>; solo valida localmente que usuario tenga &gt;=3 caracteres y password &gt;=4, deriva el rol del nombre de usuario con <code>inferRole()</code> (<a href="../app.js">app.js:160-169</a>) y guarda la sesion en <code>sessionStorage</code>. Es un diseno de MVP/demo: cualquier password sirve. Vea la advertencia en <a href="seguridad.html">Seguridad</a>.</li>
+</ul>
+<ul>
+<li><strong>Arranque de la API (<code>Program.cs</code>):</strong> primero lee la connection string <code>IntegraCnp</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:15-31</a>); si falta, <strong>aborta</strong> fuera de Development (fail-fast) y solo <strong>advierte</strong> en Development. Luego registra los servicios y repositorios en el contenedor de inyeccion de dependencias (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62-72</a>), define la politica CORS abierta <code>LocalFrontend</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:50-60</a>) y monta el manejador global de excepciones que devuelve <code>ProblemDetails</code> con un <code>correlationId</code> y registra el error en BD (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:80-139</a>).</li>
+</ul>
+<blockquote class="callout warn">⚠️ <em>CORS</em> (Cross-Origin Resource Sharing) es el mecanismo del navegador que decide si una pagina puede llamar a una API en otro origen. Aca la politica <code>LocalFrontend</code> permite <strong>cualquier</strong> origen, header y metodo (<code>SetIsOriginAllowed(_ =&gt; true)</code>); el propio codigo anota que debe restringirse en despliegues expuestos (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:52-59</a>).</blockquote>
+<h2 id="mapa-que-modulo-hace-que">Mapa: que modulo hace que</h2>
+<p>Cada area del sistema tiene su pagina en este wiki. Use esta tabla como indice:</p>
+<div class="table-wrap"><table><thead><tr><th>Modulo / area</th><th>Que hace</th><th>Pagina</th></tr></thead><tbody><tr><td>Frontend</td><td>Login, dashboard por roles, llamadas a la API (<code>apiFetch</code>, <code>buildApiHeaders</code>), toasts, sesion</td><td><a href="modulo-frontend.html">modulo-frontend</a></td></tr><tr><td>Api (capa externa)</td><td>Controllers REST, Contracts (Requests/Responses), seguridad por header, manejo de errores</td><td><a href="modulo-api.html">modulo-api</a></td></tr><tr><td>Application</td><td>DTOs, interfaces, servicios de negocio, validacion y <em>guard clauses</em> de autorizacion por rol</td><td><a href="modulo-application.html">modulo-application</a></td></tr><tr><td>Infrastructure</td><td>Acceso a datos con Dapper, fabrica de conexiones, repositorios, SQL en <code>*Sql.cs</code></td><td><a href="modulo-infraestructura.html">modulo-infraestructura</a></td></tr><tr><td>Domain</td><td>Entidades (<code>JustificacionEncabezado</code>, <code>JustificacionDetalle</code>) y constantes (<code>RolesSistema</code>)</td><td><a href="modulo-dominio.html">modulo-dominio</a></td></tr><tr><td>Base de datos</td><td>Esquemas, tablas, funcion de aprobadores, vistas de integracion, scripts <code>docs/db/</code></td><td><a href="modelo-datos.html">modelo-datos</a></td></tr><tr><td>API REST (catalogo)</td><td>Lista de endpoints, rutas, headers y respuestas</td><td><a href="api.html">api</a></td></tr><tr><td>Flujos de negocio</td><td>Crear boleta, aprobar/rechazar, consultar, configurar</td><td><a href="flujos.html">flujos</a></td></tr><tr><td>Seguridad</td><td>Identidad por header, autorizacion por rol, CORS, <em>gotchas</em> de seguridad</td><td><a href="seguridad.html">seguridad</a></td></tr><tr><td>Arquitectura</td><td>Clean Architecture, capas y regla de dependencia</td><td><a href="arquitectura.html">arquitectura</a></td></tr><tr><td>Glosario</td><td>Terminos del stack explicados</td><td><a href="glosario.html">glosario</a></td></tr></tbody></table></div>
+<p>Los controllers que exponen la API (cada uno con ruta <code>api/[controller]</code>, p. ej. <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:10-12</a>) son: <code>JustificacionesController</code>, <code>JefaturaController</code>, <code>RrhhController</code>, <code>AdminAprobacionesController</code>, <code>AdminOrganizacionController</code>, <code>AdminMonitoringController</code> y <code>SessionController</code>. Vea <a href="api.html">api</a> para el catalogo completo.</p>
+<h2 id="como-correrlo-en-desarrollo">Como correrlo en desarrollo</h2>
+<p>El arranque recomendado es la tarea compuesta <code>start-full-stack</code> (compila la API, la levanta y sirve el frontend, en orden), definida en <a href="../.vscode/tasks.json">.vscode/tasks.json:164-172</a>. Manualmente, los tres comandos clave (<a href="../README.md">README.md:51-60</a>, <a href="../CLAUDE.md">CLAUDE.md:39-72</a>):</p>
+<pre class="code"><code class="language-powershell"># 1) Compilar la API (task: build-api)
+dotnet build backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --configuration Debug
+
+# 2) Levantar la API (task: run-api; usa --no-build, asi que compila primero)
+dotnet run --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --no-build
+
+# 3) Servir el frontend desde la raiz del repo (task: serve-frontend)
+python -m http.server 8000 --directory .</code></pre>
+<p>Una vez arriba (<a href="../README.md">README.md:40-43</a>):</p>
+<div class="table-wrap"><table><thead><tr><th>Recurso</th><th>URL</th></tr></thead><tbody><tr><td>App (frontend)</td><td><code>http://localhost:8000/index.html</code></td></tr><tr><td>API — estado (health probe)</td><td><code>http://localhost:5093/health</code></td></tr><tr><td>API — documentacion (Swagger)</td><td><code>http://localhost:5093/swagger</code></td></tr></tbody></table></div>
+<p>Puertos por defecto (<a href="../CLAUDE.md">CLAUDE.md:93-98</a>): la <strong>API</strong> escucha en <strong>5093</strong> (http) / 7129 (https) y el <strong>frontend</strong> en <strong>8000</strong>. El frontend usa <code>http://localhost:5093</code> como API por defecto (<code>API_CONFIG.defaultBaseUrl</code> en <a href="../app.js">app.js:131-134</a>); para apuntar a otra API se puede abrir <code>dashboard.html?api=http://localhost:5093</code> (<a href="../CLAUDE.md">CLAUDE.md:84</a>).</p>
+<p><strong>Health probe:</strong> <code>GET /health</code> responde <code>{ status: "ok", utc: &lt;fecha UTC&gt; }</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:161-165</a>). Es la forma minima de confirmar que el proceso esta vivo.</p>
+<blockquote class="callout warn">⚠️ Casi todo error <strong>401</strong> en la API significa que faltan los headers <code>X-User-Id</code> y <code>X-User-Role</code> (<a href="../README.md">README.md:131</a>). Para BD, la connection string <code>IntegraCnp</code> se inyecta por la variable de entorno <code>ConnectionStrings__IntegraCnp</code>, nunca versionada en archivos (<a href="../CLAUDE.md">CLAUDE.md:184</a>).</blockquote>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../CLAUDE.md">CLAUDE.md</a> — guia tecnica del proyecto (arquitectura, comandos, convenciones, gotchas)</li>
+<li><a href="../README.md">README.md</a> — guia practica de arranque y uso</li>
+<li><a href="../index.html">index.html</a> — pantalla de login (punto de entrada del frontend)</li>
+<li><a href="../dashboard.html">dashboard.html</a> — app por roles</li>
+<li><a href="../app.js">app.js</a> — logica del frontend (roles, login, tipos, estados, API base)</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Program.cs">backend/src/IntegradorMarcas.Api/Program.cs</a> — arranque de la API (DI, CORS, errores, /health)</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj">backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj</a> — target net8.0 y paquetes</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs</a> — ejemplo de ruta <code>api/[controller]</code></li>
+<li><a href="../docs/manual-tecnico/capturas/01-diagrama-despliegue.mmd">docs/manual-tecnico/capturas/01-diagrama-despliegue.mmd</a> — diagrama de despliegue (fuente del mermaid)</li>
+<li><a href="../.vscode/tasks.json">.vscode/tasks.json</a> — tareas de build/run/serve y <code>start-full-stack</code></li>
+</ul>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#que-problema-resuelve">Que problema resuelve</a></li><li><a href="#los-4-roles-y-el-flujo-de-negocio">Los 4 roles y el flujo de negocio</a></li><li><a href="#las-3-piezas-y-el-stack">Las 3 piezas y el stack</a></li><li><a href="#arquitectura-de-alto-nivel">Arquitectura de alto nivel</a></li><li><a href="#puntos-de-entrada">Puntos de entrada</a></li><li><a href="#mapa-que-modulo-hace-que">Mapa: que modulo hace que</a></li><li><a href="#como-correrlo-en-desarrollo">Como correrlo en desarrollo</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

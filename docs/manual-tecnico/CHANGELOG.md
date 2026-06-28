@@ -17,9 +17,12 @@ Formato: versión, fecha y cambios.
 - Mantenimiento y gestión de cambios con el roadmap técnico (incl. migración a Microsoft 365 / Entra).
 - Solución de problemas técnica, glosario, tabla de trazabilidad y fuentes.
 
+### Completado — 2026-06-27
+- Diagramas **reales** (3) generados a partir del código y del esquema y renderizados a PNG con Mermaid (Microsoft Edge headless vía CDP), con su fuente `.mmd` versionada: despliegue (navegador → frontend → API .NET 8 → SQL Server → WIZDOM/SIFCNP de solo lectura), modelo entidad-relación de INTEGRA_CNP y secuencia de crear/resolver boleta (controlador → servicio → repositorio → BD, con auditoría). Insertados con texto alternativo descriptivo (WCAG 2.2 §1.1.1) y leyenda de figura.
+- Organización emisora: **Unidad de Tecnologías de Información (UTI) — Consejo Nacional de Producción (CNP)**.
+- Acceso a la información de auditoría: consulta restringida al rol Administrador (`/api/admin/monitoring/registros`); las instancias sin ese rol la solicitan a la UTI por canales oficiales.
+
 ### Pendiente (TODO)
-- Capturas/diagramas reales (placeholders en `capturas/`): despliegue, modelo de datos, secuencia.
-- Organización emisora responsable.
 - Instancias y credenciales de BD por entorno (dev/prod).
 - Dirección de producción (IIS) en el bloque `servers` del OpenAPI.
 - Estado de la integración WIZDOM/SIFCNP en el entorno destino.

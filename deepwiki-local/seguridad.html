@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguridad e identidad · DeepWiki local SIFCNP</title>
+<meta name="description" content="Autenticacion por headers, roles, autorizacion y CORS.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html" class="active" aria-current="page">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Arquitectura</span><span class="sep">/</span><span class="current">Seguridad e identidad</span></nav>
+<div class="page-head-row">
+<h1>Seguridad e identidad</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Autenticacion por headers, roles, autorizacion y CORS.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>SIFCNP identifica a cada usuario con dos <strong>headers HTTP</strong> (datos extra que el navegador adjunta a cada peticion, fuera del cuerpo del mensaje): <code>X-User-Id</code> y <code>X-User-Role</code>. No hay JWT ni cookies de sesion: el backend simplemente <em>confia</em> en lo que dicen esos headers. La autorizacion (quien puede hacer que) no usa atributos ni middleware estandar, sino <strong>guard clauses</strong> (lineas de validacion al inicio de cada metodo que cortan la ejecucion si no se cumple una condicion) dentro de la capa Application. Es un diseno deliberado de MVP/demo: practico para desarrollo, pero inseguro para produccion expuesta.</p>
+<blockquote class="callout warn">⚠️ Este esquema es trivial de falsificar (ver <a href="#gotchas-de-seguridad-lo-que-hay-que-saber">Gotchas de seguridad</a>). Sirve para demo y desarrollo local; antes de exponer la app hay que reemplazar la identidad por una real (Microsoft 365 esta previsto).</blockquote>
+<h2 id="como-se-identifica-al-usuario">Como se identifica al usuario</h2>
+<p>Todo endpoint de negocio espera dos headers en cada request:</p>
+<pre class="code"><code class="language-http">GET /api/justificaciones/mias HTTP/1.1
+X-User-Id: 6
+X-User-Role: ROL_RRHH</code></pre>
+<ul>
+<li><code>X-User-Id</code>: el identificador entero del usuario (debe parsear a <code>int</code> y ser <code>&gt; 0</code>).</li>
+<li><code>X-User-Role</code>: el rol con el que actua (uno de los valores de la tabla de roles, mas abajo).</li>
+</ul>
+<p>Los nombres de header son configurables (claves <code>Security:HeaderUserId</code> y <code>Security:HeaderRole</code>), con defaults <code>X-User-Id</code> / <code>X-User-Role</code> (<a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs:33-34</a>).</p>
+<blockquote class="callout why">📌 En la practica: cualquiera que pueda fijar estos dos headers <em>es</em> ese usuario con ese rol. No hay contrasena, token ni firma que el backend verifique. Por eso la regla del proyecto es "el backend confia en los headers".</blockquote>
+<h3 id="quien-define-el-contrato-iusercontext">Quien define el contrato <code>IUserContext</code></h3>
+<p>La identidad se modela con la interfaz <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IUserContext.cs">IUserContext.cs</a>, que vive en la capa <strong>Application</strong> (ver <a href="modulo-application.html">modulo-application</a>) y expone un unico metodo <code>GetCurrent()</code> que devuelve un <a href="../backend/src/IntegradorMarcas.Application/Interfaces/UserContextInfo.cs">UserContextInfo.cs</a> con dos propiedades:</p>
+<pre class="code"><code class="language-cs">public sealed class UserContextInfo
+{
+    public int UserId { get; set; }
+    public string Role { get; set; } = string.Empty;
+}</code></pre>
+<p>La <strong>implementacion</strong> vive afuera, en la capa Api: <a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a>. Este patron (interfaz adentro, implementacion afuera) es lo que llamamos <strong>Clean Architecture</strong> (organizar el codigo en capas donde lo central no conoce los detalles tecnicos; ver <a href="arquitectura.html">arquitectura</a>). Se registra en el contenedor de dependencias en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:71</a>:</p>
+<pre class="code"><code class="language-cs">builder.Services.AddScoped&lt;IUserContext, HeaderUserContext&gt;();</code></pre>
+<h2 id="headerusercontext-getcurrent-y-los-401-que-lanza"><code>HeaderUserContext.GetCurrent()</code> y los 401 que lanza</h2>
+<p><code>GetCurrent()</code> (<a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs:27-56</a>) lee los headers del request actual y valida la identidad. Lanza <code>AppException(401)</code> (no autenticado) en cualquiera de estos casos:</p>
+<div class="table-wrap"><table><thead><tr><th>Condicion</th><th>Resultado</th></tr></thead><tbody><tr><td>No existe contexto HTTP (<code>HttpContext</code> es null)</td><td><code>AppException("No hay contexto HTTP disponible.", 401)</code></td></tr><tr><td>Falta <code>X-User-Id</code>, o no parsea a entero, o es <code>&lt;= 0</code></td><td><code>AppException("Header requerido inválido: X-User-Id", 401)</code></td></tr><tr><td>Falta <code>X-User-Role</code> o esta vacio/en blanco</td><td><code>AppException("Header requerido inválido: X-User-Role", 401)</code></td></tr></tbody></table></div>
+<p>Solo si pasa las tres validaciones devuelve un <code>UserContextInfo</code> poblado. Resultado practico: <strong>todos los endpoints de negocio responden 401 si faltan los headers</strong>, incluso desde Swagger o desde los archivos <code>.http</code>.</p>
+<blockquote class="callout tip">💡 Tip: <code>X-User-Id</code> se valida que sea entero positivo, pero <code>X-User-Role</code> solo se valida que no este vacio. Un rol con texto basura (p. ej. <code>X-User-Role: cualquiercosa</code>) pasa el 401 aqui, y recien falla mas adelante con 403 cuando una guard clause no lo reconoce (ver siguiente seccion).</blockquote>
+<h2 id="roles-del-sistema">Roles del sistema</h2>
+<p>Los cuatro roles son constantes en <a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a>, en la capa <strong>Domain</strong> (ver <a href="modulo-dominio.html">modulo-dominio</a>). Cada rol tiene un helper booleano que normaliza la entrada con <code>Trim().ToUpperInvariant()</code> y acepta sinonimos:</p>
+<div class="table-wrap"><table><thead><tr><th>Constante</th><th>Valor exacto</th><th>Helper</th><th>Sinonimos aceptados</th></tr></thead><tbody><tr><td><code>RolFunc</code></td><td><code>ROL_FUNC</code></td><td><code>EsFuncionario(rol)</code></td><td><code>FUNCIONARIO</code>, <code>1</code></td></tr><tr><td><code>RolJefe</code></td><td><code>ROL_JEFE</code></td><td><code>EsJefatura(rol)</code></td><td><code>JEFATURA</code>, <code>2</code></td></tr><tr><td><code>RolRrhh</code></td><td><code>ROL_RRHH</code></td><td><code>EsRrhh(rol)</code></td><td><code>RRHH</code>, <code>3</code></td></tr><tr><td><code>RolAdmin</code></td><td><code>ROL_ADMIN</code></td><td><code>EsAdmin(rol)</code></td><td><code>ADMIN</code>, <code>4</code></td></tr></tbody></table></div>
+<pre class="code"><code class="language-cs">public static bool EsRrhh(string? rol)
+{
+    var normalized = (rol ?? string.Empty).Trim().ToUpperInvariant();
+    return normalized is RolRrhh or "RRHH" or "3";
+}</code></pre>
+<blockquote class="callout why">📌 Para que sirven los sinonimos: el helper es tolerante a varias formas de escribir el mismo rol (<code>ROL_RRHH</code>, <code>rrhh</code>, <code> RRHH </code>, <code>3</code>). Asi distintos clientes pueden mandar el rol de la forma que les quede mas comoda y el backend lo entiende igual. El valor <em>canonico</em> que usa el frontend siempre es la forma <code>ROL_*</code>.</blockquote>
+<h2 id="autorizacion-guard-clauses-no-authorize">Autorizacion: guard clauses, no <code>[Authorize]</code></h2>
+<p>SIFCNP <strong>no</strong> usa el sistema de autorizacion estandar de ASP.NET: no hay atributos <code>[Authorize]</code>, ni politicas, ni middleware de auth. En su lugar, cada metodo de servicio en la capa Application empieza con una o varias <strong>guard clauses</strong> que chequean el rol con los helpers <code>RolesSistema.Es*</code> y lanzan <code>AppException(403)</code> (prohibido) si el rol no aplica.</p>
+<p>Ejemplos reales en <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs</a>:</p>
+<pre class="code"><code class="language-cs">// Crear boleta: solo funcionario o jefatura
+if (!RolesSistema.EsFuncionario(user.Role) &amp;&amp; !RolesSistema.EsJefatura(user.Role))
+{
+    throw new AppException("Solo funcionario o jefatura pueden crear boletas.", 403);
+}</code></pre>
+<pre class="code"><code class="language-cs">// Pendientes de aprobacion: solo jefatura
+if (!RolesSistema.EsJefatura(user.Role))
+{
+    throw new AppException("Solo jefatura puede ver pendientes.", 403);
+}</code></pre>
+<pre class="code"><code class="language-cs">// Boletas globales: solo RRHH
+if (!RolesSistema.EsRrhh(user.Role))
+{
+    throw new AppException("Solo RRHH puede consultar boletas globales.", 403);
+}</code></pre>
+<blockquote class="callout why">📌 Por que asi: poner la regla de autorizacion <em>dentro</em> del servicio de negocio (capa Application) la mantiene cerca de la logica que protege, independiente del transporte HTTP. La desventaja es que no hay un punto unico que la garantice: si un metodo nuevo olvida su guard clause, queda sin proteger. Hay que recordarlo en cada metodo. Mas detalle de la capa en <a href="modulo-application.html">modulo-application</a>.</blockquote>
+<h3 id="reglas-de-negocio-adicionales-que-tambien-son-403-409">Reglas de negocio adicionales que tambien son 403/409</h3>
+<p>Las guard clauses no se limitan al rol. En el flujo de aprobacion (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:153-211</a>) hay validaciones de <strong>alcance</strong> y de <strong>estado</strong>:</p>
+<div class="table-wrap"><table><thead><tr><th>Situacion</th><th>Status</th><th>Mensaje (resumen)</th></tr></thead><tbody><tr><td>La boleta no esta en el alcance de aprobacion vigente del usuario</td><td>403</td><td>"no pertenece al alcance de aprobacion vigente"</td></tr><tr><td>Resolver una boleta sin ser jefatura</td><td>403</td><td>"RN-03: solo jefatura puede resolver boletas"</td></tr><tr><td>La boleta no existe</td><td>404</td><td>"No existe la boleta indicada."</td></tr><tr><td>La boleta ya fue resuelta</td><td>409</td><td>"RN-04: la boleta ya fue resuelta y no puede modificarse"</td></tr></tbody></table></div>
+<h3 id="listhistorico-scoping-por-rol"><code>ListHistorico</code>: scoping por rol</h3>
+<p>Un caso especial es <code>ListHistoricoAsync</code> (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:119-151</a>): los tres roles (funcionario, jefatura, RRHH) pueden llamarlo, pero <strong>cada uno ve un universo distinto de boletas</strong>. El servicio no solo deja pasar o no, sino que <em>acota</em> (scoping) la consulta segun el rol:</p>
+<pre class="code"><code class="language-cs">var usuarioIdScope = esFuncionario ? user.UserId : (int?)null;
+var aprobadorUsuarioIdScope = esJefatura ? user.UserId : (int?)null;
+var excluirPropiosEnScopeAprobador = esJefatura;</code></pre>
+<div class="table-wrap"><table><thead><tr><th>Rol</th><th>Que ve</th><th>Como se fuerza</th></tr></thead><tbody><tr><td>Funcionario</td><td>Solo sus propias boletas</td><td><code>usuarioIdScope = user.UserId</code>; ademas se ignora el filtro <code>Funcionario</code> que venga del cliente</td></tr><tr><td>Jefatura</td><td>Boletas donde es aprobador, excluyendo las propias</td><td><code>aprobadorUsuarioIdScope = user.UserId</code> + <code>excluirPropiosEnScopeAprobador = true</code></td></tr><tr><td>RRHH</td><td>Todo (global)</td><td>ambos scopes en <code>null</code></td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 Esto es importante: aunque un funcionario mande filtros que pidan boletas de otra persona, el servicio sobreescribe el scope con su propio <code>UserId</code> antes de llamar al repositorio. La seguridad no depende de que el cliente "se porte bien".</blockquote>
+<h2 id="el-flujo-de-identidad-completo">El flujo de identidad completo</h2>
+<div class="mermaid-wrap"><pre class="mermaid">sequenceDiagram
+    participant U as "Usuario (login)"
+    participant FE as "Frontend (app.js)"
+    participant API as "API .NET (HeaderUserContext)"
+    participant SVC as "Service (guard clause)"
+    U-&gt;&gt;FE: usuario + password (&gt;=4 chars)
+    Note over FE: handleLogin() infiere rol del username&lt;br/&gt;NO valida password contra nada
+    FE-&gt;&gt;FE: resolveUserIdentity() -&gt; {userId, role}&lt;br/&gt;desde MOCK_USER_DIRECTORY
+    FE-&gt;&gt;API: GET /api/... con X-User-Id + X-User-Role
+    API-&gt;&gt;API: GetCurrent() valida headers&lt;br/&gt;(401 si faltan/invalidos)
+    API-&gt;&gt;SVC: UserContextInfo {UserId, Role}
+    SVC-&gt;&gt;SVC: RolesSistema.Es*(Role)?
+    alt rol no aplica
+        SVC--&gt;&gt;API: AppException(403)
+    else rol valido
+        SVC--&gt;&gt;API: datos
+    end
+    API--&gt;&gt;FE: respuesta (o ProblemDetails)</pre></div>
+<p>El lado del navegador esta en <a href="../app.js">app.js</a> (ver <a href="modulo-frontend.html">modulo-frontend</a>):</p>
+<ul>
+<li><code>buildApiHeaders(session)</code> (<a href="../app.js">app.js:318-334</a>) construye <code>X-User-Id</code> y <code>X-User-Role</code> a partir de la sesion. <strong>Todas</strong> las llamadas a la API pasan por aqui; no hay headers de identidad fuera de esta funcion.</li>
+<li><code>resolveUserIdentity(session)</code> (<a href="../app.js">app.js:300-316</a>) busca el username en el directorio mock; si no lo encuentra, cae a un <code>userId: 10</code> por defecto y deriva el rol del texto del username con <code>inferRole</code>.</li>
+</ul>
+<h2 id="appexception-la-unica-excepcion-de-control-de-flujo"><code>AppException</code>: la unica excepcion de control de flujo</h2>
+<p>Todas las respuestas de error "esperadas" (401/403/404/409/400) salen de <a href="../backend/src/IntegradorMarcas.Application/Common/AppException.cs">AppException.cs</a>, una excepcion sellada que lleva un <code>StatusCode</code>:</p>
+<pre class="code"><code class="language-cs">public sealed class AppException : Exception
+{
+    public AppException(string message, int statusCode) : base(message) { StatusCode = statusCode; }
+    public int StatusCode { get; }
+}</code></pre>
+<p>El manejador global en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:80-139</a> (<code>UseExceptionHandler</code>) la mapea a HTTP:</p>
+<div class="table-wrap"><table><thead><tr><th>Excepcion</th><th>Status HTTP resultante</th></tr></thead><tbody><tr><td><code>AppException</code></td><td>su propio <code>StatusCode</code> (401/403/404/400/409...)</td></tr><tr><td><code>KeyNotFoundException</code></td><td>404</td></tr><tr><td><code>OperationCanceledException</code></td><td>499 (cliente cancelo)</td></tr><tr><td>cualquier otra</td><td>500</td></tr></tbody></table></div>
+<p>La respuesta es un <code>ProblemDetails</code> con un <code>correlationId</code> (en el cuerpo y en el header <code>X-Correlation-Id</code>) para cruzar el error con la bitacora tecnica. Mas detalle del manejo de errores y la API en <a href="modulo-api.html">modulo-api</a> y <a href="api.html">api</a>.</p>
+<h2 id="cors-abierto-en-desarrollo">CORS abierto en desarrollo</h2>
+<p><strong>CORS</strong> (Cross-Origin Resource Sharing) es el mecanismo del navegador que decide si una pagina servida desde un origen (p. ej. <code>http://localhost:8000</code>) puede llamar a una API en otro origen (p. ej. <code>http://localhost:5093</code>). Por defecto el navegador lo bloquea; el servidor debe permitirlo explicitamente.</p>
+<p>La politica <code>LocalFrontend</code> en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:50-60</a> abre <strong>todo</strong>:</p>
+<pre class="code"><code class="language-cs">policy
+    .SetIsOriginAllowed(_ =&gt; true)   // cualquier origen
+    .AllowAnyHeader()
+    .AllowAnyMethod();</code></pre>
+<blockquote class="callout warn">⚠️ <code>SetIsOriginAllowed(_ =&gt; true)</code> acepta peticiones desde <em>cualquier</em> sitio web. El propio comentario del codigo dice "restringir en despliegues expuestos". Para produccion hay que enumerar los origenes permitidos (<code>WithOrigins(...)</code>) en vez de aceptar todos.</blockquote>
+<h2 id="identidad-microsoft-365-prevista">Identidad Microsoft 365 prevista</h2>
+<p>La aplicacion <strong>no gestiona contrasenas</strong>: no hay tabla de credenciales, ni hashing, ni verificacion de password en el backend. El diseno previsto delega la autenticacion real a Microsoft 365 (la organizacion ya autentica al usuario por fuera), y la app solo recibiria la identidad ya resuelta para traducirla a <code>X-User-Id</code> / <code>X-User-Role</code>. Hoy esa pieza todavia no esta conectada: el login es un mock local (siguiente seccion). TODO: confirmar el mecanismo exacto de integracion M365 (OIDC, header de reverse proxy, etc.) cuando se implemente.</p>
+<h2 id="gotchas-de-seguridad-lo-que-hay-que-saber">Gotchas de seguridad (lo que hay que saber)</h2>
+<blockquote class="callout warn">⚠️ Estos puntos son del diseno MVP/demo actual. Son inseguros a proposito para facilitar la demo; documentados para no olvidarlos antes de exponer la app.</blockquote>
+<ul>
+<li><strong>Login mock, cualquier password sirve.</strong> <code>handleLogin()</code> (<a href="../app.js">app.js:521-550</a>) solo valida que el username tenga <code>&gt;= 3</code> caracteres y el password <code>&gt;= 4</code>. El password <strong>nunca se envia</strong> a ningun lado ni se compara contra nada. Cualquier contrasena de 4+ caracteres entra.</li>
+<li><strong>El rol se deriva del texto del username.</strong> <code>inferRole()</code> (<a href="../app.js">app.js:160-169</a>): si el username contiene <code>admin</code> -&gt; <code>ROL_ADMIN</code>, <code>rrhh</code> -&gt; <code>ROL_RRHH</code>, <code>jefe</code> -&gt; <code>ROL_JEFE</code>, y si no, <code>ROL_FUNC</code>. Escribir <code>admin.loquesea</code> te hace admin.</li>
+<li><strong>Headers triviales de falsificar.</strong> Como el backend confia en <code>X-User-Id</code> / <code>X-User-Role</code> sin verificar nada, cualquier cliente (curl, Postman, Swagger) puede ponerse el rol que quiera. No hay defensa en el backend contra esto por diseno.</li>
+<li><strong><code>MOCK_USER_DIRECTORY</code> quemado en el frontend.</strong> (<a href="../app.js">app.js:141-150</a>) mapea usernames de ejemplo a <code>{userId, role}</code>. Varios usernames comparten el mismo <code>userId</code> (<code>jefe.maria</code> y <code>jefe.ricardo</code> -&gt; 3; <code>rrhh.carlos</code> y <code>rrhh.sandra</code> -&gt; 6; <code>admin.sofia</code> y <code>admin.demo</code> -&gt; 1). Los usernames de ejemplo tambien aparecen impresos en <code>index.html</code>.</li>
+<li><strong>Usuario desconocido cae a <code>userId: 10</code>.</strong> (<a href="../app.js">app.js:312-315</a>) Cualquier username fuera del directorio mock usa el id por defecto 10, que puede colisionar con un usuario real de la BD.</li>
+<li><strong><code>Security:UseMockIdentity</code> no se consume.</strong> La flag existe en config (true en Development) pero <code>HeaderUserContext</code> siempre lee los headers reales; la flag no cambia nada en codigo.</li>
+</ul>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs:27-56</a> — lee headers, valida identidad, lanza los 401.</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Interfaces/IUserContext.cs">IUserContext.cs</a> — contrato de identidad (Application).</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Interfaces/UserContextInfo.cs">UserContextInfo.cs</a> — <code>UserId</code> + <code>Role</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a> — constantes de rol y helpers <code>Es*</code> con sinonimos.</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Common/AppException.cs">AppException.cs</a> — excepcion con <code>StatusCode</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:22-211</a> — guard clauses por rol y scoping de <code>ListHistorico</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:50-71, 80-139</a> — registro de <code>HeaderUserContext</code>, politica CORS abierta, mapeo de excepciones a HTTP.</li>
+<li><a href="../app.js">app.js:141-169, 300-334, 521-550</a> — <code>MOCK_USER_DIRECTORY</code>, <code>inferRole</code>, <code>resolveUserIdentity</code>, <code>buildApiHeaders</code>, <code>handleLogin</code>.</li>
+</ul>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#como-se-identifica-al-usuario">Como se identifica al usuario</a></li><li><a href="#headerusercontext-getcurrent-y-los-401-que-lanza">`HeaderUserContext.GetCurrent()` y los 401 que lanza</a></li><li><a href="#roles-del-sistema">Roles del sistema</a></li><li><a href="#autorizacion-guard-clauses-no-authorize">Autorizacion: guard clauses, no `[Authorize]`</a></li><li><a href="#el-flujo-de-identidad-completo">El flujo de identidad completo</a></li><li><a href="#appexception-la-unica-excepcion-de-control-de-flujo">`AppException`: la unica excepcion de control de flujo</a></li><li><a href="#cors-abierto-en-desarrollo">CORS abierto en desarrollo</a></li><li><a href="#identidad-microsoft-365-prevista">Identidad Microsoft 365 prevista</a></li><li><a href="#gotchas-de-seguridad-lo-que-hay-que-saber">Gotchas de seguridad (lo que hay que saber)</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

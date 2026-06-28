@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask (proximamente) · DeepWiki local SIFCNP</title>
+<meta name="description" content="Chat conversacional sobre el codigo: previsto, inactivo por ahora.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html" class="active" aria-current="page">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Referencia</span><span class="sep">/</span><span class="current">Ask (proximamente)</span></nav>
+<div class="page-head-row">
+<h1>Ask (proximamente)</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Chat conversacional sobre el codigo: previsto, inactivo por ahora.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>La pagina <strong>Ask</strong> es un chat conversacional al estilo DeepWiki: la idea es que vos escribas una pregunta en lenguaje natural ("¿como se valida el rol del usuario?", "¿que pasa si falta el header X-User-Id?") y el wiki te responda con una explicacion redactada y enlaces al codigo. <strong>En esta version local y estatica del wiki, esa funcion NO esta activa.</strong> Esta prevista para mas adelante; por ahora se deja documentada la idea y como se conectaria.</p>
+<blockquote class="callout warn">⚠️ <strong>Estado: INACTIVO.</strong> No hay backend de IA ni endpoint de chat conectado en esta version. Si entraste buscando hacerle preguntas al wiki, usa el <strong>buscador</strong> (arriba a la izquierda) y navega las paginas. Esa es hoy la mejor forma de "preguntarle" al wiki.</blockquote>
+<h2 id="por-que-no-esta-incluido">Por que no esta incluido</h2>
+<p>Un chat tipo "Ask" no es solo una caja de texto: detras necesita <strong>un modelo de lenguaje (LLM)</strong> que lea tu pregunta, busque los fragmentos relevantes del codigo y redacte la respuesta.</p>
+<blockquote class="callout why">📌 <strong>LLM (Large Language Model):</strong> es el "cerebro" que entiende lenguaje natural y genera texto (lo mismo que potencia a ChatGPT, Claude, etc.). En la practica, sin un LLM detras no hay con que "pensar" la respuesta.</blockquote>
+<p>Este wiki, en cambio, es <strong>estatico</strong>: son archivos HTML generados una sola vez a partir del Markdown, servidos como paginas planas. No hay servidor que reciba tu pregunta, no hay proceso corriendo que la procese, y no hay conexion a ningun modelo. Conectar "Ask" implica al menos tres cosas que hoy faltan:</p>
+<div class="table-wrap"><table><thead><tr><th>Pieza que falta</th><th>Que hace</th><th>Por que importa</th></tr></thead><tbody><tr><td>Un modelo de fondo (LLM)</td><td>Entiende la pregunta y redacta la respuesta</td><td>Sin el, no hay nada que conteste</td></tr><tr><td>Una conexion / red</td><td>Llevar la pregunta al modelo y traer la respuesta</td><td>El wiki estatico no hace llamadas a servidores</td></tr><tr><td>Un indice del codigo</td><td>Decirle al modelo que fragmentos son relevantes</td><td>Para que cite el codigo real y no invente</td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 <strong>Tip:</strong> que el wiki sea estatico es bueno para distribuirlo (lo abris con doble clic, sin instalar nada). El costo es que funciones "vivas" como un chat quedan fuera hasta que haya una pieza con servidor o conexion.</blockquote>
+<h2 id="como-se-ve-hoy-vs-como-se-veria-activo">Como se ve hoy vs. como se veria activo</h2>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    subgraph Hoy["Hoy (estatico, INACTIVO)"]
+        U1["Usuario"] --&gt;|"escribe pregunta"| A1["Pagina Ask"]
+        A1 -.-&gt;|"sin destino"| X["(nada que responda)"]
+    end
+    subgraph Futuro["Previsto (a futuro)"]
+        U2["Usuario"] --&gt;|"pregunta"| A2["Pagina Ask"]
+        A2 --&gt;|"llamada"| API["Endpoint / MCP DeepWiki"]
+        API --&gt;|"consulta"| LLM["Modelo de lenguaje"]
+        LLM --&gt;|"respuesta + citas"| A2
+        A2 --&gt;|"muestra"| U2
+    end</pre></div>
+<p>El diagrama contrasta el estado actual (la pregunta no tiene a donde ir) con el flujo previsto (la pregunta viaja a un endpoint o al MCP de DeepWiki, que consulta un modelo y devuelve la respuesta con citas al codigo).</p>
+<h2 id="que-esta-previsto-a-futuro">Que esta previsto a futuro</h2>
+<p>La intencion es habilitar "Ask" mas adelante por alguna de estas dos vias:</p>
+<ul>
+<li><strong>Conectar el MCP de DeepWiki.</strong> DeepWiki ofrece un servidor MCP que ya sabe responder preguntas sobre un repo indexado; el wiki delegaria las preguntas ahi.</li>
+<ul class="sub">
+<li>&gt; 📌 <strong>MCP (Model Context Protocol):</strong> es un "enchufe" estandar para que una herramienta hable con un modelo de IA y le pase contexto (en este caso, el codigo del repo). En la practica, ahorra reinventar toda la plomeria de busqueda + LLM.</li>
+</ul>
+<li><strong>Una pagina que consuma una API propia.</strong> En vez del MCP, una pagina dinamica (con su servidor) que reciba la pregunta, busque en un indice del codigo y llame a un modelo via una API REST.</li>
+</ul>
+<blockquote class="callout warn">⚠️ Ambas vias requieren red y un modelo de fondo, asi que <strong>no funcionan en el wiki puramente estatico</strong> tal como esta hoy. Habilitar cualquiera de las dos es una decision pendiente.</blockquote>
+<h2 id="decisiones-pendientes">Decisiones pendientes</h2>
+<p>Lo siguiente depende de decisiones que todavia no se tomaron y se documentan como TODO:</p>
+<ul>
+<li>TODO: que <strong>proveedor de modelo</strong> se usaria (p. ej. el modelo que expone DeepWiki via MCP, o un proveedor de LLM externo). No definido en el codigo del proyecto.</li>
+<li>TODO: que <strong>endpoint / API</strong> consumiria la pagina si se va por la via propia (URL, autenticacion, formato de request/response). No definido.</li>
+<li>TODO: como se <strong>indexaria el codigo</strong> para que las respuestas citen archivos y lineas reales del repo. No definido.</li>
+<li>TODO: donde correria la pieza con servidor (la misma maquina del wiki, un servicio aparte, etc.). No definido.</li>
+</ul>
+<h2 id="mientras-tanto-como-preguntarle-al-wiki">Mientras tanto: como "preguntarle" al wiki</h2>
+<p>Hasta que "Ask" se active, tenes dos caminos que cubren la mayoria de las consultas:</p>
+<ol>
+<li><strong>Buscador (arriba a la izquierda).</strong> Escribi un termino o concepto (un nombre de funcion, un rol como <code>ROL_JEFE</code>, una palabra del dominio como "justificacion") y saltá directo a la pagina o seccion relevante.</li>
+<li><strong>Navegar las paginas del wiki.</strong> El contenido esta organizado por modulo y por tema. Algunos puntos de entrada utiles:</li>
+</ol>
+<div class="table-wrap"><table><thead><tr><th>Si queres entender...</th><th>Anda a</th></tr></thead><tbody><tr><td>La vision general del sistema</td><td><a href="index.html">Inicio</a></td></tr><tr><td>Como encajan las 3 piezas (front, API, BD)</td><td><a href="arquitectura.html">Arquitectura</a></td></tr><tr><td>Como se autentica y autoriza (headers, roles)</td><td><a href="seguridad.html">Seguridad</a></td></tr><tr><td>Los endpoints REST disponibles</td><td><a href="api.html">API REST</a></td></tr><tr><td>Los flujos de negocio (crear/aprobar boletas)</td><td><a href="flujos.html">Flujos</a></td></tr><tr><td>Que significa un termino tecnico</td><td><a href="glosario.html">Glosario</a></td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 <strong>Tip:</strong> combiná las dos cosas. Usa el buscador para aterrizar rapido en una pagina y, una vez ahi, segui los enlaces cruzados y los enlaces al codigo fuente para profundizar.</blockquote>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<p>Esta pagina describe una funcionalidad <strong>no implementada</strong>, por lo que no ancla en archivos del repositorio. No hay codigo de "Ask" que citar todavia. Cuando se implemente (via MCP de DeepWiki o API propia), esta seccion debera listar los archivos correspondientes.</p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#por-que-no-esta-incluido">Por que no esta incluido</a></li><li><a href="#como-se-ve-hoy-vs-como-se-veria-activo">Como se ve hoy vs. como se veria activo</a></li><li><a href="#que-esta-previsto-a-futuro">Que esta previsto a futuro</a></li><li><a href="#decisiones-pendientes">Decisiones pendientes</a></li><li><a href="#mientras-tanto-como-preguntarle-al-wiki">Mientras tanto: como "preguntarle" al wiki</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

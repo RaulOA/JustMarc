@@ -1,0 +1,18 @@
+graph TD
+  Nav["Navegador del usuario<br/>(funcionario, jefatura, RRHH, admin)"]
+  subgraph PROD["Servidor de produccion (IIS)"]
+    FE["Frontend estatico<br/>index.html · dashboard.html · app.js · style.css<br/>(dev: http.server :8000)"]
+    API["API REST .NET 8<br/>Kestrel :5093 http / :7129 https (dev)<br/>IIS + .NET Hosting Bundle (prod)<br/>GET /health"]
+  end
+  subgraph BD["Servidor de base de datos (SQL Server :1433)"]
+    DB[("INTEGRA_CNP<br/>Configuracion · RecursosHumanos<br/>Operacion · Auditoria · Integracion")]
+  end
+  subgraph EXT["Bases externas (SOLO LECTURA)"]
+    WIZ[("WIZDOM<br/>empleado · organigrama")]
+    SIF[("SIFCNP<br/>RH_JUSTIFICACIONES_ENC / DET")]
+  end
+  Nav -->|"HTTP"| FE
+  FE -->|"fetch() + headers<br/>X-User-Id / X-User-Role"| API
+  API -->|"ADO.NET + Dapper<br/>(connection string IntegraCnp)"| DB
+  DB -.->|"vistas Integracion.*<br/>(solo lectura)"| WIZ
+  DB -.->|"vistas Integracion.*<br/>(solo lectura)"| SIF

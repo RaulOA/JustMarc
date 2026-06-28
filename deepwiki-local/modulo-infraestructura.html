@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capa Infrastructure · DeepWiki local SIFCNP</title>
+<meta name="description" content="Repositorios, Dapper, SQL y fabrica de conexiones.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html" class="active" aria-current="page">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Modulos (por capa)</span><span class="sep">/</span><span class="current">Capa Infrastructure</span></nav>
+<div class="page-head-row">
+<h1>Capa Infrastructure</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Repositorios, Dapper, SQL y fabrica de conexiones.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>La capa <strong>Infrastructure</strong> es la unica que sabe hablar con la base de datos. Es el "garage" del backend: aqui viven los repositorios que abren una conexion a SQL Server, lanzan el SQL y devuelven objetos C# limpios a la capa de <a href="modulo-application.html">Application</a>. Si manana cambiara el motor de datos, este es (idealmente) el unico modulo que habria que reescribir; el resto del backend solo conoce <em>interfaces</em>, no implementaciones.</p>
+<p>Sigue la regla de <a href="glosario.html">Clean Architecture</a>: Infrastructure <strong>implementa</strong> las interfaces que <a href="modulo-application.html">Application</a> <strong>define</strong> (<code>IJustificacionRepository</code>, <code>IErrorLogRepository</code>, etc.). Asi la logica de negocio nunca depende directamente de SQL Server.</p>
+<blockquote class="callout why">📌 Para que sirve: aislar TODO el acceso a datos en un solo lugar. Un service de Application pide "dame las justificaciones de este usuario" llamando a un metodo de interfaz, sin enterarse de connection strings, Dapper ni SQL.</blockquote>
+<h2 id="ado-net-y-dapper-acceso-a-datos-sin-orm-pesado">ADO.NET y Dapper: acceso a datos sin ORM pesado</h2>
+<p>Este proyecto <strong>no usa EF Core</strong> ni ningun ORM (Object-Relational Mapper) que genere SQL por vos. Usa dos piezas mas livianas:</p>
+<ul>
+<li><strong>ADO.NET</strong> (<code>Microsoft.Data.SqlClient</code>): la API de mas bajo nivel de .NET para hablar con SQL Server. Provee la <code>SqlConnection</code>, transacciones, etc. Es potente pero verboso: por si solo te obliga a leer columna por columna de un <code>DataReader</code>.</li>
+<li><strong>Dapper</strong>: una micro-libreria que se monta encima de ADO.NET. Su unico trabajo es <strong>mapear filas a objetos</strong>: vos le pasas un string de SQL y una clase destino, y Dapper devuelve <code>IEnumerable&lt;TuClase&gt;</code> ya poblada. Tambien arma los parametros desde un objeto anonimo. No genera SQL ni esconde la base de datos; vos escribis el SQL a mano.</li>
+</ul>
+<blockquote class="callout tip">💡 La filosofia del proyecto es "SQL explicito, control total": el SQL se escribe a mano (y se versiona como constantes), y Dapper solo ahorra el tedio de mapear filas. Es el punto medio entre ADO.NET crudo y un ORM completo.</blockquote>
+<pre class="code"><code class="language-cs">// Patron tipico (JustificacionRepository.cs): SQL constante + objeto anonimo de params + clase destino
+var data = await connection.QueryAsync&lt;JustificacionResumenDto&gt;(new CommandDefinition(
+    JustificacionesSql.ListMine,                       // SQL como const string
+    new { UsuarioID = usuarioId, filtros.EstadoId },   // params anonimos nombrados
+    cancellationToken: cancellationToken));            // siempre se hila el CancellationToken</code></pre>
+<h2 id="la-fabrica-de-conexiones-isqlconnectionfactory">La fabrica de conexiones: ISqlConnectionFactory</h2>
+<p>Ningun repositorio crea su propia <code>SqlConnection</code> con la connection string a mano. Todos reciben una <strong>fabrica</strong> y le piden conexiones. Esa es la abstraccion <code>ISqlConnectionFactory</code>, definida como una interfaz minima:</p>
+<pre class="code"><code class="language-cs">// ISqlConnectionFactory.cs (8 lineas)
+public interface ISqlConnectionFactory
+{
+    IDbConnection CreateConnection();
+}</code></pre>
+<p>La implementacion concreta lee la connection string llamada <strong><code>IntegraCnp</code></strong> desde la configuracion y devuelve una <code>SqlConnection</code> nueva en cada llamada:</p>
+<pre class="code"><code class="language-cs">// SqlConnectionFactory.cs
+public SqlConnectionFactory(IConfiguration configuration)
+{
+    _connectionString = configuration.GetConnectionString("IntegraCnp")
+        ?? throw new InvalidOperationException("Connection string 'IntegraCnp' no configurada.");
+}
+
+public IDbConnection CreateConnection() =&gt; new SqlConnection(_connectionString);</code></pre>
+<p>Puntos clave:</p>
+<div class="table-wrap"><table><thead><tr><th>Detalle</th><th>Comportamiento</th><th>Anclaje</th></tr></thead><tbody><tr><td>Clave de la connection string</td><td><code>IntegraCnp</code> (no <code>INTEGRA_CNP</code>)</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs:13</a></td></tr><tr><td>Si falta la cadena</td><td>Lanza <code>InvalidOperationException</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs:14</a></td></tr><tr><td>Una conexion por operacion</td><td><code>CreateConnection()</code> siempre crea una <code>SqlConnection</code> nueva</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs:19</a></td></tr><tr><td>Registro DI</td><td><code>AddScoped&lt;ISqlConnectionFactory, SqlConnectionFactory&gt;()</code></td><td><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62</a></td></tr></tbody></table></div>
+<blockquote class="callout why">📌 La connection string NO se versiona en el repo: se inyecta por la variable de entorno de usuario <code>ConnectionStrings__IntegraCnp</code> (el <code>__</code> equivale a <code>:</code> en config de .NET). Ver <a href="seguridad.html">Seguridad</a>.</blockquote>
+<blockquote class="callout tip">💡 Una conexion nueva por operacion suena costoso, pero <code>Microsoft.Data.SqlClient</code> mantiene un <strong>pool de conexiones</strong> por debajo: "crear" una conexion suele reusar una del pool. El patron habitual en los repos es <code>await using var connection = (SqlConnection)_connectionFactory.CreateConnection();</code>, que la libera (la devuelve al pool) al salir del metodo.</blockquote>
+<h2 id="patron-de-repositorio-un-repo-sealed-por-agregado">Patron de repositorio: un repo <code>sealed</code> por agregado</h2>
+<p>La regla del proyecto es <strong>un repositorio por agregado de negocio</strong>. Cada uno es una clase <code>sealed</code> (no se hereda), recibe <code>ISqlConnectionFactory</code> por constructor e implementa su interfaz de <a href="modulo-application.html">Application</a>. Hay 6 repositorios:</p>
+<div class="table-wrap"><table><thead><tr><th>Repositorio</th><th>Interfaz</th><th>Responsabilidad</th><th>Anclaje</th></tr></thead><tbody><tr><td><code>JustificacionRepository</code></td><td><code>IJustificacionRepository</code></td><td>El nucleo del negocio: crear boletas, listar las propias / pendientes de jefatura / global RRHH / historico, detalle de jefatura, validaciones de scope, resolver (aprobar/rechazar)</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs</a></td></tr><tr><td><code>AdminAprobacionesRepository</code></td><td><code>IAdminAprobacionesRepository</code></td><td>CRUD de jerarquias de aprobacion y delegaciones; chequeos de existencia (usuario, estructura, jerarquia)</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminAprobacionesRepository.cs">AdminAprobacionesRepository.cs</a></td></tr><tr><td><code>AdminOrganizacionRepository</code></td><td><code>IAdminOrganizacionRepository</code></td><td>Dependencias (estructura organizacional), asignaciones de usuarios (rol/unidad/jefatura), deteccion de ciclos</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminOrganizacionRepository.cs">AdminOrganizacionRepository.cs</a></td></tr><tr><td><code>AuditEventRepository</code></td><td><code>IAuditEventRepository</code></td><td>Registrar eventos de auditoria en <code>Auditoria.EventoAuditoria</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AuditEventRepository.cs">AuditEventRepository.cs</a></td></tr><tr><td><code>AdminActionAuditRepository</code></td><td><code>IAdminActionAuditRepository</code></td><td>Registrar acciones de admin con snapshots before/after (JSON) en <code>Auditoria.AdminAccionAuditoria</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminActionAuditRepository.cs">AdminActionAuditRepository.cs</a></td></tr><tr><td><code>ErrorLogRepository</code></td><td><code>IErrorLogRepository</code></td><td>Registrar errores de la API en <code>Auditoria.ErrorApi</code> (best-effort)</td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/ErrorLogRepository.cs">ErrorLogRepository.cs</a></td></tr></tbody></table></div>
+<p>Todos se registran como <code>Scoped</code> en el contenedor de inyeccion de dependencias en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62-72</a> (una instancia por request HTTP).</p>
+<blockquote class="callout warn">⚠️ No todo el acceso a datos vive en estos repos. Dos controllers de la <a href="modulo-api.html">API</a> (<code>SessionController</code> y <code>AdminMonitoringController</code>) toman <code>ISqlConnectionFactory</code> directamente y corren SQL inline, saltandose el patron de repositorio. Es una desviacion deliberada documentada en <code>CLAUDE.md</code>.</blockquote>
+<h3 id="diagrama-como-fluye-una-consulta">Diagrama: como fluye una consulta</h3>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    Svc["Service&lt;br/&gt;(Application)"] --&gt;|llama metodo de interfaz| IRepo["IJustificacionRepository&lt;br/&gt;(interfaz en Application)"]
+    IRepo -.implementada por.-&gt; Repo["JustificacionRepository&lt;br/&gt;(Infrastructure)"]
+    Repo --&gt;|"CreateConnection()"| Factory["ISqlConnectionFactory"]
+    Factory --&gt;|"new SqlConnection"| Conn["SqlConnection (pool)"]
+    Repo --&gt;|"QueryAsync / ExecuteAsync&lt;br/&gt;(CommandDefinition)"| Dapper["Dapper"]
+    Dapper --&gt;|SQL const + params| SQL[("SQL Server&lt;br/&gt;INTEGRA_CNP")]
+    SQL --&gt;|filas| Dapper
+    Dapper --&gt;|mapea a DTOs| Repo</pre></div>
+<p>La capa de <a href="modulo-application.html">Application</a> depende de la <strong>interfaz</strong> (flecha solida al centro); la implementacion concreta (linea punteada) la provee Infrastructure en tiempo de ejecucion via inyeccion de dependencias. Asi se respeta la regla de dependencia hacia adentro de <a href="arquitectura.html">Clean Architecture</a>.</p>
+<h2 id="como-se-usa-dapper-en-la-practica">Como se usa Dapper en la practica</h2>
+<h3 id="lecturas-queryasync-querysingleasync">Lecturas: <code>QueryAsync</code> / <code>QuerySingleAsync</code></h3>
+<p>Para leer filas, los repos usan <code>QueryAsync&lt;T&gt;</code> (varias filas) o <code>QuerySingleAsync&lt;T&gt;</code> / <code>QuerySingleOrDefaultAsync&lt;T&gt;</code> (una sola). Siempre con un <code>CommandDefinition</code> que empaqueta SQL + params + <code>CancellationToken</code>:</p>
+<pre class="code"><code class="language-cs">// JustificacionRepository.GetExistingTipoJustificacionIdsAsync
+var data = await connection.QueryAsync&lt;int&gt;(new CommandDefinition(
+    JustificacionesSql.GetExistingTipoJustificacionIds,
+    new { Ids = distinctIds },             // Dapper expande un array a una lista IN (...)
+    cancellationToken: cancellationToken));</code></pre>
+<p>Convenciones observables en todos los repos:</p>
+<ul>
+<li><strong>Params anonimos nombrados</strong>: un objeto anonimo <code>new { ... }</code> cuyos nombres de propiedad coinciden con los <code>@Param</code> del SQL. Notar el uso deliberado del sufijo <code>ID</code> (<code>UsuarioID</code>, <code>JustificacionID</code>) para casar con los <code>@UsuarioID</code> del SQL — el repo mapea a mano <code>Id</code> (DTO) &lt;-&gt; <code>ID</code> (param). Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:122-138</a>.</li>
+<li><strong><code>CancellationToken</code> hilado</strong> controller -&gt; service -&gt; repository -&gt; Dapper, para poder abortar consultas si el cliente corta.</li>
+<li><strong>Colecciones devueltas como <code>IReadOnlyList</code>/<code>IReadOnlyCollection</code></strong> (<code>.ToList()</code> / <code>.ToArray()</code> antes de retornar).</li>
+<li><strong>Clases <code>*Row</code> privadas</strong> cuando la fila no calza directo en el DTO publico: el repo mapea la <code>Row</code> al DTO a mano. Ejemplos: <code>JustificacionDetalleJefaturaRow</code> y <code>CurrentApproverRow</code> en <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:336-377</a>.</li>
+</ul>
+<h3 id="inserts-con-scope-identity">Inserts con SCOPE_IDENTITY</h3>
+<p>Cuando un insert necesita devolver el Id autogenerado, el SQL termina en <code>SELECT CAST(SCOPE_IDENTITY() AS INT)</code> y el repo usa <code>ExecuteScalarAsync&lt;int&gt;</code> para leer ese valor:</p>
+<pre class="code"><code class="language-sql">-- JustificacionesSql.InsertEncabezado
+INSERT INTO Operacion.Justificacion (UsuarioId, MotivoGeneral, EstadoJustificacionId, CreadoPor)
+VALUES (@UsuarioID, @MotivoGeneral, @EstadoID, @UsrRegistro);
+SELECT CAST(SCOPE_IDENTITY() AS INT)</code></pre>
+<pre class="code"><code class="language-cs">// JustificacionRepository.CreateAsync
+var justificacionId = await connection.ExecuteScalarAsync&lt;int&gt;(new CommandDefinition(
+    JustificacionesSql.InsertEncabezado, new { ... }, transaction, ...));</code></pre>
+<p><code>SCOPE_IDENTITY()</code> devuelve el ultimo Id IDENTITY generado en el mismo scope, evitando colisiones con triggers. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:50-60</a>.</p>
+<h3 id="escrituras-simples-executeasync">Escrituras simples: <code>ExecuteAsync</code></h3>
+<p>Updates, toggles de estado y deletes logicos usan <code>ExecuteAsync</code>, que devuelve el numero de filas afectadas. Los chequeos de existencia (<code>Exists*</code>) usan <code>ExecuteScalarAsync&lt;bool&gt;</code>. Ejemplos en <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminOrganizacionRepository.cs">AdminOrganizacionRepository.cs</a>.</p>
+<h3 id="multi-insert-con-transaccion-explicita">Multi-insert con transaccion explicita</h3>
+<p>Crear una justificacion es atomico: un encabezado + N detalles. O entran todos o ninguno. Por eso <code>CreateAsync</code> abre la conexion con <code>OpenAsync</code>, inicia una transaccion con <code>BeginTransactionAsync</code>, hace los inserts pasando esa <code>transaction</code> a cada <code>CommandDefinition</code>, y hace <code>Commit</code>; si algo falla, <code>Rollback</code> y re-lanza:</p>
+<pre class="code"><code class="language-cs">// JustificacionRepository.CreateAsync (resumen)
+await connection.OpenAsync(cancellationToken);
+await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+try
+{
+    var justificacionId = await connection.ExecuteScalarAsync&lt;int&gt;(/* InsertEncabezado */, transaction, ...);
+    foreach (var detalle in request.Detalles)
+        await connection.ExecuteAsync(/* InsertDetalle */, transaction, ...);
+    await transaction.CommitAsync(cancellationToken);
+    return justificacionId;
+}
+catch { await transaction.RollbackAsync(cancellationToken); throw; }</code></pre>
+<blockquote class="callout why">📌 Una <strong>transaccion</strong> garantiza atomicidad: el encabezado y sus lineas se confirman juntos. Si insertara el encabezado pero fallara una linea, sin transaccion quedaria una boleta "huerfana" a medio crear.</blockquote>
+<p><code>OpenAsync</code> explicito aparece solo donde hace falta (transacciones / multi-statement): <code>CreateAsync</code> y <code>ErrorLogRepository.LogAsync</code>. En las lecturas simples, Dapper abre y cierra la conexion por vos. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs:42-86</a> y <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/ErrorLogRepository.cs">ErrorLogRepository.cs:21-22</a>.</p>
+<h2 id="todo-el-sql-vive-como-constantes-en-queries-sql-cs">Todo el SQL vive como constantes en <code>Queries/*Sql.cs</code></h2>
+<p>Una regla fuerte del proyecto: <strong>ningun repositorio tiene SQL incrustado en sus metodos</strong>. Cada sentencia es una <code>public const string</code> en una clase estatica dentro de la carpeta <code>Queries/</code>. El repo solo referencia el nombre (<code>JustificacionesSql.ListMine</code>). Esto mantiene el SQL agrupado, revisable y reutilizable.</p>
+<div class="table-wrap"><table><thead><tr><th>Archivo de SQL</th><th>Lineas aprox.</th><th>Lo usa</th><th>Anclaje</th></tr></thead><tbody><tr><td><code>JustificacionesSql</code></td><td>~377</td><td><code>JustificacionRepository</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a></td></tr><tr><td><code>AdminAprobacionesSql</code></td><td>~175</td><td><code>AdminAprobacionesRepository</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AdminAprobacionesSql.cs">AdminAprobacionesSql.cs</a></td></tr><tr><td><code>AdminOrganizacionSql</code></td><td>~169</td><td><code>AdminOrganizacionRepository</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AdminOrganizacionSql.cs">AdminOrganizacionSql.cs</a></td></tr><tr><td><code>AuditoriaSql</code></td><td>~28</td><td><code>AuditEventRepository</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AuditoriaSql.cs">AuditoriaSql.cs</a></td></tr><tr><td><code>AdminActionAuditSql</code></td><td>~36</td><td><code>AdminActionAuditRepository</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AdminActionAuditSql.cs">AdminActionAuditSql.cs</a></td></tr></tbody></table></div>
+<p>Notas de estilo en estos archivos:</p>
+<ul>
+<li>El SQL nuevo usa <strong>raw string literals</strong> (<code>"""..."""</code>); el viejo usa <strong>verbatim strings</strong> (<code>@"..."</code>). Comparar <code>InsertEncabezado</code> (verbatim, <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:5</a>) con el SQL inline de <code>ErrorLogRepository</code> (raw, <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/ErrorLogRepository.cs">ErrorLogRepository.cs:24-31</a>).</li>
+<li>Los nombres de tablas/columnas siguen las <a href="modelo-datos.html">convenciones de BD</a>: PascalCase, esquema explicito (<code>Operacion.Justificacion</code>, <code>Configuracion.EstadoJustificacion</code>, <code>Auditoria.EventoAuditoria</code>).</li>
+<li>El unico repo con SQL <strong>inline</strong> (no en una clase <code>Queries/</code>) es <code>ErrorLogRepository</code>, por una razon historica de contrato (ver abajo).</li>
+</ul>
+<h2 id="logging-best-effort-auditoria-que-nunca-rompe-la-respuesta">Logging best-effort: auditoria que nunca rompe la respuesta</h2>
+<p>Tres repositorios alimentan el esquema <code>Auditoria</code> de la BD. La filosofia es <strong>fire-and-forget</strong>: registrar es importante, pero un fallo de auditoria nunca debe romper la operacion real del usuario.</p>
+<h3 id="errorlogrepository-el-caso-mas-defensivo"><code>ErrorLogRepository</code> — el caso mas defensivo</h3>
+<p>Registra cada error de la API en <code>Auditoria.ErrorApi</code>. Su metodo <code>LogAsync</code> envuelve TODO en un <code>try/catch</code> que <strong>se traga cualquier excepcion</strong>: si la BD no esta disponible, simplemente no registra y no propaga el fallo (la operacion original ya fallo de todas formas).</p>
+<pre class="code"><code class="language-cs">// ErrorLogRepository.LogAsync (resumen)
+try { /* abrir conexion + INSERT en Auditoria.ErrorApi */ }
+catch
+{
+    // El log de errores nunca debe propagar excepciones hacia el usuario.
+}</code></pre>
+<blockquote class="callout warn">⚠️ Detalle de contrato: el INSERT de <code>ErrorApi</code> usa nombres de columna <strong>en ingles</strong> (<code>CorrelationID</code>, <code>HttpMethod</code>, <code>StatusCode</code>, <code>StackTrace</code>...) — una desviacion deliberada de las convenciones en espanol, para casar con el contrato C#. NO corregir. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/ErrorLogRepository.cs">ErrorLogRepository.cs:24-31</a> y <a href="modelo-datos.html">Modelo de datos</a>.</blockquote>
+<h3 id="auditeventrepository-eventos-de-negocio"><code>AuditEventRepository</code> — eventos de negocio</h3>
+<p>Inserta eventos en <code>Auditoria.EventoAuditoria</code> (quien hizo que, resultado, referencia funcional, resumen del payload) via <code>AuditoriaSql.InsertEvento</code>. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AuditEventRepository.cs">AuditEventRepository.cs:19-37</a>.</p>
+<h3 id="adminactionauditrepository-acciones-de-admin-con-before-after"><code>AdminActionAuditRepository</code> — acciones de admin con before/after</h3>
+<p>Inserta en <code>Auditoria.AdminAccionAuditoria</code> con snapshots JSON de los valores anteriores y nuevos (<code>ValoresAnteriores</code> / <code>ValoresNuevos</code>), util para reconstruir que cambio un admin. Ver <a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminActionAuditRepository.cs">AdminActionAuditRepository.cs:19-41</a>.</p>
+<blockquote class="callout tip">💡 La diferencia con <code>ErrorLogRepository</code>: estos dos no se "tragan" la excepcion ellos mismos. El que decide ignorar fallos de auditoria es quien los invoca desde <a href="modulo-application.html">Application</a> (patron fire-and-forget aguas arriba).</blockquote>
+<h2 id="resumen">Resumen</h2>
+<ul>
+<li>Infrastructure es la frontera con SQL Server: implementa las interfaces de <a href="modulo-application.html">Application</a>, nadie mas toca la base de datos (salvo dos controllers que se saltan el patron).</li>
+<li><code>ISqlConnectionFactory</code> centraliza la creacion de conexiones contra la connection string <code>IntegraCnp</code>.</li>
+<li>6 repositorios <code>sealed</code>, uno por agregado, mapean filas a DTOs con Dapper.</li>
+<li>El SQL es todo <code>const string</code> en <code>Queries/*Sql.cs</code>; los repos solo lo referencian.</li>
+<li>Inserts con <code>SCOPE_IDENTITY</code>, multi-insert con transaccion explicita, auditoria best-effort.</li>
+</ul>
+<p>Para el detalle de las tablas y esquemas que tocan estas consultas, ver <a href="modelo-datos.html">Modelo de datos</a>. Para quien consume estos repositorios, ver <a href="modulo-application.html">Capa Application</a>.</p>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Data/ISqlConnectionFactory.cs">ISqlConnectionFactory.cs</a> — interfaz de la fabrica de conexiones.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Data/SqlConnectionFactory.cs">SqlConnectionFactory.cs</a> — implementacion; lee connection string <code>IntegraCnp</code>.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs</a> — repo central; transaccion en <code>CreateAsync</code>, clases <code>*Row</code> privadas.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminAprobacionesRepository.cs">AdminAprobacionesRepository.cs</a> — jerarquias y delegaciones.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminOrganizacionRepository.cs">AdminOrganizacionRepository.cs</a> — dependencias, usuarios, deteccion de ciclos.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AuditEventRepository.cs">AuditEventRepository.cs</a> — eventos de auditoria.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminActionAuditRepository.cs">AdminActionAuditRepository.cs</a> — acciones de admin con snapshots JSON.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/ErrorLogRepository.cs">ErrorLogRepository.cs</a> — log de errores best-effort; SQL inline, columnas en ingles.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a> · <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AdminAprobacionesSql.cs">AdminAprobacionesSql.cs</a> · <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AdminOrganizacionSql.cs">AdminOrganizacionSql.cs</a> · <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AuditoriaSql.cs">AuditoriaSql.cs</a> · <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/AdminActionAuditSql.cs">AdminActionAuditSql.cs</a> — SQL como constantes.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62-72</a> — registro DI de fabrica y repositorios (Scoped).</li>
+</ul>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#ado-net-y-dapper-acceso-a-datos-sin-orm-pesado">ADO.NET y Dapper: acceso a datos sin ORM pesado</a></li><li><a href="#la-fabrica-de-conexiones-isqlconnectionfactory">La fabrica de conexiones: ISqlConnectionFactory</a></li><li><a href="#patron-de-repositorio-un-repo-sealed-por-agregado">Patron de repositorio: un repo `sealed` por agregado</a></li><li><a href="#como-se-usa-dapper-en-la-practica">Como se usa Dapper en la practica</a></li><li><a href="#todo-el-sql-vive-como-constantes-en-queries-sql-cs">Todo el SQL vive como constantes en `Queries/*Sql.cs`</a></li><li><a href="#logging-best-effort-auditoria-que-nunca-rompe-la-respuesta">Logging best-effort: auditoria que nunca rompe la respuesta</a></li><li><a href="#resumen">Resumen</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

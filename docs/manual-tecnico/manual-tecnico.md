@@ -1,15 +1,15 @@
 # Manual Técnico — SIFCNP (INTEGRA_CNP)
 
-**Sistema de Justificación de Marcas**
+## Sistema de Justificación de Marcas
 
 | Dato | Valor |
-|---|---|
+| --- | --- |
 | **Producto** | SIFCNP — Sistema de Justificación de Marcas (repositorio/BD: INTEGRA_CNP) |
 | **Versión del manual** | 1.0.0 |
 | **Fecha** | 27 de junio de 2026 |
 | **Estado del documento** | Aprobado para la versión 1.0.0 |
 | **Público objetivo** | Personas desarrolladoras y de mantenimiento del sistema |
-| **Organización emisora** | _TODO: confirmar unidad responsable (p. ej. Unidad de Tecnologías de Información del CNP)_ |
+| **Organización emisora** | Unidad de Tecnologías de Información (UTI) — Consejo Nacional de Producción (CNP) |
 | **Idioma** | Español (Costa Rica). Identificadores de código en su idioma original. |
 
 > **Propósito.** Este manual describe la arquitectura, los componentes, el modelo de datos, la referencia de API (OpenAPI), los flujos internos, la instalación, la configuración, el despliegue, el mantenimiento y la gestión de cambios de SIFCNP. Cubre el ciclo de vida completo del software, sin omitir componentes. Está alineado con **ISO/IEC/IEEE 15289:2019** (contenido de los ítems de información), **ISO/IEC/IEEE 12207:2017** (procesos del ciclo de vida), **ISO/IEC/IEEE 42010:2022** (descripción de arquitectura) y la **OpenAPI Specification 3.x** (referencia de API).
@@ -50,6 +50,7 @@
 ## 2. Referencias y notación
 
 **Referencias internas del repositorio:**
+
 - `CLAUDE.md` — guía de arquitectura y convenciones del proyecto.
 - `docs/db/` — scripts de base de datos y convenciones (`Convenciones_Nomeclatura_BD.md`, `Observaciones_Consolidacion_SQL.md`).
 - `docs/seguridad/gestion_credenciales_conexion_bd.md` — gestión de la cadena de conexión.
@@ -57,6 +58,7 @@
 - `docs/PROMPT-GENERACION-MANUALES.md` — criterios de elaboración de estos manuales.
 
 **Notación:**
+
 - Rutas de archivo y código en `monoespaciado`. Referencias `archivo:línea` cuando aplica.
 - Los **Contracts** (forma del wire HTTP) usan sufijo `ID` (`JustificacionID`); los **DTOs/Entities** usan `Id` (`JustificacionId`); los parámetros SQL usan `@PascalCase`.
 
@@ -73,7 +75,7 @@ SIFCNP tiene **tres piezas**:
 ### 3.1 Stack y dependencias
 
 | Capa | Tecnología | Paquetes clave |
-|---|---|---|
+| --- | --- | --- |
 | Frontend | HTML5 + CSS3 + JavaScript (ES) vanilla | Ninguno (sin dependencias) |
 | API | .NET 8 (`net8.0`), ASP.NET Core | `Swashbuckle.AspNetCore` 10.1.7, `Microsoft.AspNetCore.OpenApi` 8.0.25 |
 | Acceso a datos | ADO.NET + Dapper | `Dapper` 2.1.72, `Microsoft.Data.SqlClient` 7.0.0 |
@@ -94,7 +96,7 @@ Esta sección sigue el modelo conceptual de **ISO/IEC/IEEE 42010:2022**: partes 
 - **Stakeholders y sus concerns:**
 
 | Stakeholder | Intereses (concerns) |
-|---|---|
+| --- | --- |
 | Desarrolladores / mantenimiento | Mantenibilidad, claridad de capas, pruebas, evolución |
 | Unidad de TI / operaciones | Despliegue en IIS, configuración, respaldo, disponibilidad |
 | Seguridad institucional | Identidad, autorización, trazabilidad/auditoría, protección de credenciales |
@@ -105,13 +107,13 @@ Esta sección sigue el modelo conceptual de **ISO/IEC/IEEE 42010:2022**: partes 
 
 **(a) Vista lógica — Clean Architecture (regla de dependencia hacia adentro):**
 
-```
+```text
 Domain          (entidades, constantes; SIN referencias)
-   ^
+  ^
 Application      (DTOs, Interfaces, Services, Validation, Common) -> Domain
-   ^
+  ^
 Infrastructure   (Data, Queries, Repositories)                    -> Domain + Application
-   ^
+  ^
 Api              (Controllers, Contracts, Security)               -> Application + Infrastructure
 ```
 
@@ -119,23 +121,27 @@ Las interfaces (`IJustificacionRepository`, `IUserContext`, `IErrorLogRepository
 
 **(b) Vista de despliegue:**
 
-```
+```text
 [Navegador del usuario]
-        │  HTTP
-        ▼
+  │  HTTP
+  ▼
 [Frontend estático]  dev: python http.server :8000   ·  prod: IIS
-        │  fetch() con headers X-User-Id / X-User-Role
-        ▼
+  │  fetch() con headers X-User-Id / X-User-Role
+  ▼
 [API REST .NET 8]    dev: Kestrel :5093 (http) / :7129 (https)  ·  prod: IIS (Hosting Bundle)
-        │  ADO.NET + Dapper
-        ▼
+  │  ADO.NET + Dapper
+  ▼
 [SQL Server: INTEGRA_CNP]
-        │  vistas de Integracion (solo lectura)
-        ▼
-[WIZDOM]  ·  [SIFCNP]   (bases externas, solo lectura)
+  │  vistas de Integracion (solo lectura)
 ```
 
-> 📷 _Captura pendiente:_ `capturas/01-diagrama-despliegue.png` — Diagrama de despliegue. **(TODO)**
+[WIZDOM]  ·  [SIFCNP]   (bases externas, solo lectura)
+
+```
+
+![Diagrama de despliegue: navegador del usuario, frontend estático, API REST .NET 8, base INTEGRA_CNP en SQL Server y las bases externas WIZDOM y SIFCNP de solo lectura.](capturas/01-diagrama-despliegue.png)
+
+*Figura 1. Diagrama de despliegue.*
 
 **(c) Vista de datos:** ver [sección 6](#6-modelo-de-datos).
 
@@ -163,9 +169,11 @@ Las interfaces (`IJustificacionRepository`, `IUserContext`, `IErrorLogRepository
 
 ---
 
+<a id="5-componentes-y-estructura-del-repositorio"></a>
 ## 5. Componentes y estructura del repositorio
 
 ```
+
 / (raíz)
 ├── index.html, dashboard.html, app.js, style.css   (frontend estático)
 ├── backend/
@@ -178,6 +186,7 @@ Las interfaces (`IJustificacionRepository`, `IUserContext`, `IErrorLogRepository
 │   └── tests/IntegradorMarcas.Tests/                xUnit
 ├── docs/                                            db/, seguridad/, specs/, manuales
 └── .vscode/tasks.json                               tareas de build/run/test/serve
+
 ```
 
 **Controllers (7):** `JustificacionesController`, `JefaturaController`, `RrhhController`, `AdminAprobacionesController`, `AdminOrganizacionController`, `AdminMonitoringController`, `SessionController`, más el endpoint mínimo `GET /health` en `Program.cs`.
@@ -236,7 +245,9 @@ Base `INTEGRA_CNP`, SQL Server. Cinco esquemas funcionales. Convenciones en `doc
 - **`dbo.V_JUSTIFICACIONES_DETALLE`** — vista legada en `MAYUSCULAS_SNAKE` **a propósito** (compatibilidad SIFCNP). No aplicar PascalCase.
 - **`dbo.Estructuras_Organizacionales`** — shim de compatibilidad usado por una sola consulta (`GetDetalleJefaturaEncabezado`).
 
-> 📷 _Captura pendiente:_ `capturas/02-modelo-datos.png` — Diagrama entidad-relación de los esquemas. **(TODO)**
+![Diagrama entidad-relación de INTEGRA_CNP con las entidades de los esquemas Configuracion, RecursosHumanos, Operacion y Auditoria y sus relaciones.](capturas/02-modelo-datos.png)
+
+*Figura 2. Diagrama entidad-relación de los esquemas.*
 
 ---
 
@@ -1028,26 +1039,34 @@ paths:
 ## 8. Flujos internos
 
 ### 8.1 Crear boleta (`POST /api/Justificaciones`)
+
 1. El controller traduce `CreateJustificacionRequest` → DTO.
 2. `JustificacionService` valida rol (Func/Jefe), motivo (≤500), ≥1 detalle, y que cada `TipoJustificacionID` exista en catálogo.
 3. El repositorio inserta encabezado + detalles en **una transacción** (`BeginTransactionAsync`/Commit/Rollback). El id se obtiene con `SELECT CAST(SCOPE_IDENTITY() AS INT)`.
 4. Se registra evento de auditoría (`TipoEventoAuditoriaId=1`). La boleta queda en estado **1 (Pendiente Jefatura)**.
 
 ### 8.2 Resolver boleta (`PATCH .../resolver`)
+
 1. Solo rol Jefatura. Valida `Accion ∈ {APROBAR, RECHAZAR}` y comentario (≤500).
 2. Verifica existencia (404), alcance de aprobación (403 si fuera de alcance), y estado actual (409 si ya estaba resuelta — RN-04).
 3. Actualiza estado a **2 (Aprobado)** o **3 (Rechazado)**; si el `UPDATE` afecta 0 filas, responde 409.
 4. Registra evento (`TipoEventoAuditoriaId=2|3`).
 
 ### 8.3 Alcance de aprobación
+
 El alcance depende de la TVF `dbo.fn_AprobadoresVigentesPorSolicitante(usuarioId, GETDATE())`. `Origen='Delegacion'` tiene prioridad sobre `'Jerarquia'`. `ListHistorico` aplica scoping: funcionario → su propio `UserId`; jefatura → set de aprobadores excluyendo el propio; RRHH → global.
 
 ### 8.4 Manejo de errores y auditoría
+
 - `Program.cs UseExceptionHandler` mapea `AppException`→su status, `KeyNotFoundException`→404, `OperationCanceledException`→499, resto→500.
 - `IErrorLogRepository.LogAsync` inserta en `Auditoria.ErrorApi` (best-effort, fire-and-forget; `StackTrace` solo si `statusCode>=500`).
 - Acciones admin → `IAdminActionAuditRepository.LogActionAsync` con snapshots JSON antes/después.
 
-> 📷 _Captura pendiente:_ `capturas/03-secuencia-crear-resolver.png` — Diagrama de secuencia crear/resolver boleta. **(TODO)**
+> **Acceso a la información de auditoría.** La auditoría se consulta únicamente desde el apartado **Registros** del Panel Admin (`/api/admin/monitoring/registros`), restringido al rol Administrador; el sistema no expone una interfaz de auditoría para terceros. Las instancias que requieran datos de auditoría sin rol Administrador (por ejemplo, auditoría interna o control interno) **no acceden directamente al sistema**: solicitan la información a la **Unidad de Tecnologías de Información (UTI)** mediante los canales oficiales.
+
+![Diagrama de secuencia de crear y resolver una boleta: navegador, controlador de API, servicio de aplicación, repositorio, auditoría y SQL Server.](capturas/03-secuencia-crear-resolver.png)
+
+*Figura 3. Diagrama de secuencia crear/resolver boleta.*
 
 ---
 
@@ -1075,28 +1094,34 @@ Procesos de **gestión técnica** relevantes: gestión de configuración (Git, s
 ## 10. Instalación y configuración
 
 ### 10.1 Requisitos
+
 - **.NET 8 SDK** en la máquina de build; en el servidor de producción solo el **ASP.NET Core Hosting Bundle .NET 8** (el servidor no tiene SDK).
-- **SQL Server 2019+** (validado 15.0.2135.5). Dev: instancia con nombre (p. ej. `\DESARROLLO`). _TODO: confirmar instancia/credenciales de cada entorno._
+- **SQL Server 2019+** (validado 15.0.2135.5). Dev: instancia con nombre (p. ej. `\DESARROLLO`). *TODO: confirmar instancia/credenciales de cada entorno.*
 - **Python** (opcional) para servir el frontend en dev (`http.server`).
 
 ### 10.2 Base de datos (orden obligatorio)
+
 Ejecutar en **UTF-8** (sqlcmd `-f 65001` o el runner `docs/db/Ejecutar_Scripts.ps1`):
+
 1. `docs/db/01_CrearBaseDatos.sql` — crea `INTEGRA_CNP` y los 5 esquemas.
 2. `docs/db/02_EstructuraCompleta.sql` — tablas, índices, función `dbo.fn_AprobadoresVigentesPorSolicitante`, vistas, shim.
 3. `docs/db/03_DatosSemilla.sql` — **Sección A (catálogos) obligatoria en todos los entornos**; Secciones B/C (demo) solo en dev; Sección D (remediación mojibake) opcional. **En producción ejecutar SOLO la Sección A.**
 
 ### 10.3 Cadena de conexión (seguridad)
+
 - Se inyecta por la **variable de entorno de usuario** `ConnectionStrings__IntegraCnp` (.NET la mapea a `ConnectionStrings:IntegraCnp`). **No se versiona.**
 - `Program.cs` valida en arranque: en no-Development **aborta** si falta (fail-fast); en Development advierte y continúa.
 - Ver `docs/seguridad/gestion_credenciales_conexion_bd.md`.
 
 ### 10.4 Otras claves de configuración
+
 - `Security:HeaderUserId` / `Security:HeaderRole` (default `X-User-Id` / `X-User-Role`).
 - `Security:UseMockIdentity` existe en config pero **no se consume** en el backend actual.
 - `Swagger:Enabled` (default `true` en código; `false` en appsettings del repo).
-- CORS: política `LocalFrontend` con `SetIsOriginAllowed(_ => true)` (abierta). _Restringir en despliegues expuestos._
+- CORS: política `LocalFrontend` con `SetIsOriginAllowed(_ => true)` (abierta). *Restringir en despliegues expuestos.*
 
 ### 10.5 Comandos de desarrollo
+
 ```
 dotnet restore backend/
 dotnet build backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj --configuration Debug
@@ -1104,6 +1129,7 @@ dotnet run   --project backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csp
 # Frontend (dev):
 python -m http.server 8000 --directory .
 ```
+
 Las tareas de VS Code equivalentes: `restore`, `build-api`, `run-api`, `serve-frontend`, y la compuesta `start-full-stack`. Para apuntar la UI a otra API: `dashboard.html?api=http://localhost:5093`.
 
 ---
@@ -1111,9 +1137,11 @@ Las tareas de VS Code equivalentes: `restore`, `build-api`, `run-api`, `serve-fr
 ## 11. Despliegue
 
 Publicación para IIS (en máquina de build/CI; el servidor de producción no tiene SDK):
+
 ```
 dotnet publish backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj -c Release -o .\artifacts\IntegradorMarcas.Api
 ```
+
 - Copiar la salida (`web.config`, `IntegradorMarcas.Api.dll` + dependencias) al sitio IIS.
 - **App Pool** `IntegradorMarcasApiPool` con `.NET CLR = No Managed Code`, pipeline Integrated.
 - Variables del sitio/pool: `ASPNETCORE_ENVIRONMENT=Production` y `ConnectionStrings__IntegraCnp=<cadena prod>`.
@@ -1121,7 +1149,7 @@ dotnet publish backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj -c R
 - Detalle completo en `docs/specs/readme_iis_prod_sin_herramientas_spec.md`.
 
 | Servicio | Puerto dev | Notas |
-|---|---|---|
+| --- | --- | --- |
 | API .NET | 5093 (http), 7129 (https) | perfil `http` en `launchSettings.json` |
 | Frontend | 8000 | python `http.server --directory .` |
 | IIS local | 8080 | validación pre-producción solamente |
@@ -1138,6 +1166,7 @@ dotnet test ... --filter "Category!=Integration"
 # Cobertura (coverlet):
 dotnet test ... /p:CollectCoverage=true /p:CoverageFormat=opencover
 ```
+
 > El test de integración `ErrorLogIntegrationTests.cs` tiene una cadena de conexión hardcodeada (`Server=WinDev2407Eval\SQLEXPRESS`) y golpea una BD real; está gateado por `[Trait Category=Integration]`. Saltarlo con el filtro anterior en máquinas sin esa instancia.
 
 ---
@@ -1160,7 +1189,7 @@ dotnet test ... /p:CollectCoverage=true /p:CoverageFormat=opencover
 ## 14. Solución de problemas (técnico)
 
 | Síntoma | Causa probable | Acción |
-|---|---|---|
+| --- | --- | --- |
 | El API no arranca en producción | Falta `ConnectionStrings__IntegraCnp` (fail-fast) | Definir la variable de entorno del sitio/pool |
 | 401 en todas las llamadas | Faltan headers `X-User-Id` / `X-User-Role` | Verificar que el frontend los envíe |
 | `dotnet build` no encuentra proyecto | No hay `.sln`; falta ruta `.csproj` | Pasar el `.csproj` explícito |
@@ -1175,7 +1204,7 @@ dotnet test ... /p:CollectCoverage=true /p:CoverageFormat=opencover
 ## 15. Glosario
 
 | Término | Definición |
-|---|---|
+| --- | --- |
 | **ADO.NET / Dapper** | Acceso a datos sin ORM pesado; Dapper mapea filas a objetos. |
 | **AppException** | Excepción de control de flujo con `StatusCode`; única (junto a `KeyNotFoundException`). |
 | **Clean Architecture** | Estilo en capas con dependencias hacia adentro (Domain ← Application ← Infrastructure ← Api). |
@@ -1215,26 +1244,30 @@ dotnet test ... /p:CollectCoverage=true /p:CoverageFormat=opencover
 ## 17. Fuentes
 
 **ISO/IEC/IEEE 15289:2019 — Content of life-cycle information items (documentation)**
-- https://www.iso.org/standard/74909.html
-- https://ieeexplore.ieee.org/document/8767110/
-- https://standards.ieee.org/ieee/15289/7196/
+
+- <https://www.iso.org/standard/74909.html>
+- <https://ieeexplore.ieee.org/document/8767110/>
+- <https://standards.ieee.org/ieee/15289/7196/>
 
 **ISO/IEC/IEEE 12207:2017 — Software life cycle processes**
-- https://www.iso.org/standard/63712.html
-- https://ieeexplore.ieee.org/document/8100771
-- https://en.wikipedia.org/wiki/ISO/IEC_12207
+
+- <https://www.iso.org/standard/63712.html>
+- <https://ieeexplore.ieee.org/document/8100771>
+- <https://en.wikipedia.org/wiki/ISO/IEC_12207>
 
 **ISO/IEC/IEEE 42010:2022 — Architecture description**
-- https://www.iso.org/standard/74393.html
-- https://standards.ieee.org/ieee/42010/6846/
-- http://www.iso-architecture.org/42010/cm/
-- https://en.wikipedia.org/wiki/ISO/IEC_42010
+
+- <https://www.iso.org/standard/74393.html>
+- <https://standards.ieee.org/ieee/42010/6846/>
+- <http://www.iso-architecture.org/42010/cm/>
+- <https://en.wikipedia.org/wiki/ISO/IEC_42010>
 
 **OpenAPI Specification (3.1 / 3.0.3)**
-- https://spec.openapis.org/oas/v3.1.0.html
-- https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md
-- https://swagger.io/specification/
+
+- <https://spec.openapis.org/oas/v3.1.0.html>
+- <https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md>
+- <https://swagger.io/specification/>
 
 ---
 
-_Documento generado a partir del código real de SIFCNP (INTEGRA_CNP). Los puntos marcados como **TODO** quedan pendientes de aporte del equipo. Ver también `docs/PROMPT-GENERACION-MANUALES.md`._
+*Documento generado a partir del código real de SIFCNP (INTEGRA_CNP). Los puntos marcados como **TODO** quedan pendientes de aporte del equipo. Ver también `docs/PROMPT-GENERACION-MANUALES.md`.*

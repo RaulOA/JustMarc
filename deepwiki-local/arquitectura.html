@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquitectura y diseno · DeepWiki local SIFCNP</title>
+<meta name="description" content="Clean Architecture, capas, dependencias y decisiones (ADR).">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html" class="active" aria-current="page">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Arquitectura</span><span class="sep">/</span><span class="current">Arquitectura y diseno</span></nav>
+<div class="page-head-row">
+<h1>Arquitectura y diseno</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Clean Architecture, capas, dependencias y decisiones (ADR).</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>El backend de SIFCNP (proyecto <code>IntegradorMarcas</code>) esta organizado con <strong>Clean Architecture</strong>: una forma de partir el codigo en capas donde las reglas del negocio (que es una boleta, quien puede aprobarla) quedan separadas de los detalles tecnicos (SQL Server, HTTP, headers). La idea practica es que cambiar un detalle tecnico (por ejemplo, pasar de SQL Server a otra base) no obligue a tocar las reglas del negocio. Son cuatro proyectos <code>.csproj</code> (<code>Domain</code>, <code>Application</code>, <code>Infrastructure</code>, <code>Api</code>) que dependen unos de otros siempre <strong>hacia adentro</strong>, hacia el centro donde vive el negocio.</p>
+<blockquote class="callout why">📌 En la practica: si manana cambia el motor de base de datos o la forma de autenticar, idealmente solo se toca la capa de afuera (<code>Infrastructure</code> o <code>Api</code>); el corazon de las reglas (<code>Domain</code> y <code>Application</code>) queda intacto.</blockquote>
+<h2 id="que-es-clean-architecture-y-por-que-se-usa-aca">Que es Clean Architecture y por que se usa aca</h2>
+<p>Clean Architecture es un patron de organizacion de codigo en circulos concentricos. El principio que lo gobierna es la <strong>regla de dependencia</strong>: el codigo de afuera (detalles, frameworks, base de datos) puede conocer y depender del codigo de adentro (reglas del negocio), <strong>pero nunca al reves</strong>. El centro no sabe que existe SQL Server, ni HTTP, ni Dapper.</p>
+<p>En este proyecto eso se materializa en cuatro proyectos <code>.csproj</code>, y la regla de dependencia se hace cumplir a nivel de <code>&lt;ProjectReference&gt;</code> en cada archivo de proyecto. Si alguien intenta que <code>Domain</code> referencie <code>Infrastructure</code>, el <code>.csproj</code> no lo permite porque esa referencia no existe (y agregarla seria una violacion visible).</p>
+<p>La descripcion canonica del proyecto esta en <a href="../CLAUDE.md">CLAUDE.md</a>, seccion "Arquitectura":</p>
+<pre class="code"><code>Domain          (entidades, constantes; SIN referencias)
+   ^
+Application      (DTOs, Interfaces, Services, Validation, Common) -&gt; Domain
+   ^
+Infrastructure   (Data, Queries, Repositories)                    -&gt; Domain + Application
+   ^
+Api              (Controllers, Contracts, Security)               -&gt; Application + Infrastructure</code></pre>
+<blockquote class="callout tip">💡 Tip de lectura del diagrama: la flecha <code>^</code> significa "depende de lo de abajo". <code>Api</code> depende de <code>Application</code> + <code>Infrastructure</code>; <code>Application</code> depende solo de <code>Domain</code>; <code>Domain</code> no depende de nadie.</blockquote>
+<h2 id="las-cuatro-capas">Las cuatro capas</h2>
+<p>Cada capa es un proyecto <code>.csproj</code> bajo <code>backend/src/</code>. Esta es la responsabilidad de cada una y a quien referencia, verificado contra los archivos de proyecto reales.</p>
+<div class="table-wrap"><table><thead><tr><th>Capa (proyecto)</th><th>Que contiene</th><th>A quien referencia</th><th>Verificado en</th></tr></thead><tbody><tr><td><strong>Domain</strong></td><td>Entidades de negocio (<code>JustificacionEncabezado</code>, <code>JustificacionDetalle</code>), constantes (<code>RolesSistema</code>, <code>EstadoIds</code>)</td><td>A nadie (cero <code>ProjectReference</code>)</td><td><a href="../backend/src/IntegradorMarcas.Domain/IntegradorMarcas.Domain.csproj">IntegradorMarcas.Domain.csproj</a></td></tr><tr><td><strong>Application</strong></td><td>DTOs, Interfaces, Services, Validation, Common (<code>AppException</code>)</td><td><code>Domain</code></td><td><a href="../backend/src/IntegradorMarcas.Application/IntegradorMarcas.Application.csproj">IntegradorMarcas.Application.csproj:3-5</a></td></tr><tr><td><strong>Infrastructure</strong></td><td>Acceso a datos (<code>Data</code>, <code>Queries</code>, <code>Repositories</code>); paquetes Dapper + SqlClient</td><td><code>Domain</code> + <code>Application</code></td><td><a href="../backend/src/IntegradorMarcas.Infrastructure/IntegradorMarcas.Infrastructure.csproj">IntegradorMarcas.Infrastructure.csproj:3-6</a></td></tr><tr><td><strong>Api</strong></td><td>Controllers, Contracts (Requests/Responses), Security (headers); SDK Web + Swagger</td><td><code>Application</code> + <code>Infrastructure</code></td><td><a href="../backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj">IntegradorMarcas.Api.csproj:14-17</a></td></tr></tbody></table></div>
+<p>Los cuatro proyectos target <code>net8.0</code> con <code>Nullable</code> e <code>ImplicitUsings</code> habilitados (ver cualquiera de los <code>.csproj</code>). No hay archivo <code>.sln</code>: cada comando <code>dotnet</code> apunta a un <code>.csproj</code> explicito (ver <a href="../CLAUDE.md">CLAUDE.md</a>, "Comandos esenciales").</p>
+<h3 id="domain-el-corazon-del-negocio">Domain — el corazon del negocio</h3>
+<p>Lo que NO cambia aunque cambie la tecnologia. Aca viven las entidades como <a href="../backend/src/IntegradorMarcas.Domain/Entities/JustificacionEncabezado.cs">JustificacionEncabezado.cs</a> y <a href="../backend/src/IntegradorMarcas.Domain/Entities/JustificacionDetalle.cs">JustificacionDetalle.cs</a>, y las constantes del dominio como los roles (<a href="../backend/src/IntegradorMarcas.Domain/Constants/RolesSistema.cs">RolesSistema.cs</a>) y los IDs de estado (<a href="../backend/src/IntegradorMarcas.Domain/Constants/EstadoIds.cs">EstadoIds.cs</a>). Su <code>.csproj</code> no tiene ningun <code>ProjectReference</code>: es el unico proyecto que no depende de nada. Detalle completo en <a href="modulo-dominio.html">Modulo Dominio</a>.</p>
+<h3 id="application-los-casos-de-uso-y-las-reglas">Application — los casos de uso y las reglas</h3>
+<p>Coordina el flujo del negocio (crear boleta, aprobar, listar historico) y define <strong>las interfaces</strong> (los contratos) que la capa de afuera debe implementar. Contiene:</p>
+<ul>
+<li><strong>Services</strong> (<code>JustificacionService</code>, <code>AdminAprobacionesService</code>, <code>AdminOrganizacionService</code>): orquestan cada caso de uso.</li>
+<li><strong>Interfaces</strong> (<code>IJustificacionRepository</code>, <code>IUserContext</code>, <code>IErrorLogRepository</code>, etc.): los contratos.</li>
+<li><strong>DTOs</strong>: objetos de transporte entre capas.</li>
+<li><strong>Validation</strong> (<code>JustificacionValidator</code>) y <strong>Common</strong> (<code>AppException</code>).</li>
+</ul>
+<p>Solo referencia <code>Domain</code>. Detalle completo en <a href="modulo-application.html">Modulo Application</a>.</p>
+<h3 id="infrastructure-los-detalles-tecnicos-de-datos">Infrastructure — los detalles tecnicos de datos</h3>
+<p>La implementacion concreta de "como hablar con SQL Server". Aca viven los repositorios (<code>JustificacionRepository</code>, <code>AdminAprobacionesRepository</code>, ...), la fabrica de conexiones (<code>SqlConnectionFactory</code>) y <strong>todo el SQL</strong> como <code>const string</code> en <code>Queries/*Sql.cs</code> (por ejemplo <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a>). Trae los paquetes <code>Dapper</code> 2.1.72 y <code>Microsoft.Data.SqlClient</code> 7.0.0 (<a href="../backend/src/IntegradorMarcas.Infrastructure/IntegradorMarcas.Infrastructure.csproj">IntegradorMarcas.Infrastructure.csproj:8-12</a>). Detalle completo en <a href="modulo-infraestructura.html">Modulo Infraestructura</a>.</p>
+<blockquote class="callout why">📌 Dapper es un "micro-ORM": una libreria liviana que ejecuta tu SQL escrito a mano y mapea las filas resultantes a objetos C#, sin generar SQL por vos (a diferencia de Entity Framework). Aca se eligio justamente para tener control total del SQL. Ver el glosario.</blockquote>
+<h3 id="api-la-puerta-de-entrada-http">Api — la puerta de entrada HTTP</h3>
+<p>El borde mas externo: recibe peticiones HTTP, traduce, delega a <code>Application</code> y devuelve respuestas. Contiene los Controllers, los Contracts (la forma exacta del JSON que viaja por el cable) y la seguridad por headers (<code>HeaderUserContext</code>). Es el unico proyecto con SDK <code>Microsoft.NET.Sdk.Web</code> (<a href="../backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj">IntegradorMarcas.Api.csproj:1</a>) y referencia tanto <code>Application</code> como <code>Infrastructure</code>. Detalle completo en <a href="modulo-api.html">Modulo API</a>.</p>
+<h2 id="diagrama-de-dependencias-entre-proyectos">Diagrama de dependencias entre proyectos</h2>
+<div class="mermaid-wrap"><pre class="mermaid">graph TD
+    Api["Api&lt;br/&gt;(Controllers, Contracts, Security)"]
+    Infra["Infrastructure&lt;br/&gt;(Data, Queries, Repositories)"]
+    App["Application&lt;br/&gt;(Services, Interfaces, DTOs, Validation)"]
+    Dom["Domain&lt;br/&gt;(Entities, Constants)"]
+
+    Api --&gt; App
+    Api --&gt; Infra
+    Infra --&gt; App
+    Infra --&gt; Dom
+    App --&gt; Dom
+
+    style Dom fill:#2d6a4f,color:#fff
+    style App fill:#40916c,color:#fff
+    style Infra fill:#52b788,color:#000
+    style Api fill:#74c69d,color:#000</pre></div>
+<blockquote class="callout tip">💡 Notese que todas las flechas apuntan hacia <code>Domain</code> (directa o indirectamente). Ese es el "hacia adentro" de la regla de dependencia. <code>Domain</code> no tiene ninguna flecha saliente.</blockquote>
+<h2 id="donde-viven-las-interfaces-y-por-que-inversion-de-dependencias">Donde viven las interfaces y por que (inversion de dependencias)</h2>
+<p>Aca esta la parte que mas confunde al principio. Las interfaces como <code>IJustificacionRepository</code> se definen en <strong><code>Application/Interfaces</code></strong>, pero su implementacion concreta (<code>JustificacionRepository</code>) vive en <strong><code>Infrastructure</code></strong>, una capa mas afuera.</p>
+<p>¿Por que la interfaz no esta donde esta su implementacion? Porque asi se logra la <strong>inversion de dependencias</strong>: en vez de que <code>Application</code> dependa de <code>Infrastructure</code> (lo cual romperia la regla, porque el negocio dependeria de un detalle tecnico), es <code>Infrastructure</code> la que depende de <code>Application</code> para implementar un contrato que el negocio definio.</p>
+<blockquote class="callout why">📌 En lenguaje sencillo: el negocio dice "necesito algo que sepa guardar una justificacion y me cumpla ESTE contrato" (<code>IJustificacionRepository</code>). No le importa si por debajo es SQL Server, un archivo o memoria. La capa de afuera provee la implementacion concreta. El negocio depende de la abstraccion, no del detalle.</blockquote>
+<p>Las interfaces que se definen en <a href="../backend/src/IntegradorMarcas.Application/Interfaces/IJustificacionRepository.cs">Application/Interfaces/</a> incluyen:</p>
+<div class="table-wrap"><table><thead><tr><th>Interfaz</th><th>Definida en</th><th>Implementada en</th></tr></thead><tbody><tr><td><code>IJustificacionRepository</code></td><td>Application/Interfaces</td><td>Infrastructure/Repositories (<a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs</a>)</td></tr><tr><td><code>IAdminAprobacionesRepository</code></td><td>Application/Interfaces</td><td>Infrastructure/Repositories (<a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminAprobacionesRepository.cs">AdminAprobacionesRepository.cs</a>)</td></tr><tr><td><code>IAdminOrganizacionRepository</code></td><td>Application/Interfaces</td><td>Infrastructure/Repositories (<a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminOrganizacionRepository.cs">AdminOrganizacionRepository.cs</a>)</td></tr><tr><td><code>IErrorLogRepository</code></td><td>Application/Interfaces</td><td>Infrastructure/Repositories (<a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/ErrorLogRepository.cs">ErrorLogRepository.cs</a>)</td></tr><tr><td><code>IAuditEventRepository</code></td><td>Application/Interfaces</td><td>Infrastructure/Repositories (<a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AuditEventRepository.cs">AuditEventRepository.cs</a>)</td></tr><tr><td><code>IAdminActionAuditRepository</code></td><td>Application/Interfaces</td><td>Infrastructure/Repositories (<a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/AdminActionAuditRepository.cs">AdminActionAuditRepository.cs</a>)</td></tr><tr><td><code>IUserContext</code></td><td>Application/Interfaces (<a href="../backend/src/IntegradorMarcas.Application/Interfaces/IUserContext.cs">IUserContext.cs</a>)</td><td><strong>Api</strong>/Security (<a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a>)</td></tr><tr><td><code>IJustificacionService</code> y los <code>IAdmin*Service</code></td><td>Application/Interfaces</td><td>Application/Services</td></tr></tbody></table></div>
+<p>Fijate un detalle interesante: <code>IUserContext</code> se implementa en <strong><code>Api</code></strong>, no en <code>Infrastructure</code>. Tiene sentido porque saber "quien es el usuario" depende de leer headers HTTP, y eso solo lo conoce la capa web. Asi la logica del negocio recibe un <code>UserContextInfo</code> ya resuelto sin tener idea de que vino de un header. Ver <a href="seguridad.html">Seguridad</a>.</p>
+<h3 id="el-pegamento-inyeccion-de-dependencias-en-program-cs">El pegamento: inyeccion de dependencias en Program.cs</h3>
+<p>Las interfaces y sus implementaciones se "casan" en un solo lugar: el contenedor de inyeccion de dependencias en <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62-72</a>. Inyeccion de dependencias (DI) es el mecanismo por el cual una clase recibe lo que necesita ya construido, en vez de crearlo ella misma.</p>
+<pre class="code"><code class="language-cs">builder.Services.AddScoped&lt;ISqlConnectionFactory, SqlConnectionFactory&gt;();
+builder.Services.AddScoped&lt;IJustificacionRepository, JustificacionRepository&gt;();
+builder.Services.AddScoped&lt;IJustificacionService, JustificacionService&gt;();
+// ...
+builder.Services.AddScoped&lt;IUserContext, HeaderUserContext&gt;();
+builder.Services.AddScoped&lt;IErrorLogRepository, ErrorLogRepository&gt;();</code></pre>
+<p>Cada linea dice "cuando alguien pida esta interfaz, entregale esta implementacion concreta". Todos registrados como <code>Scoped</code> (una instancia por peticion HTTP). Asi <code>JustificacionService</code> recibe su <code>IJustificacionRepository</code> por constructor sin saber cual implementacion le toco (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:11-18</a>).</p>
+<h2 id="limites-entre-modulos">Limites entre modulos</h2>
+<p>Cada agregado de negocio tiene su columna vertical completa que cruza las capas, pero respetando los limites:</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph LR
+    subgraph Api
+        C["Controller"]
+        Req["Request/Response&lt;br/&gt;(Contracts)"]
+    end
+    subgraph Application
+        S["Service&lt;br/&gt;(guard clause + logica)"]
+        D["DTO"]
+        I["IRepository&lt;br/&gt;(interfaz)"]
+    end
+    subgraph Infrastructure
+        R["Repository&lt;br/&gt;(implementacion)"]
+        Q["*Sql.cs&lt;br/&gt;(SQL const)"]
+    end
+    subgraph Domain
+        E["Entity"]
+    end
+    DB[("SQL Server&lt;br/&gt;INTEGRA_CNP")]
+
+    C --&gt;|"traduce Request-&gt;DTO"| S
+    S --&gt;|"valida rol, orquesta"| I
+    I -.implementado por.-&gt; R
+    R --&gt; Q
+    Q --&gt; DB
+    S --&gt; D
+    R --&gt; E
+    C --&gt;|"DTO-&gt;Response"| Req</pre></div>
+<p>Reglas de correspondencia que se respetan en todo el codigo:</p>
+<ul>
+<li>Un Controller por area (<code>JustificacionesController</code>, <code>JefaturaController</code>, <code>RrhhController</code>, <code>AdminAprobacionesController</code>, <code>AdminOrganizacionController</code>, mas <code>SessionController</code> y <code>AdminMonitoringController</code>).</li>
+<li>Un Service por caso de uso, con su interfaz en <code>Application/Interfaces</code>.</li>
+<li>Un Repository <code>sealed</code> por agregado, con su <code>*Sql.cs</code> hermano en <code>Infrastructure/Queries</code>.</li>
+<li>El SQL <strong>no</strong> vive en los repositorios ni en los controllers (con dos excepciones documentadas: <code>AdminMonitoringController</code> y <code>SessionController</code> llevan SQL inline; ver <a href="../CLAUDE.md">CLAUDE.md</a>, "Acceso a datos").</li>
+</ul>
+<h2 id="decisiones-de-diseno-adr-ya-documentadas">Decisiones de diseno (ADR) ya documentadas</h2>
+<p>El proyecto documenta varias decisiones arquitectonicas (ADR = registro de decision de arquitectura) en <a href="../CLAUDE.md">CLAUDE.md</a>. Resumen con su justificacion practica:</p>
+<div class="table-wrap"><table><thead><tr><th>Decision</th><th>Que se eligio</th><th>Por que (practico)</th></tr></thead><tbody><tr><td><strong>Sin EF Core</strong></td><td>ADO.NET crudo + Dapper (<a href="../backend/src/IntegradorMarcas.Infrastructure/IntegradorMarcas.Infrastructure.csproj">Infrastructure.csproj:8-12</a>)</td><td>Control total del SQL; sin "magia" de un ORM pesado que genere consultas opacas</td></tr><tr><td><strong>SQL como <code>const string</code></strong></td><td>Todo el SQL vive en <code>Queries/*Sql.cs</code> (<a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a>)</td><td>El SQL queda centralizado, revisable y separado de la logica C# del repositorio</td></tr><tr><td><strong>Identidad por headers</strong></td><td><code>X-User-Id</code> / <code>X-User-Role</code> via <code>IUserContext</code> -&gt; <code>HeaderUserContext</code>, sin JWT/cookies (<a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a>)</td><td>Simplicidad para MVP/demo; el backend confia en los headers. Inseguro a proposito, ver <a href="seguridad.html">Seguridad</a></td></tr><tr><td><strong>Clases <code>sealed</code> por defecto</strong></td><td>Controllers, services, repositories, entities, DTOs, exceptions (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:9</a>)</td><td>Evita herencia accidental; intencion clara. Unica excepcion: <code>SessionController</code></td></tr><tr><td><strong>Sin AutoMapper</strong></td><td>Mapeo manual Request-&gt;DTO-&gt;Response con object initializers en los controllers</td><td>Sin libreria intermedia; el mapeo es explicito y trazable</td></tr><tr><td><strong>Modelo de objetos en 3 niveles</strong></td><td>Contracts (Api) &lt;-&gt; DTOs (Application) &lt;-&gt; Entities (Domain)</td><td>Cada capa tiene su propia forma; cambiar el wire JSON no contamina el dominio</td></tr><tr><td><strong>Sin <code>.sln</code></strong></td><td>Comandos <code>dotnet</code> con <code>.csproj</code> explicito</td><td>Build/test deben apuntar al proyecto exacto; ver gotchas en <a href="../CLAUDE.md">CLAUDE.md</a></td></tr><tr><td><strong>Autorizacion en services, no <code>[Authorize]</code></strong></td><td>Guard clause <code>RolesSistema.Es*(user.Role)</code> al inicio de cada metodo, lanza <code>AppException(403)</code> (<a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:22-25</a>)</td><td>La regla de "quien puede" es regla de negocio, vive en <code>Application</code>, no en middleware web</td></tr></tbody></table></div>
+<h3 id="el-modelo-de-objetos-en-tres-niveles-en-detalle">El modelo de objetos en tres niveles, en detalle</h3>
+<p>Un mismo dato (una justificacion) toma tres formas distintas segun la capa por la que pasa. Esto evita que el formato del JSON externo se filtre hasta las reglas del negocio:</p>
+<div class="mermaid-wrap"><pre class="mermaid">graph LR
+    Wire["JSON HTTP"] --&gt; Contract["Contract&lt;br/&gt;(Api/Contracts)&lt;br/&gt;sufijo ID: JustificacionID"]
+    Contract --&gt;|"controller mapea a mano"| DTO["DTO&lt;br/&gt;(Application/DTOs)&lt;br/&gt;sufijo Id: JustificacionId"]
+    DTO --&gt; Service["Service usa DTO"]
+    Service --&gt; Entity["Entity&lt;br/&gt;(Domain/Entities)&lt;br/&gt;JustificacionEncabezado"]</pre></div>
+<blockquote class="callout warn">⚠️ Detalle de naming que confunde: los <strong>Contracts</strong> usan deliberadamente sufijo <code>ID</code> en mayuscula (<code>JustificacionID</code>, <code>AprobadorID</code>), mientras DTOs y Entities usan <code>Id</code> (<code>JustificacionId</code>). Los controllers mapean <code>Id</code> &lt;-&gt; <code>ID</code> a mano. Es intencional, no un error (ver <a href="../CLAUDE.md">CLAUDE.md</a>, "Convenciones de codigo").</blockquote>
+<h3 id="guard-clause-como-autorizacion">Guard clause como autorizacion</h3>
+<p>Un "guard clause" es una verificacion al inicio de un metodo que corta la ejecucion temprano si una condicion no se cumple. Aca se usa para autorizar: en vez de atributos <code>[Authorize]</code> o middleware, cada metodo de service empieza validando el rol. Ejemplo real en <a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs:22-25</a>:</p>
+<pre class="code"><code class="language-cs">if (!RolesSistema.EsFuncionario(user.Role) &amp;&amp; !RolesSistema.EsJefatura(user.Role))
+{
+    throw new AppException("Solo funcionario o jefatura pueden crear boletas.", 403);
+}</code></pre>
+<p>Esto mantiene la decision de autorizacion dentro del negocio (<code>Application</code>), coherente con Clean Architecture. Detalle del modelo de roles y su scoping en <a href="seguridad.html">Seguridad</a>.</p>
+<h2 id="como-se-arma-todo-en-arranque-program-cs">Como se arma todo en arranque (Program.cs)</h2>
+<p>El archivo <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs</a> es el unico punto donde se ensambla la aplicacion. Resumen de lo que hace, en orden:</p>
+<ol>
+<li><strong>Valida la connection string</strong> <code>IntegraCnp</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:15-31</a>): en no-Development aborta (fail-fast); en Development solo advierte. La cadena nunca se versiona, se inyecta por variable de entorno.</li>
+<li><strong>Configura ModelState invalido -&gt; <code>AppException(400)</code></strong> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:34-46</a>): unifica los errores de validacion del framework en el mismo canal de excepcion del proyecto.</li>
+<li><strong>CORS abierto</strong> con politica <code>LocalFrontend</code> que permite cualquier origen (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:50-60</a>). CORS controla que sitios web pueden llamar a esta API desde el navegador; aca esta totalmente abierto para entorno local. Debe restringirse en produccion (ver <a href="seguridad.html">Seguridad</a>).</li>
+<li><strong>Registra DI</strong> todas las interfaces -&gt; implementaciones (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62-72</a>).</li>
+<li><strong>Manejo global de excepciones</strong> con <code>UseExceptionHandler</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:80-139</a>): mapea <code>AppException</code>-&gt;su status, <code>KeyNotFoundException</code>-&gt;404, <code>OperationCanceledException</code>-&gt;499, resto-&gt;500; devuelve <code>ProblemDetails</code> con <code>correlationId</code> y header <code>X-Correlation-Id</code>, y registra el error en BD de forma fire-and-forget (nunca rompe la respuesta).</li>
+<li><strong>Convierte 404 sin cuerpo en <code>AppException(404)</code></strong> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:150-157</a>) para respuestas consistentes.</li>
+<li><strong>Endpoint <code>/health</code></strong> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:161-165</a>) devuelve <code>{status:'ok', utc}</code>.</li>
+</ol>
+<blockquote class="callout tip">💡 <code>AppException</code> (en <code>Application/Common</code>) es la unica excepcion de control de flujo del proyecto: lleva un <code>StatusCode</code> y todo el sistema la traduce a la respuesta HTTP correcta. Eso permite que un service lance <code>AppException("...", 403)</code> sin saber nada de HTTP, y que la capa Api lo convierta en un 403 real.</blockquote>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../CLAUDE.md">CLAUDE.md</a> — descripcion canonica de arquitectura, convenciones y gotchas</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs</a> — ensamblado, DI, CORS, manejo de errores, health</li>
+<li><a href="../backend/src/IntegradorMarcas.Domain/IntegradorMarcas.Domain.csproj">IntegradorMarcas.Domain.csproj</a> — sin referencias (centro)</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/IntegradorMarcas.Application.csproj">IntegradorMarcas.Application.csproj</a> — referencia Domain</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/IntegradorMarcas.Infrastructure.csproj">IntegradorMarcas.Infrastructure.csproj</a> — referencia Domain + Application; Dapper + SqlClient</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/IntegradorMarcas.Api.csproj">IntegradorMarcas.Api.csproj</a> — SDK Web; referencia Application + Infrastructure</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Interfaces/IUserContext.cs">IUserContext.cs</a> y <a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a> — interfaz en Application, implementacion en Api</li>
+<li><a href="../backend/src/IntegradorMarcas.Application/Services/JustificacionService.cs">JustificacionService.cs</a> — service con guard clause de autorizacion</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Repositories/JustificacionRepository.cs">JustificacionRepository.cs</a> y <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a> — repositorio + SQL como const</li>
+</ul>
+<p>Paginas relacionadas: <a href="modulo-dominio.html">Modulo Dominio</a> · <a href="modulo-application.html">Modulo Application</a> · <a href="modulo-infraestructura.html">Modulo Infraestructura</a> · <a href="modulo-api.html">Modulo API</a> · <a href="seguridad.html">Seguridad</a> · <a href="glosario.html">Glosario</a></p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#que-es-clean-architecture-y-por-que-se-usa-aca">Que es Clean Architecture y por que se usa aca</a></li><li><a href="#las-cuatro-capas">Las cuatro capas</a></li><li><a href="#diagrama-de-dependencias-entre-proyectos">Diagrama de dependencias entre proyectos</a></li><li><a href="#donde-viven-las-interfaces-y-por-que-inversion-de-dependencias">Donde viven las interfaces y por que (inversion de dependencias)</a></li><li><a href="#limites-entre-modulos">Limites entre modulos</a></li><li><a href="#decisiones-de-diseno-adr-ya-documentadas">Decisiones de diseno (ADR) ya documentadas</a></li><li><a href="#como-se-arma-todo-en-arranque-program-cs">Como se arma todo en arranque (Program.cs)</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

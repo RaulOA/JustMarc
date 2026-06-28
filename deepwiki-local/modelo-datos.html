@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo de datos · DeepWiki local SIFCNP</title>
+<meta name="description" content="Esquemas, tablas, vistas, funcion de aprobadores y diagrama ER.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html" class="active" aria-current="page">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Datos y API</span><span class="sep">/</span><span class="current">Modelo de datos</span></nav>
+<div class="page-head-row">
+<h1>Modelo de datos</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Esquemas, tablas, vistas, funcion de aprobadores y diagrama ER.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p><code>INTEGRA_CNP</code> es la base de datos SQL Server donde vive TODO el estado del sistema: usuarios, estructura organizacional, las boletas de justificacion de marca y sus aprobaciones, mas la bitacora de auditoria. Esta organizada en <strong>cinco esquemas funcionales</strong> (carpetas logicas dentro de la base que agrupan tablas por area de negocio) y se levanta con <strong>tres scripts en orden</strong>: crear base, crear estructura, sembrar datos. El backend la consulta con ADO.NET + Dapper (sin EF Core); ver <a href="modulo-infraestructura.html">Infraestructura</a>.</p>
+<blockquote class="callout why">📌 En la practica: si necesitas saber donde se guarda un dato o que tabla toca un endpoint, esta es la pagina. Cada afirmacion cita el script SQL real en <code>docs/db/</code>.</blockquote>
+<h2 id="diagrama-entidad-relacion">Diagrama entidad-relacion</h2>
+<p>El siguiente diagrama ER (modelo de entidades y como se relacionan) resume las tablas principales y sus claves foraneas (FK = columna que apunta a la clave primaria de otra tabla, creando la relacion). Esta tomado de <a href="../docs/manual-tecnico/capturas/02-modelo-datos.mmd">02-modelo-datos.mmd</a>.</p>
+<div class="mermaid-wrap"><pre class="mermaid">erDiagram
+    Rol {
+        int RolId PK
+        varchar Descripcion
+    }
+    EstadoJustificacion {
+        int EstadoJustificacionId PK
+        varchar Descripcion
+    }
+    TipoJustificacion {
+        int TipoJustificacionId PK
+        varchar Descripcion
+    }
+    EstadoRegistro {
+        int EstadoRegistroId PK
+        varchar Descripcion
+    }
+    TipoEventoAuditoria {
+        int TipoEventoAuditoriaId PK
+        varchar Descripcion
+    }
+    ResultadoAuditoria {
+        int ResultadoAuditoriaId PK
+        varchar Descripcion
+    }
+    Usuario {
+        int UsuarioId PK
+        int JefaturaId FK
+        int RolId FK
+        int UnidadId "logico CodigoOrigen"
+        varchar Compania
+    }
+    EstructuraOrganizacional {
+        int EstructuraOrganizacionalId PK
+        int EstructuraPadreId FK
+        int EstadoRegistroId FK
+        varchar CodigoOrigen
+    }
+    Justificacion {
+        int JustificacionId PK
+        int UsuarioId FK
+        int EstadoJustificacionId FK
+        int AprobadorId FK
+    }
+    JustificacionDetalle {
+        int JustificacionDetalleId PK
+        int JustificacionId FK
+        int TipoJustificacionId FK
+        date FechaMarca
+    }
+    JerarquiaAprobacion {
+        int JerarquiaAprobacionId PK
+        int AprobadorUsuarioId FK
+        int EstructuraOrganizacionalId FK
+        int EstadoRegistroId FK
+    }
+    DelegacionAprobacion {
+        int DelegacionAprobacionId PK
+        int DeleganteUsuarioId FK
+        int DelegadoUsuarioId FK
+        int JerarquiaAprobacionId FK
+        int EstadoRegistroId FK
+    }
+    EventoAuditoria {
+        bigint EventoAuditoriaId PK
+        int UsuarioId FK
+        int TipoEventoAuditoriaId FK
+        int ResultadoAuditoriaId FK
+    }
+    AdminAccionAuditoria {
+        bigint AdminAccionAuditoriaId PK
+        int UsuarioActorId FK
+        int ResultadoAuditoriaId FK
+    }
+    ErrorApi {
+        int ErrorApiId PK
+        uniqueidentifier CorrelationId
+    }
+
+    Rol                      ||--o{ Usuario : "clasifica"
+    Usuario                  ||--o{ Usuario : "jefe directo"
+    EstructuraOrganizacional ||--o{ EstructuraOrganizacional : "padre"
+    EstadoRegistro           ||--o{ EstructuraOrganizacional : "vigencia"
+    Usuario                  ||--o{ Justificacion : "solicita"
+    Usuario                  |o--o{ Justificacion : "aprueba"
+    EstadoJustificacion      ||--o{ Justificacion : "estado"
+    Justificacion            ||--o{ JustificacionDetalle : "contiene"
+    TipoJustificacion        ||--o{ JustificacionDetalle : "tipifica"
+    Usuario                  ||--o{ JerarquiaAprobacion : "aprobador"
+    EstructuraOrganizacional ||--o{ JerarquiaAprobacion : "ambito"
+    EstadoRegistro           ||--o{ JerarquiaAprobacion : "vigencia"
+    Usuario                  ||--o{ DelegacionAprobacion : "delegante"
+    Usuario                  ||--o{ DelegacionAprobacion : "delegado"
+    JerarquiaAprobacion      |o--o{ DelegacionAprobacion : "sobre jerarquia"
+    EstadoRegistro           ||--o{ DelegacionAprobacion : "vigencia"
+    Usuario                  |o--o{ EventoAuditoria : "actor"
+    TipoEventoAuditoria      ||--o{ EventoAuditoria : "tipo"
+    ResultadoAuditoria       ||--o{ EventoAuditoria : "resultado"
+    Usuario                  ||--o{ AdminAccionAuditoria : "actor"
+    ResultadoAuditoria       ||--o{ AdminAccionAuditoria : "resultado"</pre></div>
+<blockquote class="callout tip">💡 La notacion de las puntas: <code>||--o{</code> = uno-a-muchos obligatorio (un <code>Rol</code> clasifica a muchos <code>Usuario</code>, y todo <code>Usuario</code> tiene rol). <code>|o--o{</code> = uno-a-muchos opcional (una <code>Justificacion</code> puede o no tener <code>Aprobador</code>). El autobucle (<code>Usuario ||--o{ Usuario</code>) modela "jefe directo": un usuario puede ser jefe de varios, y cada quien tiene a lo sumo un jefe.</blockquote>
+<h2 id="los-cinco-esquemas-funcionales">Los cinco esquemas funcionales</h2>
+<p>Un <strong>esquema</strong> en SQL Server es un contenedor de nombres dentro de la base: agrupa tablas por area y se referencia como <code>Esquema.Tabla</code> (por ejemplo <code>Operacion.Justificacion</code>). El script <a href="../docs/db/01_CrearBaseDatos.sql">01_CrearBaseDatos.sql:62-87</a> crea estos cinco; <code>dbo</code> queda reservado a objetos de sistema y a vistas legadas de compatibilidad.</p>
+<div class="table-wrap"><table><thead><tr><th>Esquema</th><th>Que guarda</th><th>Tablas principales</th></tr></thead><tbody><tr><td><code>Configuracion</code></td><td>Catalogos y parametros de baja cardinalidad (valores fijos de referencia)</td><td><code>Rol</code>, <code>EstadoJustificacion</code>, <code>TipoJustificacion</code>, <code>EstadoRegistro</code>, <code>TipoEventoAuditoria</code>, <code>ResultadoAuditoria</code></td></tr><tr><td><code>RecursosHumanos</code></td><td>Personal y estructura organizacional</td><td><code>Usuario</code>, <code>EstructuraOrganizacional</code></td></tr><tr><td><code>Operacion</code></td><td>Las boletas de justificacion + jerarquia y delegacion de aprobacion</td><td><code>Justificacion</code>, <code>JustificacionDetalle</code>, <code>JerarquiaAprobacion</code>, <code>DelegacionAprobacion</code></td></tr><tr><td><code>Auditoria</code></td><td>Trazabilidad: eventos de negocio, errores de la API, acciones admin</td><td><code>EventoAuditoria</code>, <code>ErrorApi</code>, <code>AdminAccionAuditoria</code></td></tr><tr><td><code>Integracion</code></td><td>Vistas de <strong>solo lectura</strong> sobre bases externas (WIZDOM / SIFCNP)</td><td><code>v_EmpleadoWizdom</code>, <code>v_OrganigramaWizdom</code>, <code>v_JustificacionEncabezadoSifcnp</code>, <code>v_JustificacionDetalleSifcnp</code></td></tr></tbody></table></div>
+<blockquote class="callout why">📌 Para que sirve la separacion: cada area tiene fronteras claras de permisos y de responsabilidad. La escritura ocurre solo en <code>INTEGRA_CNP</code>; <code>Integracion.*</code> nunca modifica WIZDOM/SIFCNP (son ventanas de lectura).</blockquote>
+<h2 id="configuracion-los-catalogos">Configuracion: los catalogos</h2>
+<p>Tablas de referencia con pocos registros que el backend usa como diccionarios. Sus IDs son <strong>fijos de negocio</strong> (no autoincrementales) salvo <code>TipoJustificacion</code>, que es extensible y usa <code>IDENTITY</code>. Definidas en <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:63-145</a> y sembradas en <a href="../docs/db/03_DatosSemilla.sql">03_DatosSemilla.sql:44-123</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Tabla</th><th>PK</th><th>Valores semilla</th></tr></thead><tbody><tr><td><code>Configuracion.Rol</code></td><td><code>RolId</code> (1..4)</td><td>1=Funcionario, 2=Jefatura, 3=RRHH, 4=Administrador</td></tr><tr><td><code>Configuracion.EstadoJustificacion</code></td><td><code>EstadoJustificacionId</code></td><td>1=Pendiente Jefatura, 2=Aprobada, 3=Rechazada</td></tr><tr><td><code>Configuracion.TipoJustificacion</code></td><td><code>TipoJustificacionId</code> (IDENTITY)</td><td>Marca Tardia, Omision Marca de Entrada, Omision Marca de Salida, Marca antes Hora de Salida, Ausencia</td></tr><tr><td><code>Configuracion.EstadoRegistro</code></td><td><code>EstadoRegistroId</code></td><td>1=Activo, 2=Inactivo (baja logica)</td></tr><tr><td><code>Configuracion.TipoEventoAuditoria</code></td><td><code>TipoEventoAuditoriaId</code></td><td>1..7 eventos funcionales + 8..11 acciones admin</td></tr><tr><td><code>Configuracion.ResultadoAuditoria</code></td><td><code>ResultadoAuditoriaId</code></td><td>1=Exito, 2=Fallo, 3=Denegado</td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 Por que IDs fijos: el backend referencia constantes como "estado 1 = Pendiente" directamente en consultas y servicios. Si esos IDs cambiaran entre ambientes, la logica se rompe. Por eso <code>Rol</code>, <code>EstadoJustificacion</code>, etc. usan PK manual sembrada con <code>MERGE</code> (ver mas abajo). Los roles de <a href="modulo-dominio.html">Dominio</a> (<code>ROL_FUNC</code>, etc.) son una capa aparte que el frontend envia por header; estos IDs numericos son el catalogo de BD.</blockquote>
+<h2 id="recursoshumanos-personal-y-organizacion">RecursosHumanos: personal y organizacion</h2>
+<h3 id="recursoshumanos-usuario"><code>RecursosHumanos.Usuario</code></h3>
+<p>El registro de cada persona. Definida en <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:154-179</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Columna</th><th>Tipo</th><th>Rol</th></tr></thead><tbody><tr><td><code>UsuarioId</code></td><td>INT IDENTITY</td><td>PK</td></tr><tr><td><code>Cedula</code></td><td>VARCHAR(64)</td><td>Identificador externo (cedula / codigo)</td></tr><tr><td><code>NombreCompleto</code></td><td>VARCHAR(150)</td><td>—</td></tr><tr><td><code>JefaturaId</code></td><td>INT NULL</td><td><strong>Auto-FK</strong>: jefe directo (apunta a otro <code>Usuario</code>)</td></tr><tr><td><code>UnidadId</code></td><td>INT</td><td>Codigo de la unidad organizacional (enlace logico con <code>EstructuraOrganizacional.CodigoOrigen</code>)</td></tr><tr><td><code>RolId</code></td><td>INT</td><td>FK a <code>Configuracion.Rol</code></td></tr><tr><td><code>Compania</code></td><td>VARCHAR(10)</td><td>CHECK: solo <code>'CNP'</code> o <code>'FANAL'</code></td></tr><tr><td><code>EsActivo</code></td><td>BIT</td><td>Baja logica (default 1)</td></tr></tbody></table></div>
+<blockquote class="callout warn">⚠️ Relacion floja unidad-estructura: <code>Usuario.UnidadId</code> (INT) se vincula a <code>EstructuraOrganizacional.CodigoOrigen</code> (VARCHAR) por <strong>convencion logica</strong>, NO por una FK fisica. El join se hace en codigo con <code>CAST(u.UnidadId AS VARCHAR(50)) = eo.CodigoOrigen</code> (ver la funcion de aprobadores). Es una desviacion de 3FN documentada en los comentarios del script.</blockquote>
+<h3 id="recursoshumanos-estructuraorganizacional"><code>RecursosHumanos.EstructuraOrganizacional</code></h3>
+<p>El organigrama jerarquico. Definida en <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:185-204</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Columna</th><th>Rol</th></tr></thead><tbody><tr><td><code>EstructuraOrganizacionalId</code></td><td>PK (IDENTITY)</td></tr><tr><td><code>CodigoOrigen</code></td><td>Codigo de la unidad en el sistema origen (lo que matchea <code>Usuario.UnidadId</code>)</td></tr><tr><td><code>EstructuraPadreId</code></td><td><strong>Auto-FK</strong>: nodo padre (permite arbol de dependencias)</td></tr><tr><td><code>EstadoRegistroId</code></td><td>FK a <code>EstadoRegistro</code> (vigencia activo/inactivo)</td></tr><tr><td><code>VigenciaDesde</code> / <code>VigenciaHasta</code></td><td>Versionado temporal del nodo (rango en que esta vigente)</td></tr></tbody></table></div>
+<h2 id="operacion-la-boleta-y-su-aprobacion">Operacion: la boleta y su aprobacion</h2>
+<p>Aqui vive el corazon del negocio. El modelo es <strong>encabezado/detalle</strong>: una boleta (<code>Justificacion</code>) agrupa varias lineas (<code>JustificacionDetalle</code>), una por fecha de marca a justificar. Ver el <a href="flujos.html">flujo de aprobacion</a>.</p>
+<h3 id="operacion-justificacion-encabezado"><code>Operacion.Justificacion</code> (encabezado)</h3>
+<p>Una fila por solicitud. <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:215-241</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Columna</th><th>Rol</th></tr></thead><tbody><tr><td><code>JustificacionId</code></td><td>PK</td></tr><tr><td><code>UsuarioId</code></td><td>FK -&gt; <code>Usuario</code> (el solicitante)</td></tr><tr><td><code>MotivoGeneral</code></td><td>Texto del motivo</td></tr><tr><td><code>EstadoJustificacionId</code></td><td>FK -&gt; <code>EstadoJustificacion</code> (1/2/3)</td></tr><tr><td><code>AprobadorId</code></td><td>FK NULL -&gt; <code>Usuario</code> (quien resolvio)</td></tr><tr><td><code>ComentarioResolucion</code>, <code>RolResolucion</code>, <code>FechaAprobacion</code></td><td><strong>Snapshot</strong> del momento de resolver</td></tr></tbody></table></div>
+<h3 id="operacion-justificaciondetalle-lineas"><code>Operacion.JustificacionDetalle</code> (lineas)</h3>
+<p>Una marca/fecha por fila. <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:245-262</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Columna</th><th>Rol</th></tr></thead><tbody><tr><td><code>JustificacionDetalleId</code></td><td>PK</td></tr><tr><td><code>JustificacionId</code></td><td>FK -&gt; <code>Justificacion</code> (a que boleta pertenece)</td></tr><tr><td><code>TipoJustificacionId</code></td><td>FK -&gt; <code>TipoJustificacion</code> (que tipo de marca)</td></tr><tr><td><code>FechaMarca</code></td><td>DATE: la fecha que se justifica</td></tr><tr><td><code>ObservacionDetalle</code></td><td>Nota opcional de la linea</td></tr></tbody></table></div>
+<h3 id="operacion-jerarquiaaprobacion"><code>Operacion.JerarquiaAprobacion</code></h3>
+<p>Define <strong>quien aprueba para que estructura</strong>. <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:267-290</a>. Relaciona un <code>AprobadorUsuarioId</code> con una <code>EstructuraOrganizacionalId</code>, con <code>TipoRelacion</code> (<code>'Vertical'</code> o <code>'Horizontal'</code>, via CHECK) y vigencia temporal.</p>
+<h3 id="operacion-delegacionaprobacion"><code>Operacion.DelegacionAprobacion</code></h3>
+<p>Permite que un jefe (delegante) ceda su capacidad de aprobar a otro usuario (delegado) por un periodo. <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:295-319</a>. Si <code>JerarquiaAprobacionId</code> es NULL, la delegacion aplica a <strong>todas</strong> las jerarquias del delegante.</p>
+<h2 id="la-funcion-dbo-fn-aprobadoresvigentesporsolicitante">La funcion dbo.fn_AprobadoresVigentesPorSolicitante</h2>
+<p>Es el cerebro del scoping de aprobacion: dado un solicitante y una fecha, devuelve <strong>quienes pueden aprobarle</strong> en ese momento. Definida en <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:517-568</a> como una <em>table-valued function</em> (TVF: funcion que retorna una tabla, usable en un <code>FROM ... JOIN</code>).</p>
+<p>Devuelve tres columnas por aprobador:</p>
+<div class="table-wrap"><table><thead><tr><th>Columna</th><th>Significado</th></tr></thead><tbody><tr><td><code>AprobadorUsuarioId</code></td><td>El usuario que puede aprobar</td></tr><tr><td><code>Origen</code></td><td><code>'Jerarquia'</code> (por organigrama) o <code>'Delegacion'</code> (cedida)</td></tr><tr><td><code>DeleganteUsuarioId</code></td><td>Si es delegacion, de quien proviene; NULL si es jerarquia</td></tr></tbody></table></div>
+<p>Internamente encadena tres CTEs (subconsultas con nombre): (1) resuelve la(s) estructura(s) vigentes del solicitante por su <code>UnidadId</code>; (2) busca las jerarquias activas sobre esas estructuras; (3) suma las delegaciones vigentes cuyo delegante sea un aprobador por jerarquia. Une jerarquia y delegacion con <code>UNION ALL</code>.</p>
+<blockquote class="callout why">📌 Delegacion tiene prioridad sobre jerarquia: la funcion devuelve <strong>ambos</strong> origenes, pero el backend, al consumir el resultado, da precedencia a <code>Origen='Delegacion'</code>. Esto esta documentado en <code>CLAUDE.md</code> y en los comentarios del script. La regla de negocio: si hay una delegacion vigente, manda sobre la cadena jerarquica normal.</blockquote>
+<blockquote class="callout warn">⚠️ Por que vive en <code>dbo</code> y no en <code>Operacion</code>: porque el backend la invoca literalmente como <code>dbo.fn_AprobadoresVigentesPorSolicitante(...)</code> en <a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs:105,202,272,...</a> (7 consultas). El script crea la version <code>dbo</code> y <strong>elimina</strong> una version obsoleta <code>Operacion.fn_...</code> si existe (<a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:508-515</a>). Ver <a href="modulo-infraestructura.html">Infraestructura</a>.</blockquote>
+<h2 id="auditoria">Auditoria</h2>
+<p>Tres tablas de bitacora. Varias columnas son <strong>snapshots inmutables</strong> (se copia el valor del momento, no se normaliza a FK) para que el historico no cambie aunque el usuario despues se modifique.</p>
+<div class="table-wrap"><table><thead><tr><th>Tabla</th><th>PK</th><th>Para que</th></tr></thead><tbody><tr><td><code>Auditoria.EventoAuditoria</code></td><td><code>EventoAuditoriaId</code> (BIGINT)</td><td>Eventos funcionales de negocio (crear/resolver boleta, altas admin). Guarda <code>NombreUsuario</code>/<code>RolCodigo</code> como snapshot. <a href="../docs/db/02_EstructuraCompleta.sql">02:330-352</a></td></tr><tr><td><code>Auditoria.ErrorApi</code></td><td><code>ErrorApiId</code></td><td>Log de errores de la API. <strong>Columnas en ingles a proposito</strong> (<code>HttpMethod</code>, <code>StatusCode</code>, <code>UsuarioID</code>, <code>Ip</code>...) por contrato del codigo C#. <a href="../docs/db/02_EstructuraCompleta.sql">02:357-378</a></td></tr><tr><td><code>Auditoria.AdminAccionAuditoria</code></td><td><code>AdminAccionAuditoriaId</code> (BIGINT)</td><td>Acciones admin con snapshots JSON antes/despues (<code>ValoresAnteriores</code>/<code>ValoresNuevos</code>). <a href="../docs/db/02_EstructuraCompleta.sql">02:414-437</a></td></tr></tbody></table></div>
+<blockquote class="callout warn">⚠️ La desviacion del ingles en <code>ErrorApi</code> es DELIBERADA y no debe "corregirse": las columnas deben calzar con las propiedades del repositorio en C#. El script incluso renombra columnas legadas en espanol si encuentra una BD vieja (<a href="../docs/db/02_EstructuraCompleta.sql">02:381-410</a>).</blockquote>
+<h2 id="integracion-y-vistas-legadas">Integracion y vistas legadas</h2>
+<h3 id="vistas-de-integracion-wizdom-sifcnp-solo-lectura">Vistas de Integracion (WIZDOM / SIFCNP, solo lectura)</h3>
+<p>WIZDOM y SIFCNP son bases externas que el sistema <strong>solo lee</strong>, nunca escribe. Las vistas en <code>Integracion.*</code> exponen sus columnas con alias PascalCase. <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:594-704</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Vista</th><th>Sobre</th><th>Notas</th></tr></thead><tbody><tr><td><code>Integracion.v_EmpleadoWizdom</code></td><td><code>WIZDOM.dbo.empleado</code></td><td>Datos de personal del sistema origen</td></tr><tr><td><code>Integracion.v_OrganigramaWizdom</code></td><td><code>WIZDOM.dbo.organigrama</code></td><td>Nodos del organigrama</td></tr><tr><td><code>Integracion.v_JustificacionEncabezadoSifcnp</code></td><td><code>SIFCNP.dbo.RH_JUSTIFICACIONES_ENC</code></td><td>Historico de justificaciones (encabezado)</td></tr><tr><td><code>Integracion.v_JustificacionDetalleSifcnp</code></td><td><code>SIFCNP.dbo.RH_JUSTIFICACIONES_DET</code></td><td>Historico (detalle)</td></tr></tbody></table></div>
+<blockquote class="callout tip">💡 Guardas <code>DB_ID</code>: <code>CREATE VIEW</code> valida las columnas de origen al crearse, asi que estas vistas se crean <strong>solo si la BD externa existe</strong> (<code>IF DB_ID('WIZDOM') IS NOT NULL</code>). En un entorno local sin WIZDOM/SIFCNP, el script las omite con un <code>PRINT</code> y no aborta. Usan <code>COLLATE SQL_Latin1_General_CP1_CI_AS</code> para joins entre bases.</blockquote>
+<h3 id="dbo-v-justificaciones-detalle-vista-legada"><code>dbo.V_JUSTIFICACIONES_DETALLE</code> (vista legada)</h3>
+<p>Vista de compatibilidad para consumidores SIFCNP. Usa nomenclatura <code>MAYUSCULAS_SNAKE</code> en esquema <code>dbo</code> <strong>a proposito</strong> (no aplicar PascalCase aqui). <a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:706-750</a>. Depende de tablas locales <code>dbo.RH_*</code>; se crea solo si las cuatro existen.</p>
+<h3 id="shim-dbo-estructuras-organizacionales">Shim <code>dbo.Estructuras_Organizacionales</code></h3>
+<p><a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql:752-785</a>. El backend referencia esta tabla en UNA sola consulta (<code>JustificacionesSql.GetDetalleJefaturaEncabezado</code>), de forma inconsistente con el resto del codigo. El script crea un <strong>shim</strong> (vista de compatibilidad) solo si el objeto no existe, para que esa consulta no falle en entornos sin la tabla legada.</p>
+<h2 id="convenciones-de-nomenclatura">Convenciones de nomenclatura</h2>
+<p>Formalizadas en <a href="../docs/db/Convenciones_Nomeclatura_BD.md">Convenciones_Nomeclatura_BD.md</a>. Reglas que veras aplicadas en todo el modelo:</p>
+<div class="table-wrap"><table><thead><tr><th>Regla</th><th>Detalle</th><th>Ejemplo</th></tr></thead><tbody><tr><td>PascalCase</td><td>En todo: tablas, columnas, vistas, SP, params</td><td><code>FechaHoraCreacion</code></td></tr><tr><td>Espanol descriptivo</td><td>Sin abreviaciones, sin palabras reservadas T-SQL</td><td><code>MotivoGeneral</code>, no <code>desc</code></td></tr><tr><td>Esquema explicito</td><td>Todo objeto pertenece a un esquema; <code>dbo</code> solo sistema/legado</td><td><code>Operacion.Justificacion</code></td></tr><tr><td>Tablas en singular</td><td>La tabla define el tipo, no la coleccion</td><td><code>Usuario</code>, no <code>tbl_Usuarios</code></td></tr><tr><td>PK = <code>[Tabla]Id</code></td><td>Clave primaria con el nombre de la tabla</td><td><code>JustificacionId</code></td></tr><tr><td>FK = nombre de la PK referenciada</td><td>Hace las relaciones autoexplicativas</td><td><code>Justificacion.UsuarioId</code> -&gt; <code>Usuario.UsuarioId</code></td></tr><tr><td>Booleanos afirmativos</td><td><code>Es</code>/<code>Tiene</code></td><td><code>EsActivo</code></td></tr><tr><td>Fechas</td><td><code>Fecha</code> / <code>FechaHora</code></td><td><code>FechaMarca</code>, <code>FechaHoraCreacion</code></td></tr><tr><td>Auditoria obligatoria</td><td>En entidades de negocio</td><td><code>CreadoPor</code>, <code>FechaHoraCreacion</code>, <code>ModificadoPor</code>, <code>FechaHoraModificacion</code></td></tr><tr><td>Vistas</td><td>Prefijo <code>v_</code></td><td><code>v_EmpleadoWizdom</code></td></tr><tr><td>Constraints/indices</td><td>Nombre explicito (nunca autogenerado)</td><td><code>PK_Justificacion</code>, <code>FK_Justificacion_UsuarioId</code></td></tr></tbody></table></div>
+<blockquote class="callout warn">⚠️ Excepciones documentadas y a respetar: <code>Auditoria.ErrorApi</code> (columnas en ingles), <code>dbo.V_JUSTIFICACIONES_DETALLE</code> (MAYUSCULAS_SNAKE), y la funcion de aprobadores en <code>dbo</code>. No son descuidos: estan justificadas por contratos C# o compatibilidad SIFCNP.</blockquote>
+<h2 id="los-tres-scripts-y-su-orden">Los tres scripts y su orden</h2>
+<p>Estan en <code>docs/db/</code> y deben ejecutarse <strong>en secuencia</strong> (sqlcmd o SSMS, codificacion UTF-8). Todos son <strong>idempotentes</strong>: re-ejecutarlos no duplica ni rompe nada (guardas <code>IF DB_ID</code> / <code>OBJECT_ID</code> / <code>COL_LENGTH</code>, <code>MERGE</code> para semilla, <code>CREATE OR ALTER</code> para rutinas).</p>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart LR
+    A["01_CrearBaseDatos.sql&lt;br/&gt;CREATE DATABASE + 5 esquemas"] --&gt; B["02_EstructuraCompleta.sql&lt;br/&gt;tablas, indices, FK,&lt;br/&gt;funcion aprobadores, vistas"]
+    B --&gt; C["03_DatosSemilla.sql&lt;br/&gt;A: catalogos (obligatorio)&lt;br/&gt;B/C: demo (solo dev)&lt;br/&gt;D: mojibake (opcional)"]</pre></div>
+<div class="table-wrap"><table><thead><tr><th>Script</th><th>Que hace</th><th>Notas</th></tr></thead><tbody><tr><td><a href="../docs/db/01_CrearBaseDatos.sql">01_CrearBaseDatos.sql</a></td><td><code>CREATE DATABASE INTEGRA_CNP</code> + los 5 esquemas</td><td>No crea tablas ni datos</td></tr><tr><td><a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql</a></td><td>TODA la estructura: catalogos, RRHH/Operacion/Auditoria, indices, funcion <code>dbo.fn_AprobadoresVigentesPorSolicitante</code>, vistas <code>Integracion.*</code>, vista legada y shim</td><td>Objetos que dependen de WIZDOM/SIFCNP se crean con guardas; si faltan, se omiten sin abortar</td></tr><tr><td><a href="../docs/db/03_DatosSemilla.sql">03_DatosSemilla.sql</a></td><td>A) catalogos (obligatorio); B) demo unidad 120; C) jerarquia de 12 dependencias; D) remediacion mojibake</td><td><strong>En produccion ejecutar solo la Seccion A</strong></td></tr></tbody></table></div>
+<blockquote class="callout why">📌 Que es "idempotente": que podes correr el mismo script varias veces y el resultado final es el mismo, sin errores de "ya existe" ni filas duplicadas. Critico para re-aplicar la estructura tras un cambio sin tener que borrar la base.</blockquote>
+<p>Ejemplo del patron <code>MERGE</code> usado para sembrar catalogos sin duplicar (<a href="../docs/db/03_DatosSemilla.sql">03_DatosSemilla.sql:45-55</a>):</p>
+<pre class="code"><code class="language-sql">MERGE INTO Configuracion.Rol AS tgt
+USING (
+    SELECT 1 AS RolId, 'Funcionario'   AS Descripcion
+    UNION ALL SELECT 2, 'Jefatura'
+    UNION ALL SELECT 3, 'RRHH'
+    UNION ALL SELECT 4, 'Administrador'
+) AS src
+ON tgt.RolId = src.RolId
+WHEN NOT MATCHED THEN
+    INSERT (RolId, Descripcion, CreadoPor) VALUES (src.RolId, src.Descripcion, 'seed');</code></pre>
+<blockquote class="callout tip">💡 La Seccion D corrige <em>mojibake</em> (texto UTF-8 mal interpretado como Latin1, p.ej. <code>Ã³</code> en vez de <code>ó</code>). En una base sembrada limpia es un no-op. Es el lado-BD del mismo bug de encoding que el frontend parchea en <code>app.js</code>.</blockquote>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../docs/db/01_CrearBaseDatos.sql">01_CrearBaseDatos.sql</a> — crea la base y los 5 esquemas.</li>
+<li><a href="../docs/db/02_EstructuraCompleta.sql">02_EstructuraCompleta.sql</a> — toda la estructura, la funcion de aprobadores, indices y vistas.</li>
+<li><a href="../docs/db/03_DatosSemilla.sql">03_DatosSemilla.sql</a> — catalogos, demos y remediacion de encoding.</li>
+<li><a href="../docs/db/Convenciones_Nomeclatura_BD.md">Convenciones_Nomeclatura_BD.md</a> — reglas de nomenclatura obligatorias.</li>
+<li><a href="../docs/manual-tecnico/capturas/02-modelo-datos.mmd">02-modelo-datos.mmd</a> — fuente del diagrama ER.</li>
+<li><a href="../backend/src/IntegradorMarcas.Infrastructure/Queries/JustificacionesSql.cs">JustificacionesSql.cs</a> — donde el backend invoca <code>dbo.fn_AprobadoresVigentesPorSolicitante</code>.</li>
+</ul>
+<p>Paginas relacionadas: <a href="modulo-infraestructura.html">Infraestructura</a> · <a href="modulo-dominio.html">Dominio</a> · <a href="flujos.html">Flujos</a>.</p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#diagrama-entidad-relacion">Diagrama entidad-relacion</a></li><li><a href="#los-cinco-esquemas-funcionales">Los cinco esquemas funcionales</a></li><li><a href="#configuracion-los-catalogos">Configuracion: los catalogos</a></li><li><a href="#recursoshumanos-personal-y-organizacion">RecursosHumanos: personal y organizacion</a></li><li><a href="#operacion-la-boleta-y-su-aprobacion">Operacion: la boleta y su aprobacion</a></li><li><a href="#la-funcion-dbo-fn-aprobadoresvigentesporsolicitante">La funcion dbo.fn_AprobadoresVigentesPorSolicitante</a></li><li><a href="#auditoria">Auditoria</a></li><li><a href="#integracion-y-vistas-legadas">Integracion y vistas legadas</a></li><li><a href="#convenciones-de-nomenclatura">Convenciones de nomenclatura</a></li><li><a href="#los-tres-scripts-y-su-orden">Los tres scripts y su orden</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

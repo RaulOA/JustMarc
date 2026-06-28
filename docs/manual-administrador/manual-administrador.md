@@ -8,7 +8,7 @@
 | **Versión del manual** | 1.0.0 |
 | **Fecha** | 27 de junio de 2026 |
 | **Público objetivo** | Personas con rol **Administrador** del sistema (ROL_ADMIN) del CNP y FANAL |
-| **Organización emisora** | _TODO: confirmar unidad responsable (p. ej. Unidad de Tecnologías de Información del CNP)_ |
+| **Organización emisora** | Unidad de Tecnologías de Información (UTI) — Consejo Nacional de Producción (CNP) |
 | **Idioma** | Español (Costa Rica) |
 
 > **¿Para qué sirve este manual?** Para que la persona administradora aprenda a **configurar y mantener** SIFCNP: organizar las dependencias, asignar roles a los usuarios, definir quién aprueba las boletas (jerarquías y delegaciones), revisar la auditoría del sistema, y entender el respaldo y el mantenimiento. Está escrito en lenguaje claro; cuando aparece un término técnico, se explica en una línea.
@@ -49,7 +49,9 @@ Como **administrador**, usted no llena ni aprueba boletas: su tarea es **mantene
 
 Todo lo que usted cambia aquí **afecta directamente** quién puede ver y aprobar las boletas.
 
-> 📷 _Captura pendiente:_ `capturas/01-ingreso-admin.png` — Ingreso al Panel de Administración. **(TODO: generar con Playwright)**
+![Pantalla de ingreso de SIFCNP con el usuario administrador escrito en el campo Usuario.](capturas/01-ingreso-admin.png)
+
+*Figura 1. Ingreso al Panel de Administración.*
 
 ---
 
@@ -73,8 +75,10 @@ Todo lo que usted cambia aquí **afecta directamente** quién puede ver y aproba
 Para administrar SIFCNP necesita:
 
 - Una **cuenta institucional con rol Administrador** asignado en el sistema.
-- Un **navegador de internet actualizado**. _TODO: confirmar la lista oficial de navegadores soportados._
+- Un **navegador de internet actualizado**: **Microsoft Edge, Google Chrome o Mozilla Firefox** en una versión reciente (Chrome o Edge 90 o más nuevo, Firefox 90 o más nuevo), o **Safari 14 o más nuevo** en equipos Apple. **No funciona en Internet Explorer ni en versiones de Microsoft Edge anteriores a 2020.** _Supuesto: el sistema no declara una lista oficial de navegadores; este conjunto se derivó de las funciones modernas que usa el propio código (el piso técnico real es Chrome/Edge 85, Firefox 77 y Safari 13.1)._
 - La **dirección del sistema** (donde está publicado SIFCNP).
+
+> **Gobernanza del rol Administrador.** El rol de Administrador **no es de autoasignación**: lo define la **coordinación o jefatura de la Unidad de Tecnologías de Información (UTI)** según disponga. Si necesita este rol, solicítelo por los canales oficiales de la UTI.
 
 > **🔐 Identidad institucional.** El acceso y los permisos se manejan con la **cuenta institucional de Microsoft 365** (dominio `@cnp.go.cr`). El sistema **no administra contraseñas**: la identidad de cada persona se delega a su cuenta institucional. Este es el modelo de identidad previsto; confirme con la Unidad de TI el estado de activación. _(TODO: estado de activación de Microsoft 365.)_
 
@@ -88,7 +92,9 @@ Para administrar SIFCNP necesita:
 
 > **Importante:** cada apartado **no carga datos automáticamente**. Debe aplicar un filtro y hacer clic en **Buscar** para ver la información. Los resultados se muestran en páginas de 15 registros.
 
-> 📷 _Captura pendiente:_ `capturas/02-panel-admin-dependencias.png` — Panel Admin con sus cinco apartados. **(TODO)**
+![Panel de Administración con los cinco apartados (Dependencias, Usuarios, Jerarquías, Delegaciones, Registros) y la tabla de dependencias.](capturas/02-panel-admin-dependencias.png)
+
+*Figura 2. Panel Admin con sus cinco apartados.*
 
 ---
 
@@ -111,7 +117,9 @@ Para administrar SIFCNP necesita:
 
 > **Reglas:** el nombre es obligatorio (hasta 150 caracteres) y una dependencia **no puede ser su propia padre** ni formar un ciclo (por ejemplo, A depende de B y B depende de A). El sistema lo valida y avisa si hay error.
 
-> 📷 _Captura pendiente:_ `capturas/03-editar-dependencia.png` — Edición de una dependencia. **(TODO)**
+![Formulario de edición de una dependencia con el nombre y el identificador de la dependencia padre.](capturas/03-editar-dependencia.png)
+
+*Figura 3. Edición de una dependencia.*
 
 ---
 
@@ -141,8 +149,13 @@ Para administrar SIFCNP necesita:
 
 En la fila del usuario, use la opción para **activar** o **desactivar**. Un usuario desactivado deja de operar en el sistema, pero su historial se conserva.
 
-> 📷 _Captura pendiente:_ `capturas/04-panel-usuarios.png` — Tabla de usuarios. **(TODO)**
-> 📷 _Captura pendiente:_ `capturas/05-editar-usuario-asignacion.png` — Edición de rol, unidad y jefatura. **(TODO)**
+![Apartado Usuarios con la tabla de usuarios (ID, Nombre, Rol, Unidad, Activo) y el botón Editar.](capturas/04-panel-usuarios.png)
+
+*Figura 4. Tabla de usuarios.*
+
+![Formulario de edición de un usuario con los campos Rol, Unidad, Jefatura y Activo.](capturas/05-editar-usuario-asignacion.png)
+
+*Figura 5. Edición de rol, unidad y jefatura.*
 
 > **Nota sobre la identidad Microsoft 365.** En el modelo previsto, la identidad de cada persona (quién es y con qué cuenta entra) proviene de **Microsoft 365**. La asignación de **rol, unidad y jefatura** dentro de SIFCNP se seguirá administrando desde este apartado.
 
@@ -174,8 +187,13 @@ Las **jerarquías** definen **quién aprueba las boletas** de cada dependencia. 
 
 En la fila, haga clic en **Eliminar**. El sistema pide confirmación: **"¿Eliminar esta jerarquía?"**. Confirme para continuar.
 
-> 📷 _Captura pendiente:_ `capturas/06-jerarquias.png` — Lista de jerarquías. **(TODO)**
-> 📷 _Captura pendiente:_ `capturas/07-crear-jerarquia.png` — Formulario de creación de jerarquía. **(TODO)**
+![Apartado Jerarquías con la lista de jerarquías de aprobación.](capturas/06-jerarquias.png)
+
+*Figura 6. Lista de jerarquías.*
+
+![Formulario de creación de una jerarquía de aprobación (aprobador, estructura, nivel, relación y vigencia).](capturas/07-crear-jerarquia.png)
+
+*Figura 7. Formulario de creación de jerarquía.*
 
 ---
 
@@ -205,8 +223,13 @@ Una **delegación** permite que una jefatura ceda temporalmente la aprobación a
 
 En la fila, haga clic en **Eliminar**. El sistema pide confirmación: **"¿Eliminar esta delegación?"**. Confirme para continuar.
 
-> 📷 _Captura pendiente:_ `capturas/08-delegaciones.png` — Lista de delegaciones. **(TODO)**
-> 📷 _Captura pendiente:_ `capturas/09-crear-delegacion.png` — Formulario de creación de delegación. **(TODO)**
+![Apartado Delegaciones con la lista de delegaciones de aprobación.](capturas/08-delegaciones.png)
+
+*Figura 8. Lista de delegaciones.*
+
+![Formulario de creación de una delegación (delegante, delegado y vigencia).](capturas/09-crear-delegacion.png)
+
+*Figura 9. Formulario de creación de delegación.*
 
 ---
 
@@ -234,7 +257,11 @@ Haga clic en **Descargar** para guardar los registros mostrados en un archivo qu
 
 > **Qué se audita.** El sistema guarda, entre otros, estos eventos: creación de boleta, aprobación, rechazo, alta y cambios de jerarquías y delegaciones, y cambios en la asignación o el estado de los usuarios. Los cambios hechos por administradores se guardan con una "foto" de los valores **antes y después**.
 
-> 📷 _Captura pendiente:_ `capturas/10-registros-auditoria.png` — Vista de Registros con filtros. **(TODO)**
+![Apartado Registros con los filtros y la tabla de monitoreo y auditoría (eventos y errores del sistema).](capturas/10-registros-auditoria.png)
+
+*Figura 10. Vista de Registros con filtros.*
+
+> **Acceso a la información de auditoría.** Las personas o instancias que requieran datos de auditoría pero **no tengan rol Administrador** (por ejemplo, auditoría interna o control interno) **no acceden directamente al sistema**: solicitan la información de auditoría a la **Unidad de Tecnologías de Información (UTI)** mediante los canales oficiales.
 
 ---
 
@@ -285,7 +312,7 @@ El respaldo de la información es **responsabilidad de la institución** (Unidad
 | "No hay registros para descargar." | La vista actual no tiene datos. | Realice una búsqueda con resultados antes de descargar. |
 | "No se pudo guardar / crear / eliminar …" | La operación falló. | Revise los datos y reintente; el mensaje incluye el detalle del error. |
 
-> **¿A quién acudir?** Ante errores que se repiten, comuníquese con la Unidad de TI. _TODO: completar el contacto de soporte técnico._
+> **¿A quién acudir?** Ante errores que se repiten, comuníquese con la **Unidad de Tecnologías de Información (UTI) del Consejo Nacional de Producción (CNP)**: abra un ticket en la **mesa de ayuda institucional**, escriba al correo **uti@cnp.go.cr**, o use los **canales internos de Microsoft Teams**.
 
 ---
 

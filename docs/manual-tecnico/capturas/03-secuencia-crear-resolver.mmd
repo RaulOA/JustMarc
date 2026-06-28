@@ -1,0 +1,46 @@
+sequenceDiagram
+    actor Func as Funcionario / Jefatura (navegador)
+    participant Ctrl as API Controller<br/>Justificaciones / Jefatura
+    participant Svc as JustificacionService<br/>(Application)
+    participant Repo as JustificacionRepository<br/>(Infrastructure)
+    participant Audit as IAuditEventRepository
+    participant DB as SQL Server<br/>INTEGRA_CNP (Dapper)
+
+    rect rgb(235, 245, 255)
+    Note over Func,DB: CREAR boleta — POST /api/justificaciones (estado 1 Pendiente)
+    Func->>Ctrl: POST /api/justificaciones<br/>headers X-User-Id / X-User-Role
+    Ctrl->>Ctrl: GetCurrent() -> UserContextInfo
+    Ctrl->>Svc: CreateAsync(user, dto)
+    Svc->>Svc: guard EsFuncionario || EsJefatura (si no, 403)
+    Svc->>Repo: GetExistingTipoJustificacionIdsAsync(tipos)
+    Repo->>DB: SELECT tipos validos
+    DB-->>Repo: ids existentes
+    Svc->>Repo: CreateAsync(userId, request)
+    Repo->>DB: BEGIN TRAN + InsertEncabezado (Estado=1)
+    Repo->>DB: InsertDetalle (x N lineas) + COMMIT
+    DB-->>Repo: JustificacionId (SCOPE_IDENTITY)
+    Repo-->>Svc: justificacionId
+    Svc->>Audit: LogEventAsync(TipoEvento=1, Creacion)
+    Audit->>DB: INSERT Auditoria.EventoAuditoria
+    Svc-->>Ctrl: justificacionId
+    Ctrl-->>Func: 201 Created<br/>{ JustificacionID, EstadoID=1, Pendiente Jefatura }
+    end
+
+    rect rgb(235, 255, 240)
+    Note over Func,DB: RESOLVER boleta — PATCH /api/jefatura/justificaciones/{id}/resolver
+    Func->>Ctrl: PATCH .../{id}/resolver<br/>{ Accion: APROBAR | RECHAZAR, Comentario }
+    Ctrl->>Svc: ResolverAsync(user, id, dto)
+    Svc->>Svc: guard EsJefatura (si no, 403) + ValidarAccion
+    Svc->>Repo: GetResolverValidationAsync(id, userId)
+    Repo->>DB: SELECT existe / alcance / EstadoId
+    DB-->>Repo: validacion
+    Svc->>Svc: si !existe 404 · !alcance 403 · Estado<>1 -> 409
+    Svc->>Repo: ResolverAsync(id, userId, estado=2|3, comentario)
+    Repo->>DB: UPDATE Operacion.Justificacion<br/>Estado=2|3 WHERE Estado=1 AND fn_AprobadoresVigentes...
+    DB-->>Repo: filas afectadas
+    Svc->>Svc: si afectadas=0 -> 409 (cambio de estado)
+    Svc->>Audit: LogEventAsync(TipoEvento=2 Aprobada | 3 Rechazada)
+    Audit->>DB: INSERT Auditoria.EventoAuditoria
+    Svc-->>Ctrl: (void)
+    Ctrl-->>Func: 204 No Content
+    end

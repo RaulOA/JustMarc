@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frontend (HTML/CSS/JS) · DeepWiki local SIFCNP</title>
+<meta name="description" content="Cliente estatico: index.html, dashboard.html, app.js, style.css.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html" class="active" aria-current="page">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Modulos (por capa)</span><span class="sep">/</span><span class="current">Frontend (HTML/CSS/JS)</span></nav>
+<div class="page-head-row">
+<h1>Frontend (HTML/CSS/JS)</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Cliente estatico: index.html, dashboard.html, app.js, style.css.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>El frontend de SIFCNP es un <strong>cliente estatico</strong> (no necesita servidor de aplicacion propio, solo que alguien sirva los archivos): tres archivos en la raiz del repo, <code>index.html</code>, <code>dashboard.html</code>, <code>app.js</code> y <code>style.css</code>. No usa ningun framework (React, Angular, Vue), ni empaquetador (bundler), ni paso de compilacion (build). Es <strong>vanilla JS</strong>: JavaScript puro de navegador, un solo script global que dibuja la interfaz, valida formularios y conversa con la <a href="modulo-api.html">API REST</a>. Existe para que un funcionario, su jefatura, RRHH o un administrador trabajen las boletas de justificacion de marca desde el navegador.</p>
+<blockquote class="callout why">📌 En la practica: como no hay build, lo que ves en los <code>.html</code>/<code>.js</code> es exactamente lo que corre. Editas el archivo, recargas el navegador, listo. Eso lo hace facil de leer pero tambien fragil: cualquier error de JS se ve directo en la consola del navegador.</blockquote>
+<h2 id="anatomia-dos-paginas-un-cerebro">Anatomia: dos paginas, un cerebro</h2>
+<p>El frontend son <strong>dos pantallas</strong> que comparten el mismo cerebro (<code>app.js</code>) y la misma hoja de estilos (<code>style.css</code>):</p>
+<div class="table-wrap"><table><thead><tr><th>Archivo</th><th>Rol</th><th>Que carga</th></tr></thead><tbody><tr><td><a href="../index.html">index.html</a></td><td>Pantalla de <strong>login</strong></td><td><code>style.css</code> + <code>app.js</code></td></tr><tr><td><a href="../dashboard.html">dashboard.html</a></td><td><strong>Aplicacion</strong> completa por roles</td><td><code>style.css</code> + <code>app.js</code></td></tr><tr><td><a href="../app.js">app.js</a></td><td>Logica unica (~2227 lineas)</td><td>—</td></tr><tr><td><a href="../style.css">style.css</a></td><td>Estilos globales + variables CSS</td><td>—</td></tr></tbody></table></div>
+<p>Ambas paginas terminan con <code>&lt;script src="app.js"&gt;&lt;/script&gt;</code> (<a href="../index.html">index.html:246</a>, <a href="../dashboard.html">dashboard.html:781</a>). El mismo script corre en las dos; al final decide <strong>donde esta</strong> mirando el DOM:</p>
+<pre class="code"><code class="language-js">// app.js:2214-2227
+document.addEventListener('DOMContentLoaded', () =&gt; {
+  syncApiBaseUrlOverride();
+  if (document.getElementById('username')) {   // hay campo "Usuario" -&gt; es el login
+    initLoginPage();
+  }
+  if (document.querySelector('.topbar')) {      // hay barra superior -&gt; es el dashboard
+    initDashboardPage();
+    initIdleMonitor();
+    startSessionExpiryTimer();
+  }
+});</code></pre>
+<blockquote class="callout tip">💡 Este patron "un script para todo" evita imports/modulos, pero significa que <strong>todas</strong> las ~50 funciones viven en el ambito global (<code>window</code>) y se cablean con <code>onclick="..."</code> directo en el HTML (mira los <code>onclick="handleLogin()"</code>, <code>onclick="switchTab(...)"</code>, etc.). No hay separacion de modulos: es un trade-off deliberado de simplicidad sobre encapsulamiento.</blockquote>
+<h3 id="style-css-y-las-variables-css"><code>style.css</code> y las variables CSS</h3>
+<p><code>style.css</code> define la paleta y radios via <strong>custom properties</strong> (variables CSS, los <code>--blue-900</code>, <code>--radius-lg</code>, etc. que ves por todos lados). Cada <code>.html</code> ademas mete su propio <code>&lt;style&gt;</code> inline para layout especifico de esa pagina (el login centra y pinta un fondo geometrico en <a href="../index.html">index.html:8-175</a>; el dashboard define la <code>topbar</code>, <code>nav-tab</code>, paneles y la animacion <code>shake</code> en <a href="../dashboard.html">dashboard.html:8-230</a>).</p>
+<h2 id="como-habla-con-la-api-apifetch-buildapiheaders">Como habla con la API: <code>apiFetch</code> + <code>buildApiHeaders</code></h2>
+<p>Toda comunicacion con el backend pasa por <strong>un solo embudo</strong>: la funcion <code>apiFetch</code>. No hay <code>fetch()</code> sueltos en otros lados; si necesitas pegarle a la API, pasas por aqui. Eso centraliza timeout, manejo de errores y expiracion de sesion.</p>
+<blockquote class="callout why">📌 Para que sirve un embudo unico: si manana cambia la forma de autenticar o de reportar errores, se toca <strong>un solo lugar</strong>. Tambien garantiza que toda llamada respeta el timeout y revisa la sesion antes de salir.</blockquote>
+<h3 id="buildapiheaders-la-identidad-por-headers"><code>buildApiHeaders</code>: la identidad por headers</h3>
+<p>SIFCNP <strong>no usa JWT ni cookies</strong>. La identidad viaja en dos headers HTTP que el backend confia ciegamente (mira <a href="seguridad.html">Seguridad</a> para entender por que esto es inseguro por diseno del MVP). <code>buildApiHeaders</code> los arma:</p>
+<pre class="code"><code class="language-js">// app.js:318-334
+function buildApiHeaders(session, withJsonBody = false) {
+  const identity = resolveUserIdentity(session);
+  if (!identity?.userId || !identity?.role) {
+    throw new Error('No fue posible resolver identidad para llamar la API.');
+  }
+  const headers = {
+    'X-User-Id': String(identity.userId),
+    'X-User-Role': identity.role
+  };
+  if (withJsonBody) headers['Content-Type'] = 'application/json';
+  return headers;
+}</code></pre>
+<p><code>resolveUserIdentity</code> (<a href="../app.js">app.js:300-316</a>) traduce el <code>username</code> de la sesion a un <code>userId</code> numerico via <code>MOCK_USER_DIRECTORY</code>; si el usuario no esta en el directorio, cae a <code>userId: 10</code> (un default magico que puede colisionar — ver <a href="seguridad.html">Seguridad</a>).</p>
+<h3 id="apifetch-timeout-abort-y-errores"><code>apiFetch</code>: timeout, abort y errores</h3>
+<pre class="code"><code class="language-js">// app.js:361-411 (resumido)
+async function apiFetch(path, options = {}, session = getSession()) {
+  if (isSessionExpired()) {                         // 1. sesion vencida -&gt; logout
+    handleLogout('Sesión expirada por inactividad...');
+    throw new Error('Session expired');
+  }
+  const controller = new AbortController();         // 2. timeout duro
+  const timer = setTimeout(() =&gt; controller.abort(), API_CONFIG.timeoutMs); // 12s
+  try {
+    const response = await fetch(buildApiUrl(path), { ...options, signal: controller.signal });
+    if (!response.ok) throw await parseApiError(response);   // 3. HTTP &gt;=400
+    if (response.status === 204) return null;
+    return contentType.includes('application/json') ? response.json() : null;
+  } catch (error) {
+    // AbortError -&gt; 408; TypeError (red/CORS) -&gt; status 0; 5xx/0/408 -&gt; toast automatico
+  } finally {
+    clearTimeout(timer);
+  }
+}</code></pre>
+<p>Detalles clave:</p>
+<ul>
+<li><strong><code>AbortController</code> + timeout</strong> (<a href="../app.js">app.js:368-369</a>): es el mecanismo del navegador para <strong>cancelar</strong> una peticion en curso. Si la API tarda mas de <code>API_CONFIG.timeoutMs</code> (12000 ms, definido en <a href="../app.js">app.js:131-134</a>), se aborta y se convierte en un error con <code>status 408</code>.</li>
+<li><strong>Traduccion de fallos de red</strong>: un <code>TypeError</code> de <code>fetch</code> (backend caido, CORS — ver glosario para <a href="glosario.html">CORS</a>) se convierte en un error legible con <code>status: 0</code> y mensaje <em>"No fue posible conectar con la API. Verifique backend, URL y CORS."</em> (<a href="../app.js">app.js:394-398</a>).</li>
+<li><strong>Toast automatico</strong> (<a href="../app.js">app.js:400-406</a>): errores <code>&gt;= 500</code>, de red (<code>0</code>) o timeout (<code>408</code>) disparan una notificacion flotante con el <code>correlationId</code> que devuelve el backend (util para soporte tecnico).</li>
+<li><strong><code>parseApiError</code></strong> (<a href="../app.js">app.js:336-358</a>) lee el <code>ProblemDetails</code> que devuelve la API y extrae <code>detail</code>/<code>title</code>/<code>message</code>, el <code>status</code> y el <code>correlationId</code> (del cuerpo o del header <code>X-Correlation-Id</code>).</li>
+</ul>
+<blockquote class="callout tip">💡 La URL base de la API es configurable sin tocar codigo: <code>getApiBaseUrl</code> (<a href="../app.js">app.js:288-294</a>) la resuelve en orden de prioridad query-string <code>?api=...</code> &gt; <code>window.SJM_API_BASE_URL</code> &gt; <code>sessionStorage</code> &gt; default <code>http://localhost:5093</code>. Asi podes apuntar la UI a otra API con <code>dashboard.html?api=http://localhost:5093</code>.</blockquote>
+<h3 id="diagrama-secuencia-de-una-llamada-tipica">Diagrama: secuencia de una llamada tipica</h3>
+<div class="mermaid-wrap"><pre class="mermaid">sequenceDiagram
+  participant UI as "Boton (onclick)"
+  participant App as "funcion render*/save*"
+  participant AF as "apiFetch"
+  participant API as "API REST :5093"
+  UI-&gt;&gt;App: click
+  App-&gt;&gt;AF: apiFetch(path, {headers: buildApiHeaders(session)})
+  AF-&gt;&gt;AF: isSessionExpired()?
+  alt sesion vencida
+    AF-&gt;&gt;App: handleLogout + throw
+  else sesion valida
+    AF-&gt;&gt;API: fetch(URL, X-User-Id / X-User-Role, signal)
+    alt 2xx
+      API--&gt;&gt;AF: JSON
+      AF--&gt;&gt;App: datos
+      App-&gt;&gt;UI: render innerHTML (con escapeHtml)
+    else 4xx/5xx o timeout
+      API--&gt;&gt;AF: ProblemDetails / abort
+      AF-&gt;&gt;AF: parseApiError + toast
+      AF--&gt;&gt;App: throw error
+      App-&gt;&gt;UI: showNotice(error.message)
+    end
+  end</pre></div>
+<h2 id="sesion-en-sessionstorage-prefijo-sjm">Sesion en <code>sessionStorage</code> (prefijo <code>sjm_</code>)</h2>
+<p>El estado de sesion vive en <code>sessionStorage</code> (almacenamiento del navegador que se borra al cerrar la pestana). Todas las claves llevan el prefijo <code>sjm_</code> para no chocar con otras apps. Estan centralizadas en <code>STORAGE_KEYS</code> (<a href="../app.js">app.js:83-88</a>):</p>
+<div class="table-wrap"><table><thead><tr><th>Clave</th><th>Constante</th><th>Para que</th></tr></thead><tbody><tr><td><code>sjm_session</code></td><td><code>STORAGE_KEYS.session</code></td><td>objeto de sesion JSON (<code>isAuth</code>, <code>username</code>, <code>role</code>, <code>company</code>, <code>displayName</code>...)</td></tr><tr><td><code>sjm_activeTab</code></td><td><code>STORAGE_KEYS.activeTab</code></td><td>pestana/panel activo, para recordarlo al recargar</td></tr><tr><td><code>sjm_api_base_url</code></td><td><code>STORAGE_KEYS.apiBaseUrl</code></td><td>override de la URL de la API (lo fija <code>?api=...</code>)</td></tr><tr><td><code>sjm_lastActivity</code></td><td><code>STORAGE_KEYS.lastActivity</code></td><td>timestamp ISO de la ultima actividad (para inactividad)</td></tr></tbody></table></div>
+<p><code>getSession</code>/<code>setSession</code> (<a href="../app.js">app.js:177-193</a>) leen y escriben el objeto serializado como JSON; <code>setSession</code> ademas inicializa <code>sjm_lastActivity</code> cuando la sesion esta autenticada.</p>
+<blockquote class="callout tip">💡 <code>hydrateSessionDisplayName</code> (<a href="../app.js">app.js:201-216</a>) pide <code>GET /api/session/profile</code> para mostrar el <strong>nombre completo real</strong> del usuario en la barra superior; si falla, el topbar deja el <code>username</code> como respaldo silencioso.</blockquote>
+<h3 id="login-mock-handlelogin-y-mock-user-directory">Login mock: <code>handleLogin</code> y <code>MOCK_USER_DIRECTORY</code></h3>
+<p>El login es <strong>simulado</strong> (mock): no hay autenticacion real. <code>handleLogin</code> (<a href="../app.js">app.js:521-550</a>) ni siquiera envia el password al servidor — solo valida largos minimos localmente y arma la sesion:</p>
+<pre class="code"><code class="language-js">// app.js:531-549 (resumido)
+if (username.length &lt; 3 || password.length &lt; 4) { /* error visual + shake */ return; }
+const session = {
+  isAuth: true,
+  username,
+  role: inferRole(username),       // el ROL se deduce del texto del username
+  company: inferCompany(username), // CNP o FANAL segun prefijo
+  apiBaseUrl: getApiBaseUrl()
+};
+setSession(session);
+window.location.href = 'dashboard.html';</code></pre>
+<p>El rol sale de <code>inferRole</code> (<a href="../app.js">app.js:160-169</a>): primero busca el username exacto en <code>MOCK_USER_DIRECTORY</code> (<a href="../app.js">app.js:141-150</a>); si no esta, infiere por substring (<code>admin</code> -&gt; <code>ROL_ADMIN</code>, <code>rrhh</code> -&gt; <code>ROL_RRHH</code>, <code>jefe</code> -&gt; <code>ROL_JEFE</code>, resto -&gt; <code>ROL_FUNC</code>). El directorio mapea los usernames de demo a <code>userId</code>/<code>role</code>:</p>
+<div class="table-wrap"><table><thead><tr><th>Username</th><th>userId</th><th>role</th></tr></thead><tbody><tr><td><code>funcionario.ana</code></td><td>4</td><td><code>ROL_FUNC</code></td></tr><tr><td><code>funcionario.luis</code></td><td>5</td><td><code>ROL_FUNC</code></td></tr><tr><td><code>jefe.maria</code> / <code>jefe.ricardo</code></td><td>3</td><td><code>ROL_JEFE</code></td></tr><tr><td><code>rrhh.carlos</code> / <code>rrhh.sandra</code></td><td>6</td><td><code>ROL_RRHH</code></td></tr><tr><td><code>admin.demo</code> / <code>admin.sofia</code></td><td>1</td><td><code>ROL_ADMIN</code></td></tr></tbody></table></div>
+<blockquote class="callout warn">⚠️ Esto es inseguro a proposito (MVP/demo). Cualquier password de 4+ caracteres entra, y el rol se deriva del <strong>texto</strong> del username. Notese que <code>jefe.maria</code> y <code>jefe.ricardo</code> comparten <code>userId: 3</code>, igual <code>rrhh.carlos</code>/<code>rrhh.sandra</code> (6) y <code>admin.demo</code>/<code>admin.sofia</code> (1). Estos usernames de ejemplo aparecen impresos en la pantalla de login (<a href="../index.html">index.html:229-234</a>). Detalle completo en <a href="seguridad.html">Seguridad</a>.</blockquote>
+<h2 id="render-por-rol-configureroleui-y-switchtab">Render por rol: <code>configureRoleUI</code> y <code>switchTab</code></h2>
+<p>Una sola pagina (<code>dashboard.html</code>) contiene <strong>los cinco paneles</strong> a la vez; lo que cambia por rol es <strong>cuales pestanas se muestran</strong> y cual queda activa. <code>configureRoleUI</code> (<a href="../app.js">app.js:776-804</a>) hace ese trabajo al cargar:</p>
+<pre class="code"><code class="language-js">// app.js:786-797 (resumido)
+const allowedByRole = {
+  ROL_FUNC:  ['panel-funcionario', 'panel-sifcnp'],
+  ROL_JEFE:  ['panel-funcionario', 'panel-jefatura', 'panel-sifcnp'],
+  ROL_RRHH:  ['panel-funcionario', 'panel-rrhh', 'panel-sifcnp'],
+  ROL_ADMIN: ['panel-admin']
+};
+const allowedTabs = allowedByRole[session.role] || ['panel-sifcnp'];
+document.querySelectorAll('.nav-tab').forEach(tab =&gt; {
+  tab.classList.toggle('hidden', !allowedTabs.includes(tab.getAttribute('data-tab')));
+});</code></pre>
+<p><code>switchTab</code> (<a href="../app.js">app.js:860-871</a>) oculta todos los <code>.tab-panel</code>, muestra el elegido, marca su <code>.nav-tab</code> como <code>active</code> y persiste la eleccion en <code>sjm_activeTab</code>.</p>
+<blockquote class="callout warn">⚠️ Esto es solo cosmetica de UI: ocultar pestanas <strong>no es seguridad</strong>. La autorizacion real vive en el backend (cada servicio valida el rol). Si un funcionario invocara a mano un endpoint de jefatura, el backend lo rechaza con 403 — ver <a href="api.html">API</a> y <a href="seguridad.html">Seguridad</a>.</blockquote>
+<h3 id="los-cinco-paneles">Los cinco paneles</h3>
+<div class="table-wrap"><table><thead><tr><th>Panel</th><th>id</th><th>Roles que lo ven</th><th>Que hace</th><th>Funciones JS clave</th></tr></thead><tbody><tr><td>Funcionario</td><td><code>panel-funcionario</code></td><td>FUNC, JEFE, RRHH</td><td>crear boleta + ver mi historial</td><td><code>registerJustification</code>, <code>renderFuncionarioHistory</code>, <code>addDetailLine</code></td></tr><tr><td>Jefatura</td><td><code>panel-jefatura</code></td><td>JEFE</td><td>aprobar/rechazar pendientes (paginado, ordenable)</td><td><code>renderJefaturaRequests</code>, <code>approveRequest</code>, <code>toggleDetail</code></td></tr><tr><td>RRHH</td><td><code>panel-rrhh</code></td><td>RRHH</td><td>consulta global con filtros</td><td><code>renderRRHHTable</code>, <code>applyRRHHFilter</code></td></tr><tr><td>SIFCNP</td><td><code>panel-sifcnp</code></td><td>FUNC, JEFE, RRHH</td><td>consulta historica</td><td><code>renderSifcnpHistorico</code>, <code>sifcnpSearch</code></td></tr><tr><td>Admin</td><td><code>panel-admin</code></td><td>ADMIN</td><td>dependencias, usuarios, jerarquias, delegaciones, registros</td><td><code>loadAdmin*</code>, <code>switchAdminTab</code></td></tr></tbody></table></div>
+<p>Notas de comportamiento:</p>
+<ul>
+<li>El panel <strong>Funcionario</strong> permite crear boleta solo a <code>ROL_FUNC</code> y <code>ROL_JEFE</code> (<a href="../app.js">app.js:925</a>); la grilla de historial (<code>/api/justificaciones/mias</code>) se sirve a FUNC/JEFE/RRHH con paginado "cargar 10 mas" (<a href="../app.js">app.js:967-1116</a>).</li>
+<li>El panel <strong>Jefatura</strong> trae pendientes (<code>/api/jefatura/justificaciones/pendientes</code>), pagina de a 15 (<a href="../app.js">app.js:109</a>), permite ordenar por columna (<a href="../app.js">app.js:1202-1238</a>) y exportar a CSV (<a href="../app.js">app.js:1542-1567</a>). Aprobar/rechazar pega <code>PATCH .../resolver</code> (<a href="../app.js">app.js:1333-1367</a>).</li>
+<li>El panel <strong>SIFCNP</strong> ajusta su scope con <code>configureSifcnpScopeUI</code> (<a href="../app.js">app.js:846-858</a>): a un funcionario le oculta el filtro por funcionario y le muestra la nota "Mostrando solo sus registros historicos".</li>
+<li>El panel <strong>Admin</strong> tiene sub-pestanas internas (<code>switchAdminTab</code>, <a href="../app.js">app.js:1638-1647</a>) y usa "drawers" (cajones laterales) para editar/crear, ademas de un visor de errores+eventos en "Registros" (<a href="../app.js">app.js:2024-2090</a>). Toda accion admin exige <code>requireAdminSession</code> (<a href="../app.js">app.js:1600-1606</a>).</li>
+</ul>
+<h3 id="diagrama-del-login-al-render-por-rol">Diagrama: del login al render por rol</h3>
+<div class="mermaid-wrap"><pre class="mermaid">flowchart TD
+  A["index.html (login)"] --&gt;|handleLogin| B{"username valido?"}
+  B --&gt;|no| A
+  B --&gt;|si| C["setSession sjm_session&lt;br/&gt;role = inferRole(username)"]
+  C --&gt; D["dashboard.html"]
+  D --&gt; E["initDashboardPage()"]
+  E --&gt; F["requireAuth()&lt;br/&gt;checkSessionValidityOnLoad()"]
+  F --&gt; G["configureRoleUI()"]
+  G --&gt; H{"session.role"}
+  H --&gt;|ROL_FUNC| I["panel-funcionario + panel-sifcnp"]
+  H --&gt;|ROL_JEFE| J["+ panel-jefatura"]
+  H --&gt;|ROL_RRHH| K["+ panel-rrhh"]
+  H --&gt;|ROL_ADMIN| L["solo panel-admin"]
+  G --&gt; M["switchTab(primer tab permitido)"]</pre></div>
+<h2 id="aviso-de-sesion-por-inactividad">Aviso de sesion por inactividad</h2>
+<p>Si el usuario deja de interactuar, la sesion se cierra sola. La configuracion esta en <code>SESSION_CONFIG</code> (<a href="../app.js">app.js:90-94</a>): timeout total <strong>5 minutos</strong>, con un <strong>aviso 30 segundos antes</strong> y un chequeo cada segundo en esos ultimos 30s.</p>
+<p>Como funciona:</p>
+<ul>
+<li><code>initIdleMonitor</code> (<a href="../app.js">app.js:599-605</a>) escucha <code>mousemove</code>, <code>keypress</code>, <code>click</code>, <code>touchstart</code>, <code>scroll</code> y en cada uno llama <code>resetIdleTimer</code>, que actualiza <code>sjm_lastActivity</code> y reprograma el temporizador.</li>
+<li><code>startSessionExpiryTimer</code> (<a href="../app.js">app.js:646-684</a>) calcula cuanto falta y agenda el aviso justo cuando quedan 30s.</li>
+<li>Al entrar en la ventana final, <code>showSessionWarningModal</code> (<a href="../app.js">app.js:719-730</a>) abre el modal <code>#session-warning-modal</code> (<a href="../dashboard.html">dashboard.html:750-779</a>) con cuenta regresiva (<code>startFinalCountdown</code>, <a href="../app.js">app.js:690-714</a>).</li>
+<li>El usuario elige <strong>"Permanecer Conectado"</strong> (<code>handleStayLoggedIn</code> -&gt; reinicia el temporizador) o <strong>"Cerrar Sesion"</strong> (<code>handleLogoutNow</code>). Si no responde, <code>handleLogout</code> (<a href="../app.js">app.js:567-591</a>) limpia las claves <code>sjm_*</code> y redirige a <code>index.html</code>.</li>
+<li>Ademas, <strong>cada</strong> llamada a <code>apiFetch</code> revisa <code>isSessionExpired()</code> antes de salir (<a href="../app.js">app.js:363-366</a>): si vencio, hace logout en el acto.</li>
+</ul>
+<blockquote class="callout why">📌 En la practica: aunque tengas una pestana abierta sin tocar nada, a los 5 minutos te saca; a los 4:30 te avisa. Cualquier movimiento del mouse reinicia el reloj.</blockquote>
+<h2 id="seguridad-de-salida-escapehtml">Seguridad de salida: <code>escapeHtml</code></h2>
+<p>El frontend dibuja casi todo armando strings de HTML e inyectandolos con <code>innerHTML</code> (mira los <code>tbody.innerHTML = ...</code> en cada render). Eso es comodo pero peligroso: si un dato de la API trae <code>&lt;script&gt;</code>, podria ejecutarse (un ataque de <strong>XSS</strong> — inyeccion de codigo via contenido del usuario). Para evitarlo, <strong>todo valor interpolado pasa por <code>escapeHtml</code></strong> (<a href="../app.js">app.js:2180-2187</a>):</p>
+<pre class="code"><code class="language-js">// app.js:2180-2187
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&amp;/g, '&amp;amp;')
+    .replace(/&lt;/g, '&amp;lt;')
+    .replace(/&gt;/g, '&amp;gt;')
+    .replace(/"/g, '&amp;quot;')
+    .replace(/'/g, '&amp;#39;');
+}</code></pre>
+<p>Convierte los caracteres peligrosos en sus entidades HTML, asi el navegador los muestra como <strong>texto</strong> y no como marcado. Lo veras envolviendo nombres, motivos, observaciones, etc. en todas las tablas (<code>${escapeHtml(b.funcionarioNombre)}</code>, etc.).</p>
+<blockquote class="callout warn">⚠️ Excepcion conocida: <code>normalizeMojibakeTemporaryForHistoryDetail</code> (<a href="../app.js">app.js:446-464</a>) es un parche que corrige texto mal codificado (UTF-8 leido como Latin-1, los <code>Ã¡</code> -&gt; <code>á</code>) <strong>solo</strong> en el detalle de historial del funcionario, no en Jefatura/RRHH/SIFCNP. Es un sintoma de un bug de encoding del backend aun sin resolver.</blockquote>
+<h2 id="utilidades-de-presentacion">Utilidades de presentacion</h2>
+<p>Funciones de apoyo que normalizan datos para mostrar:</p>
+<ul>
+<li><code>formatDate</code> / <code>formatDateTime</code> (<a href="../app.js">app.js:2154-2174</a>): fechas a <code>dd/mm/yyyy</code> (con hora cuando aplica); devuelven <code>—</code> si el valor es invalido o vacio.</li>
+<li><code>presentBoletaId</code> (<a href="../app.js">app.js:420-424</a>): convierte el id numerico en <code>JM-0042</code>.</li>
+<li><code>renderStatusBadge</code> (<a href="../app.js">app.js:2142-2146</a>): pinta el estado como badge (Aprobado/Rechazado/Pendiente).</li>
+<li><code>mapEstadoDescripcion</code> (<a href="../app.js">app.js:413-418</a>) y <code>normalizeApiResumen</code> (<a href="../app.js">app.js:426-443</a>): adaptan la forma cruda que devuelve la API (con sufijo <code>ID</code>) a un objeto interno comodo. Notese que los campos del wire usan <code>justificacionID</code>/<code>estadoID</code> (ver convenciones de <a href="modulo-api.html">Contracts en la API</a>).</li>
+<li><code>toast</code> / <code>showNotice</code> (<a href="../app.js">app.js:22-80</a>, <a href="../app.js">app.js:2148-2152</a>): sistema de notificaciones flotantes no invasivas; <code>showNotice</code> simplemente redirige a <code>toast</code>.</li>
+</ul>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../index.html">index.html</a> — pantalla de login, formulario y usuarios demo (lineas 211-235).</li>
+<li><a href="../dashboard.html">dashboard.html</a> — topbar, nav-tabs, los 5 paneles (304-746) y el modal de inactividad (750-779).</li>
+<li><a href="../app.js">app.js</a> — logica unica del frontend (~2227 lineas). Puntos clave: <code>apiFetch</code> (361-411), <code>buildApiHeaders</code> (318-334), <code>STORAGE_KEYS</code> (83-88), <code>handleLogin</code> (521-550), <code>MOCK_USER_DIRECTORY</code> (141-150), <code>configureRoleUI</code> (776-804), <code>switchTab</code> (860-871), inactividad (599-768), <code>escapeHtml</code> (2180-2187), bootstrap <code>DOMContentLoaded</code> (2214-2227).</li>
+<li><a href="../style.css">style.css</a> — variables CSS y estilos globales compartidos por ambas paginas.</li>
+</ul>
+<p>Paginas relacionadas: <a href="seguridad.html">Seguridad</a> · <a href="modulo-api.html">API REST (.NET)</a> · <a href="api.html">Endpoints de la API</a> · <a href="flujos.html">Flujos de negocio</a> · <a href="glosario.html">Glosario</a>.</p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#anatomia-dos-paginas-un-cerebro">Anatomia: dos paginas, un cerebro</a></li><li><a href="#como-habla-con-la-api-apifetch-buildapiheaders">Como habla con la API: `apiFetch` + `buildApiHeaders`</a></li><li><a href="#sesion-en-sessionstorage-prefijo-sjm">Sesion en `sessionStorage` (prefijo `sjm_`)</a></li><li><a href="#render-por-rol-configureroleui-y-switchtab">Render por rol: `configureRoleUI` y `switchTab`</a></li><li><a href="#aviso-de-sesion-por-inactividad">Aviso de sesion por inactividad</a></li><li><a href="#seguridad-de-salida-escapehtml">Seguridad de salida: `escapeHtml`</a></li><li><a href="#utilidades-de-presentacion">Utilidades de presentacion</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

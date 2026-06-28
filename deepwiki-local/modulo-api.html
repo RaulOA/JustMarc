@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capa API (Controllers) · DeepWiki local SIFCNP</title>
+<meta name="description" content="Controllers, contratos, seguridad y manejo de errores.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+<nav class="sidebar" aria-label="Navegacion del wiki">
+<div class="brand"><a href="index.html"><span class="logo">📚</span><span><b>DeepWiki local</b><small>SIFCNP / INTEGRA_CNP</small></span></a></div>
+<div class="search-box"><input type="search" id="wiki-search" placeholder="Buscar en el wiki..." autocomplete="off" aria-label="Buscar"><div id="search-results" class="search-results" hidden></div></div>
+<div class="nav-group"><div class="nav-group-label">Inicio</div><ul>
+<li><a href="index.html">Overview del proyecto</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Arquitectura</div><ul>
+<li><a href="arquitectura.html">Arquitectura y diseno</a></li>
+<li><a href="seguridad.html">Seguridad e identidad</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Modulos (por capa)</div><ul>
+<li><a href="modulo-frontend.html">Frontend (HTML/CSS/JS)</a></li>
+<li><a href="modulo-api.html" class="active" aria-current="page">Capa API (Controllers)</a></li>
+<li><a href="modulo-application.html">Capa Application</a></li>
+<li><a href="modulo-infraestructura.html">Capa Infrastructure</a></li>
+<li><a href="modulo-dominio.html">Capa Domain</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Datos y API</div><ul>
+<li><a href="modelo-datos.html">Modelo de datos</a></li>
+<li><a href="api.html">Referencia de API</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Flujos internos</div><ul>
+<li><a href="flujos.html">Flujos principales</a></li>
+</ul></div>
+<div class="nav-group"><div class="nav-group-label">Referencia</div><ul>
+<li><a href="glosario.html">Glosario</a></li>
+<li><a href="ask.html">Ask (proximamente)</a></li>
+</ul></div>
+</nav>
+<main class="content">
+<header class="page-head">
+<nav class="breadcrumbs" aria-label="Ruta"><a href="index.html">Inicio</a><span class="sep">/</span><span>Modulos (por capa)</span><span class="sep">/</span><span class="current">Capa API (Controllers)</span></nav>
+<div class="page-head-row">
+<h1>Capa API (Controllers)</h1>
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌓</button>
+</div>
+<p class="page-desc">Controllers, contratos, seguridad y manejo de errores.</p>
+</header>
+<div class="content-grid">
+<article class="prose">
+<h2 id="en-breve">En breve</h2>
+<p>La capa <strong>Api</strong> es la puerta de entrada HTTP del sistema: recibe las peticiones del frontend, las traduce a objetos de transporte (DTO), llama al servicio de negocio correspondiente en la capa <a href="modulo-application.html">Application</a>, y devuelve la respuesta (o un error normalizado). No tiene logica de negocio propia: es una capa fina de "traduccion y delegacion". Vive en <code>backend/src/IntegradorMarcas.Api/</code> y es la unica capa que "sabe" de HTTP, controllers y rutas.</p>
+<blockquote class="callout why">📌 En la practica: un <strong>controller</strong> es la clase que mapea una URL (<code>POST /api/justificaciones</code>) a un metodo de C#. Aca solo se arma/desarma el "sobre" HTTP; el trabajo real lo hace el servicio que el controller invoca.</blockquote>
+<h2 id="que-hace-y-que-no-hace-la-capa-api">Que hace (y que NO hace) la capa Api</h2>
+<p>Cada controller hace siempre los mismos cuatro pasos, sin excepcion en los controllers "normales":</p>
+<ol>
+<li><strong>Resolver la identidad</strong>: llama a <code>_userContext.GetCurrent()</code> para saber quien es el usuario (lee los headers <code>X-User-Id</code> / <code>X-User-Role</code>). Ver <a href="seguridad.html">Seguridad</a>.</li>
+<li><strong>Traducir Request -&gt; DTO</strong>: convierte el objeto que llego en el cuerpo JSON (un <code>*Request</code>) al DTO que entiende la capa Application. Se hace <strong>a mano</strong>, con object initializers; no hay AutoMapper ni mapeo automatico.</li>
+<li><strong>Delegar en el servicio</strong>: <code>await _service.XxxAsync(user, dto, cancellationToken)</code>. Toda la logica de negocio, validacion y autorizacion vive ahi, no aca.</li>
+<li><strong>Traducir DTO -&gt; Response</strong>: convierte el resultado del servicio a un objeto <code>*Response</code> (de nuevo a mano) y lo envuelve en <code>Ok(...)</code>, <code>CreatedAtAction(...)</code> o <code>NoContent()</code>.</li>
+</ol>
+<blockquote class="callout tip">💡 Un <strong>DTO</strong> (Data Transfer Object) es un objeto plano que solo lleva datos de una capa a otra, sin comportamiento. Aca hay tres "formas" del mismo dato segun la capa: <strong>Contracts</strong> (lo que viaja por la red), <strong>DTOs</strong> (transporte interno entre capas) y <strong>Entities</strong> del <a href="modulo-dominio.html">Dominio</a>. El controller es el que cruza de Contracts a DTOs y viceversa.</blockquote>
+<p>Lo que la capa Api <strong>NO</strong> hace: validar reglas de negocio, decidir si un rol tiene permiso, o tocar la base de datos. Eso queda en Application (logica/autorizacion) e <a href="modulo-infraestructura.html">Infraestructura</a> (acceso a datos). Esta separacion es la regla de la <a href="arquitectura.html">Clean Architecture</a>: las dependencias apuntan hacia adentro.</p>
+<p>Patron tipico (extraido de <code>JustificacionesController.Create</code>):</p>
+<pre class="code"><code class="language-cs">[HttpPost]
+public async Task&lt;ActionResult&lt;CreateJustificacionResponse&gt;&gt; Create(
+    [FromBody] CreateJustificacionRequest request,
+    CancellationToken cancellationToken)
+{
+    var user = _userContext.GetCurrent();              // 1. identidad
+    var dto = new CreateJustificacionDto { ... };       // 2. Request -&gt; DTO (a mano)
+    var id = await _service.CreateAsync(user, dto, cancellationToken); // 3. delega
+    return CreatedAtAction(nameof(ListMine), new { id }, new CreateJustificacionResponse { ... }); // 4. DTO -&gt; Response
+}</code></pre>
+<p>Fuente: <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:23-51</a>.</p>
+<h2 id="los-7-controllers">Los 7 controllers</h2>
+<p>Todos los controllers de negocio comparten la misma forma: <code>[ApiController]</code>, <code>sealed</code>, reciben por constructor un servicio de Application y el <code>IUserContext</code>. La unica clase que <strong>no</strong> es <code>sealed</code> es <code>SessionController</code> (excepcion deliberada). Las rutas se declaran con <code>[Route(...)]</code>; algunas usan el token <code>[controller]</code> (que se reemplaza por el nombre de la clase sin el sufijo "Controller").</p>
+<div class="table-wrap"><table><thead><tr><th>Controller</th><th>Ruta base</th><th>Rol que sirve</th><th>Responsabilidad</th><th>Depende de</th></tr></thead><tbody><tr><td><code>JustificacionesController</code></td><td><code>api/[controller]</code> -&gt; <code>api/justificaciones</code></td><td><code>ROL_FUNC</code></td><td>Crear boleta, listar las propias (<code>/mias</code>), ver lineas, consultar el aprobador actual (<code>/aprobador-actual</code>), historico</td><td><code>IJustificacionService</code></td></tr><tr><td><code>JefaturaController</code></td><td><code>api/jefatura/justificaciones</code></td><td><code>ROL_JEFE</code></td><td>Listar pendientes, ver detalle completo, resolver (aprobar/rechazar)</td><td><code>IJustificacionService</code></td></tr><tr><td><code>RrhhController</code></td><td><code>api/rrhh/justificaciones</code></td><td><code>ROL_RRHH</code></td><td>Consulta global de justificaciones con filtros</td><td><code>IJustificacionService</code></td></tr><tr><td><code>AdminAprobacionesController</code></td><td><code>api/admin/aprobaciones</code></td><td><code>ROL_ADMIN</code></td><td>CRUD de jerarquias y delegaciones de aprobacion</td><td><code>IAdminAprobacionesService</code></td></tr><tr><td><code>AdminOrganizacionController</code></td><td><code>api/admin/organizacion</code></td><td><code>ROL_ADMIN</code></td><td>Gestionar dependencias y asignacion/estado de usuarios</td><td><code>IAdminOrganizacionService</code></td></tr><tr><td><code>AdminMonitoringController</code></td><td><code>api/admin/monitoring</code></td><td><code>ROL_ADMIN</code></td><td>Listar registros de errores y eventos de auditoria (monitoreo)</td><td><code>ISqlConnectionFactory</code> (SQL inline)</td></tr><tr><td><code>SessionController</code></td><td><code>api/[controller]</code> -&gt; <code>api/session</code></td><td>Todos</td><td>Validar sesion (<code>/status</code>), perfil (<code>/profile</code>), logout</td><td><code>ISqlConnectionFactory</code> (SQL inline)</td></tr></tbody></table></div>
+<p>Fuentes: <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs</a>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/JefaturaController.cs">JefaturaController.cs</a>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/RrhhController.cs">RrhhController.cs</a>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminAprobacionesController.cs">AdminAprobacionesController.cs</a>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminOrganizacionController.cs">AdminOrganizacionController.cs</a>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminMonitoringController.cs">AdminMonitoringController.cs</a>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/SessionController.cs">SessionController.cs</a>.</p>
+<blockquote class="callout tip">💡 Para el catalogo completo de endpoints (verbos, rutas, query params y cuerpos), ver la pagina <a href="api.html">Endpoints de la API</a>.</blockquote>
+<h3 id="detalle-por-controller">Detalle por controller</h3>
+<ul>
+<li><strong><code>JustificacionesController</code></strong> (funcionario): <code>POST</code> crea una boleta y responde <code>201 Created</code> con <code>EstadoID = PendienteJefatura</code>; <code>GET /mias</code> lista las propias con filtros opcionales (<code>estadoId</code>, <code>desde</code>, <code>hasta</code>); <code>GET /aprobador-actual</code> calcula quien debe aprobar; <code>GET /{id}/lineas</code> trae el detalle; <code>GET /historico</code> aplica scoping por rol dentro del servicio. Ver <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:23-167</a>.</li>
+<li><strong><code>JefaturaController</code></strong> (jefatura): <code>GET /pendientes</code> lista lo que la jefatura puede aprobar; <code>GET /{id}</code> arma una respuesta compuesta (encabezado + solicitante + aprobador + detalles); <code>PATCH /{id}/resolver</code> aplica la accion y devuelve <code>204 No Content</code>. La validacion de la accion y las transiciones de estado se hacen en el servicio, no aca. Ver <a href="../backend/src/IntegradorMarcas.Api/Controllers/JefaturaController.cs">JefaturaController.cs:27-133</a>.</li>
+<li><strong><code>AdminAprobacionesController</code></strong>: CRUD de jerarquias (<code>/jerarquias</code>) y delegaciones (<code>/delegaciones</code>). Captura <code>HttpContext.TraceIdentifier</code> como <code>correlationId</code> y se lo pasa al servicio para auditoria de acciones admin. Ver <a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminAprobacionesController.cs">AdminAprobacionesController.cs:53-258</a>.</li>
+<li><strong><code>AdminOrganizacionController</code></strong>: usa dos helpers <code>static</code> privados (<code>MapDependenciaResponse</code>, <code>MapUsuarioResponse</code>) para el mapeo DTO -&gt; Response, en vez de repetir el object initializer en cada accion. Ver <a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminOrganizacionController.cs">AdminOrganizacionController.cs:101-130</a>.</li>
+</ul>
+<h2 id="contracts-la-forma-del-cable-wire">Contracts: la "forma del cable" (wire)</h2>
+<p>La carpeta <code>Contracts/</code> define la forma exacta del JSON que entra y sale por HTTP. Se divide en dos:</p>
+<ul>
+<li><strong><code>Requests/</code></strong>: lo que el cliente manda en el cuerpo (<code>[FromBody]</code>). Ej. <code>CreateJustificacionRequest</code>, <code>ResolverJustificacionRequest</code>, <code>CreateJerarquiaRequest</code>.</li>
+<li><strong><code>Responses/</code></strong>: lo que la API devuelve. Ej. <code>CreateJustificacionResponse</code>, <code>JustificacionResumenResponse</code>, <code>AdminDelegacionResponse</code>.</li>
+</ul>
+<p>Son clases <code>sealed</code> con propiedades auto-implementadas y sin logica. Ejemplo minimo:</p>
+<pre class="code"><code class="language-cs">public sealed class CreateJustificacionResponse
+{
+    public int JustificacionID { get; set; }
+    public int EstadoID { get; set; }
+    public string EstadoDescripcion { get; set; } = string.Empty;
+}</code></pre>
+<p>Fuente: <a href="../backend/src/IntegradorMarcas.Api/Contracts/Responses/CreateJustificacionResponse.cs">CreateJustificacionResponse.cs:3-8</a>.</p>
+<h3 id="la-convencion-id-vs-id-deliberada-no-es-un-descuido">La convencion <code>ID</code> vs <code>Id</code> (deliberada, no es un descuido)</h3>
+<p>Hay una diferencia de naming <strong>intencional</strong> entre capas que conviene tener clara para no confundirse:</p>
+<div class="table-wrap"><table><thead><tr><th>Capa</th><th>Sufijo</th><th>Ejemplo</th></tr></thead><tbody><tr><td><strong>Api / Contracts</strong> (wire)</td><td><code>ID</code> (mayusculas)</td><td><code>JustificacionID</code>, <code>AprobadorID</code>, <code>TipoJustificacionID</code></td></tr><tr><td><strong>Application / DTOs</strong></td><td><code>Id</code> (PascalCase)</td><td><code>JustificacionId</code>, <code>AprobadorId</code></td></tr><tr><td><strong>Domain / Entities</strong></td><td><code>Id</code> (PascalCase)</td><td><code>JustificacionId</code></td></tr></tbody></table></div>
+<p>El controller es el unico lugar donde se cruza esa frontera, mapeando <code>ID</code> &lt;-&gt; <code>Id</code> a mano. Se ve claro en <code>Create</code>: el Request trae <code>d.TipoJustificacionID</code> y el DTO lo recibe como <code>TipoJustificacionId</code> (<a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:32-37</a>), y al responder ocurre lo inverso (<code>JustificacionID = x.JustificacionId</code>, <a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs:70</a>). Fuentes del contraste: <a href="../backend/src/IntegradorMarcas.Api/Contracts/Requests/JustificacionDetalleRequest.cs">JustificacionDetalleRequest.cs:5</a> (<code>TipoJustificacionID</code>) vs el DTO en Application.</p>
+<blockquote class="callout warn">⚠️ Si ves <code>JustificacionID</code> (con D mayuscula) estas mirando un Contract de la capa Api. Si ves <code>JustificacionId</code>, estas en Application o Domain. No es inconsistencia: es la regla del proyecto y debe respetarse al agregar campos.</blockquote>
+<h2 id="program-cs-el-pipeline-y-el-manejo-de-errores">Program.cs: el pipeline y el manejo de errores</h2>
+<p><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs</a> es el punto de arranque: registra servicios (inyeccion de dependencias), arma el pipeline HTTP y publica el proceso. Lo importante para entender el comportamiento de la API:</p>
+<h3 id="registro-de-servicios-di">Registro de servicios (DI)</h3>
+<p>Cada interfaz de Application se asocia a su implementacion con <code>AddScoped</code> (una instancia por request): <code>IJustificacionService -&gt; JustificacionService</code>, <code>IUserContext -&gt; HeaderUserContext</code>, <code>ISqlConnectionFactory -&gt; SqlConnectionFactory</code>, repositorios, etc. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:62-72</a>.</p>
+<blockquote class="callout tip">💡 <strong>Inyeccion de dependencias (DI)</strong>: en vez de que un controller cree el servicio que necesita, el framework se lo "inyecta" por el constructor segun este registro. Asi se desacoplan las capas y se pueden cambiar implementaciones (o usar mocks en tests) sin tocar el controller.</blockquote>
+<h3 id="validacion-de-la-cadena-de-conexion-al-arrancar">Validacion de la cadena de conexion al arrancar</h3>
+<p>Si falta la connection string <code>IntegraCnp</code>, en entornos <strong>no Development</strong> el arranque <strong>aborta</strong> (fail-fast con <code>InvalidOperationException</code>); en Development solo <strong>advierte</strong> y sigue, para permitir trabajo de frontend/health sin BD. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:15-31</a>. La cadena nunca se versiona; se inyecta por variable de entorno (ver <a href="modelo-datos.html">Modelo de datos</a> y <a href="seguridad.html">Seguridad</a>).</p>
+<h3 id="manejo-global-de-excepciones-problemdetails">Manejo global de excepciones -&gt; ProblemDetails</h3>
+<p>El bloque <code>app.UseExceptionHandler(...)</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:80-139</a>) es el corazon de como la API reporta errores. Atrapa cualquier excepcion no manejada y la traduce a un codigo HTTP segun su tipo:</p>
+<div class="table-wrap"><table><thead><tr><th>Excepcion</th><th>Codigo HTTP</th><th>Origen</th></tr></thead><tbody><tr><td><code>AppException</code></td><td>el <code>StatusCode</code> que trae la propia excepcion (400/401/403/404...)</td><td>Application/Api</td></tr><tr><td><code>KeyNotFoundException</code></td><td><code>404 Not Found</code></td><td>Application/Infra</td></tr><tr><td><code>OperationCanceledException</code></td><td><code>499</code> (cliente cancelo)</td><td>cancelacion del request</td></tr><tr><td>cualquier otra</td><td><code>500 Internal Server Error</code></td><td>inesperado</td></tr></tbody></table></div>
+<p>Fuente del <code>switch</code>: <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:89-95</a>.</p>
+<blockquote class="callout tip">💡 <strong><code>ProblemDetails</code></strong> es el formato estandar (RFC 7807) para devolver errores HTTP en JSON: un objeto con <code>title</code>, <code>status</code>, etc. La respuesta se arma con <code>Results.Problem(...)</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:133-137</a>).</blockquote>
+<p>Cada error genera un <strong><code>correlationId</code></strong> (un <code>Guid</code>) que se devuelve de dos formas para poder cruzar la respuesta del cliente con la bitacora tecnica:</p>
+<ul>
+<li>En el cuerpo, dentro de <code>extensions.correlationId</code>.</li>
+<li>En el header de respuesta <code>X-Correlation-Id</code> (<a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:131</a>).</li>
+</ul>
+<p>Ademas, antes de responder, el handler intenta persistir el error en la BD via <code>IErrorLogRepository.LogAsync</code> (incluye <code>StackTrace</code> solo si <code>statusCode &gt;= 500</code>). Es <strong>fire-and-forget seguro</strong>: si el logging falla, se traga la excepcion (<code>catch { }</code>) para no romper la respuesta al cliente. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:97-127</a>.</p>
+<h3 id="modelstate-invalido-tambien-va-por-appexception">ModelState invalido tambien va por AppException</h3>
+<p>Cuando el JSON entrante no pasa la validacion de modelo, en vez de la respuesta 400 por defecto de ASP.NET, se concatenan los mensajes y se lanza <code>AppException(..., 400)</code>, que cae en el mismo handler. Asi todos los errores salen con el mismo formato. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:34-46</a>.</p>
+<h3 id="cors-abierto-health-y-catch-all-de-404">CORS abierto, /health y catch-all de 404</h3>
+<ul>
+<li><strong>CORS</strong>: la politica <code>LocalFrontend</code> permite <strong>cualquier</strong> origen, header y metodo (<code>SetIsOriginAllowed(_ =&gt; true)</code>). El propio comentario en codigo advierte que debe restringirse en despliegues expuestos. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:50-60</a> y la advertencia en <a href="seguridad.html">Seguridad</a>.</li>
+</ul>
+<blockquote class="callout tip">💡 <strong>CORS</strong> (Cross-Origin Resource Sharing) controla que sitios web (origenes) pueden llamar a esta API desde el navegador. Aca esta abierto del todo porque es un entorno local/demo.</blockquote>
+<ul>
+<li><strong><code>GET /health</code></strong>: probe minimo que devuelve <code>{ status: "ok", utc: &lt;fecha UTC&gt; }</code> para verificar que el proceso esta vivo. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:161-165</a>.</li>
+<li><strong>Catch-all de 404</strong>: un middleware intercepta respuestas 404 sin cuerpo y lanza <code>AppException("Endpoint no encontrado", 404)</code> para que tambien salgan en formato <code>ProblemDetails</code>. Ver <a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs:150-157</a>.</li>
+</ul>
+<h2 id="excepciones-a-las-convenciones">Excepciones a las convenciones</h2>
+<p>Dos controllers rompen el patron "fino" descrito arriba y conviene saberlo:</p>
+<ul>
+<li><strong><code>SessionController</code></strong>: es el unico controller <strong>no <code>sealed</code></strong>, no usa <code>IUserContext</code> (parsea los headers <code>X-User-Id</code>/<code>X-User-Role</code> a mano dentro de cada accion) y recibe <code>ISqlConnectionFactory</code> directo para correr SQL inline (<code>SELECT NombreCompleto FROM RecursosHumanos.Usuario ...</code> en <code>/profile</code>). Devuelve objetos anonimos en vez de Contracts tipados. Ver <a href="../backend/src/IntegradorMarcas.Api/Controllers/SessionController.cs">SessionController.cs:14-136</a>.</li>
+<li><strong><code>AdminMonitoringController</code></strong>: si usa <code>IUserContext</code> y valida el rol con un <strong>guard clause</strong> (<code>if (!RolesSistema.EsAdmin(...)) throw new AppException(..., 403)</code>), pero corre una consulta SQL grande <strong>inline</strong> (un <code>UNION ALL</code> sobre <code>Auditoria.ErrorApi</code> + <code>Auditoria.EventoAuditoria</code>) en vez de delegar en un repositorio. Tambien define su Response (<code>AdminMonitoringRecordResponse</code>) como clase anidada. Ver <a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminMonitoringController.cs">AdminMonitoringController.cs:23-157</a>.</li>
+</ul>
+<blockquote class="callout tip">💡 Un <strong>guard clause</strong> es una validacion al inicio de un metodo que corta la ejecucion temprano si no se cumple una condicion (aca: si no es admin, lanza 403 y no sigue). Es el mecanismo de autorizacion del proyecto, ver <a href="seguridad.html">Seguridad</a>.</blockquote>
+<blockquote class="callout warn">⚠️ Estos dos casos son la razon por la que la regla "todo el SQL vive en <code>Infrastructure/Queries</code>" tiene dos excepciones documentadas. Si extendes monitoreo o sesion, sabe que el SQL esta en el propio controller.</blockquote>
+<h2 id="como-fluye-una-peticion">Como fluye una peticion</h2>
+<div class="mermaid-wrap"><pre class="mermaid">sequenceDiagram
+    participant FE as "Frontend (app.js)"
+    participant CT as "Controller (Api)"
+    participant UC as "IUserContext&lt;br/&gt;(HeaderUserContext)"
+    participant SV as "Service (Application)"
+    participant EH as "UseExceptionHandler"
+    FE-&gt;&gt;CT: "HTTP request + headers X-User-Id / X-User-Role"
+    CT-&gt;&gt;UC: "GetCurrent()"
+    alt headers faltan o invalidos
+        UC--&gt;&gt;EH: "AppException(401)"
+        EH--&gt;&gt;FE: "ProblemDetails 401 + X-Correlation-Id"
+    else identidad valida
+        UC--&gt;&gt;CT: "UserContextInfo (UserId, Role)"
+        CT-&gt;&gt;CT: "Request -&gt; DTO (a mano)"
+        CT-&gt;&gt;SV: "XxxAsync(user, dto, ct)"
+        alt regla/permiso falla
+            SV--&gt;&gt;EH: "AppException(400/403/404)"
+            EH--&gt;&gt;FE: "ProblemDetails + X-Correlation-Id"
+        else exito
+            SV--&gt;&gt;CT: "DTO de resultado"
+            CT-&gt;&gt;CT: "DTO -&gt; Response (a mano)"
+            CT--&gt;&gt;FE: "200 / 201 / 204 + cuerpo JSON"
+        end
+    end</pre></div>
+<p>El diagrama muestra el punto clave: los errores <strong>no</strong> se manejan con <code>try/catch</code> en cada controller. El controller deja "burbujear" la excepcion y el handler global de <code>Program.cs</code> la convierte en una respuesta <code>ProblemDetails</code> consistente con su <code>correlationId</code>.</p>
+<h2 id="referencias-en-el-codigo">Referencias en el codigo</h2>
+<ul>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/JustificacionesController.cs">JustificacionesController.cs</a> — endpoints del funcionario; patron Request-&gt;DTO-&gt;Response.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/JefaturaController.cs">JefaturaController.cs</a> — pendientes, detalle compuesto y resolver.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/RrhhController.cs">RrhhController.cs</a> — consulta global RRHH.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminAprobacionesController.cs">AdminAprobacionesController.cs</a> — CRUD jerarquias/delegaciones con correlationId.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminOrganizacionController.cs">AdminOrganizacionController.cs</a> — dependencias y usuarios; helpers de mapeo.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/AdminMonitoringController.cs">AdminMonitoringController.cs</a> — excepcion: SQL inline + guard clause de rol.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Controllers/SessionController.cs">SessionController.cs</a> — excepcion: no sealed, parsea headers a mano, SQL inline.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Program.cs">Program.cs</a> — DI, pipeline, UseExceptionHandler/ProblemDetails, CORS, /health.</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Security/HeaderUserContext.cs">HeaderUserContext.cs</a> — resolucion de identidad por headers (401 si faltan).</li>
+<li><a href="../backend/src/IntegradorMarcas.Api/Contracts/Requests/CreateJustificacionRequest.cs">CreateJustificacionRequest.cs</a> · <a href="../backend/src/IntegradorMarcas.Api/Contracts/Responses/CreateJustificacionResponse.cs">CreateJustificacionResponse.cs</a> · <a href="../backend/src/IntegradorMarcas.Api/Contracts/Requests/JustificacionDetalleRequest.cs">JustificacionDetalleRequest.cs</a> — ejemplos de Contracts (sufijo <code>ID</code>).</li>
+</ul>
+<p>Paginas relacionadas: <a href="arquitectura.html">Arquitectura</a> · <a href="modulo-application.html">Capa Application</a> · <a href="modulo-infraestructura.html">Infraestructura</a> · <a href="modulo-dominio.html">Dominio</a> · <a href="seguridad.html">Seguridad</a> · <a href="api.html">Endpoints de la API</a> · <a href="flujos.html">Flujos</a> · <a href="glosario.html">Glosario</a>.</p>
+
+<footer class="page-foot">Wiki experimental de apoyo al desarrollo · generado a partir del codigo real · no es parte del producto.</footer>
+</article>
+<aside class="toc" aria-label="En esta pagina"><div class="toc-title">En esta pagina</div><ul><li><a href="#en-breve">En breve</a></li><li><a href="#que-hace-y-que-no-hace-la-capa-api">Que hace (y que NO hace) la capa Api</a></li><li><a href="#los-7-controllers">Los 7 controllers</a></li><li><a href="#contracts-la-forma-del-cable-wire">Contracts: la "forma del cable" (wire)</a></li><li><a href="#program-cs-el-pipeline-y-el-manejo-de-errores">Program.cs: el pipeline y el manejo de errores</a></li><li><a href="#excepciones-a-las-convenciones">Excepciones a las convenciones</a></li><li><a href="#como-fluye-una-peticion">Como fluye una peticion</a></li><li><a href="#referencias-en-el-codigo">Referencias en el codigo</a></li></ul></aside>
+</div>
+</main>
+<script src="assets/mermaid.min.js"></script>
+<script src="assets/search-index.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>
