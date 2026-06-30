@@ -28,6 +28,15 @@ $HarnessFiles = @(
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
+# Preferir un SDK .NET local de usuario (~/.dotnet) si existe. Necesario en entornos
+# donde Program Files solo tiene el runtime (sin SDK) y no hay admin para tocar el PATH de maquina.
+# Inofensivo donde el SDK ya esta en Program Files (guardado por Test-Path).
+$UserDotnet = Join-Path $env:USERPROFILE '.dotnet'
+if (Test-Path (Join-Path $UserDotnet 'dotnet.exe')) {
+  $env:PATH = "$UserDotnet;$env:PATH"
+  $env:DOTNET_ROOT = $UserDotnet
+}
+
 $script:Failed = $false
 function Ok($m)   { Write-Host "[OK]   $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "[WARN] $m" -ForegroundColor Yellow }
