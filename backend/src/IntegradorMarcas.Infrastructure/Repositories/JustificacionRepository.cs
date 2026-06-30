@@ -333,6 +333,39 @@ public sealed class JustificacionRepository : IJustificacionRepository
             cancellationToken: cancellationToken));
     }
 
+    // F-004 T13 R15: re-resolucion del titular (D2 = B)
+    public async Task<RevisarTitularValidationDto> GetRevisarTitularValidationAsync(int justificacionId, int titularUsuarioId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.QuerySingleAsync<RevisarTitularValidationDto>(new CommandDefinition(
+            JustificacionesSql.GetRevisarTitularValidation,
+            new
+            {
+                JustificacionID = justificacionId,
+                TitularUsuarioID = titularUsuarioId
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<int> RevisarTitularAsync(int justificacionId, int titularUsuarioId, int estadoId, string? comentario, string? rolResolucion, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition(
+            JustificacionesSql.RevisarTitular,
+            new
+            {
+                JustificacionID = justificacionId,
+                TitularUsuarioID = titularUsuarioId,
+                EstadoID = estadoId,
+                EstadoPendiente = EstadoIds.PendienteJefatura,
+                Comentario = comentario,
+                RolResolucion = string.IsNullOrWhiteSpace(rolResolucion) ? null : rolResolucion.Trim()
+            },
+            cancellationToken: cancellationToken));
+    }
+
     private sealed class JustificacionDetalleJefaturaRow
     {
         public int JustificacionID { get; set; }

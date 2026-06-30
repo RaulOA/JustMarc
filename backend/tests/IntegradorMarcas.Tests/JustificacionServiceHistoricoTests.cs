@@ -163,5 +163,16 @@ public sealed class JustificacionServiceHistoricoTests
         {
             throw new NotImplementedException();
         }
+
+        // F-004 T13 R15
+        public Task<RevisarTitularValidationDto> GetRevisarTitularValidationAsync(int justificacionId, int titularUsuarioId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<int> RevisarTitularAsync(int justificacionId, int titularUsuarioId, int estadoId, string? comentario, string? rolResolucion, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

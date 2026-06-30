@@ -186,7 +186,7 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
             cancellationToken: cancellationToken));
     }
 
-    public async Task<int> ToggleDelegacionEstadoAsync(int delegacionAprobacionId, int estadoRegistroId, CancellationToken cancellationToken)
+    public async Task<int> ToggleDelegacionEstadoAsync(int delegacionAprobacionId, int estadoRegistroId, int actorUsuarioId, CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
 
@@ -195,7 +195,8 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
             new
             {
                 DelegacionAprobacionID = delegacionAprobacionId,
-                EstadoRegistroID = estadoRegistroId
+                EstadoRegistroID = estadoRegistroId,
+                ModificadoPor = actorUsuarioId.ToString()
             },
             cancellationToken: cancellationToken));
     }
@@ -251,6 +252,36 @@ public sealed class AdminAprobacionesRepository : IAdminAprobacionesRepository
                 EstructuraOrganizacionalID = estructuraOrganizacionalId,
                 NivelAprobacion = nivelAprobacion,
                 JerarquiaAprobacionIDExcluida = jerarquiaAprobacionIdExcluida
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    // F-004 T4 R6: anti-sub-delegacion
+    public async Task<bool> ExistsDelegacionActivaComoDelegadoAsync(int usuarioId, DateTime fechaRef, int? delegacionIdExcluida, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            AdminAprobacionesSql.ExistsDelegacionActivaComoDelegado,
+            new
+            {
+                UsuarioID = usuarioId,
+                FechaRef = fechaRef,
+                DelegacionIDExcluida = delegacionIdExcluida
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    // F-004 T14 R19: borrado fisico con auditoria previa en servicio (D1)
+    public async Task<int> DeleteDelegacionAsync(int delegacionAprobacionId, CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+
+        return await connection.ExecuteAsync(new CommandDefinition(
+            AdminAprobacionesSql.DeleteDelegacion,
+            new
+            {
+                DelegacionAprobacionID = delegacionAprobacionId
             },
             cancellationToken: cancellationToken));
     }

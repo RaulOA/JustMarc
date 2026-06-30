@@ -131,7 +131,9 @@ SET
     Motivo = @Motivo,
     EstadoRegistroId = @EstadoRegistroID,
     VigenciaDesde = @VigenciaDesde,
-    VigenciaHasta = @VigenciaHasta
+    VigenciaHasta = @VigenciaHasta,
+    ModificadoPor = @ModificadoPor,
+    FechaHoraModificacion = SYSUTCDATETIME()
 WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
 
     public const string GetDelegacionById = @"
@@ -149,7 +151,9 @@ WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
 
     public const string ToggleDelegacionEstado = @"
 UPDATE Operacion.DelegacionAprobacion
-SET EstadoRegistroId = @EstadoRegistroID
+SET EstadoRegistroId = @EstadoRegistroID,
+    ModificadoPor = @ModificadoPor,
+    FechaHoraModificacion = SYSUTCDATETIME()
 WHERE DelegacionAprobacionId = @DelegacionAprobacionID;";
 
     public const string ExistsUsuario = @"
@@ -183,4 +187,23 @@ SELECT CAST(CASE WHEN EXISTS (
       AND NivelAprobacion = @NivelAprobacion
       AND (@JerarquiaAprobacionIDExcluida IS NULL OR JerarquiaAprobacionId <> @JerarquiaAprobacionIDExcluida)
 ) THEN 1 ELSE 0 END AS bit);";
+
+    // F-004 T4 R6: verifica si un usuario es delegado activo y vigente de otra delegacion (anti-sub-delegacion)
+    public const string ExistsDelegacionActivaComoDelegado = """
+SELECT CAST(CASE WHEN EXISTS (
+    SELECT 1
+    FROM Operacion.DelegacionAprobacion
+    WHERE EstadoRegistroId = 1
+      AND DelegadoUsuarioId = @UsuarioID
+      AND VigenciaDesde <= @FechaRef
+      AND (VigenciaHasta IS NULL OR VigenciaHasta >= @FechaRef)
+      AND (@DelegacionIDExcluida IS NULL OR DelegacionAprobacionId <> @DelegacionIDExcluida)
+) THEN 1 ELSE 0 END AS bit);
+""";
+
+    // F-004 T14 R19: borrado fisico de delegacion (D1 = A: fisico con auditoria previa)
+    public const string DeleteDelegacion = """
+DELETE FROM Operacion.DelegacionAprobacion
+WHERE DelegacionAprobacionId = @DelegacionAprobacionID;
+""";
 }

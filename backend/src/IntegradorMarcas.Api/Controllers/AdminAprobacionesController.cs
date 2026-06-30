@@ -256,4 +256,21 @@ public sealed class AdminAprobacionesController : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>
+    /// Borra fisicamente una delegacion de aprobacion. Solo ROL_ADMIN. Deja evidencia de auditoria previa al borrado.
+    /// </summary>
+    /// <remarks>
+    /// D1: borrado fisico con serializacion de valores anteriores en AdminAccionAuditoria antes del DELETE (R19, R20).
+    /// </remarks>
+    [HttpDelete("delegaciones/{delegacionAprobacionId:int}")]
+    public async Task<ActionResult> DeleteDelegacion(
+        int delegacionAprobacionId,
+        CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        var correlationId = HttpContext.TraceIdentifier;
+        await _service.DeleteDelegacionAsync(user, delegacionAprobacionId, correlationId, cancellationToken);
+        return NoContent();
+    }
 }

@@ -463,7 +463,7 @@ public sealed class AdminAprobacionesServiceJerarquiaTests
         public Task<int> UpdateDelegacionAsync(int delegacionAprobacionId, UpdateDelegacionDto request, int actorUsuarioId, CancellationToken cancellationToken)
             => throw new NotImplementedException();
 
-        public Task<int> ToggleDelegacionEstadoAsync(int delegacionAprobacionId, int estadoRegistroId, CancellationToken cancellationToken)
+        public Task<int> ToggleDelegacionEstadoAsync(int delegacionAprobacionId, int estadoRegistroId, int actorUsuarioId, CancellationToken cancellationToken)
             => Task.FromResult(1);
 
         public Task<bool> ExistsUsuarioAsync(int usuarioId, CancellationToken cancellationToken)
@@ -477,5 +477,14 @@ public sealed class AdminAprobacionesServiceJerarquiaTests
 
         public Task<bool> ExistsJerarquiaActivaDuplicadaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, int nivelAprobacion, int? jerarquiaAprobacionIdExcluida, CancellationToken cancellationToken)
             => Task.FromResult(JerarquiaActivaDuplicadaExiste);
+
+        // F-004: nuevos metodos de la interfaz
+        public bool DelegacionActivaComoDelegadoExiste { get; set; } = false;
+
+        public Task<bool> ExistsDelegacionActivaComoDelegadoAsync(int usuarioId, DateTime fechaRef, int? delegacionIdExcluida, CancellationToken cancellationToken)
+            => Task.FromResult(DelegacionActivaComoDelegadoExiste);
+
+        public Task<int> DeleteDelegacionAsync(int delegacionAprobacionId, CancellationToken cancellationToken)
+            => Task.FromResult(1);
     }
 }

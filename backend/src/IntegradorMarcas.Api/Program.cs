@@ -70,6 +70,9 @@ builder.Services.AddScoped<IAuditEventRepository, AuditEventRepository>();
 builder.Services.AddScoped<IAdminActionAuditRepository, AdminActionAuditRepository>();
 builder.Services.AddScoped<IUserContext, HeaderUserContext>();
 builder.Services.AddScoped<IErrorLogRepository, ErrorLogRepository>();
+// F-004: vistas del delegado (D3 = A: repositorio dedicado)
+builder.Services.AddScoped<IDelegacionConsultaRepository, DelegacionConsultaRepository>();
+builder.Services.AddScoped<IDelegacionConsultaService, DelegacionConsultaService>();
 
 var app = builder.Build();
 

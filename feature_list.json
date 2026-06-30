@@ -10,23 +10,6 @@
   },
   "features": [
     {
-      "id": "F-004",
-      "name": "delegaciones-subaprobadores-reglas-completas",
-      "title": "Delegados y sub-aprobadores: reglas de negocio completas end-to-end",
-      "description": "Completar delegaciones y sub-aprobadores con todas las reglas de negocio, cerrando flujos end-to-end y alineando el borrado. Extiende la base ya existente (Delegaciones_Aprobacion, prioridad Origen='Delegacion').",
-      "acceptance": [
-        "La delegación prioriza sobre la jerarquía en todos los flujos (Origen='Delegacion').",
-        "Flujos end-to-end de delegación: crear, vigencia, expiración y borrado alineados.",
-        "La UI admin de delegados es consistente con el backend.",
-        "Trazabilidad R<n>→test e init.ps1 en verde."
-      ],
-      "sdd": true,
-      "status": "pending",
-      "approved_by": null,
-      "approved_at": null,
-      "cronograma": "T027"
-    },
-    {
       "id": "F-005",
       "name": "auditoria-dashboards-reportes",
       "title": "Auditoría: dashboards y reportes administrativos en UI",

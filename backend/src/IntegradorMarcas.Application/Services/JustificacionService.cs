@@ -197,6 +197,14 @@ public sealed class JustificacionService : IJustificacionService
             throw new AppException("La boleta no pertenece al alcance de aprobacion vigente del usuario autenticado.", 403);
         }
 
+        // F-004 R8: un delegado no puede resolver una justificacion cuyo solicitante es su propio titular (delegante)
+        if (validation.ScopeSource == "Delegacion"
+            && validation.DeleganteUsuarioId.HasValue
+            && validation.SolicitanteUsuarioId == validation.DeleganteUsuarioId.Value)
+        {
+            throw new AppException("R8: el delegado no puede resolver justificaciones de su propio titular (delegante).", 403);
+        }
+
         if (validation.EstadoId != EstadoIds.PendienteJefatura)
         {
             throw new AppException("RN-04: la boleta ya fue resuelta y no puede modificarse.", 409);
@@ -223,6 +231,64 @@ public sealed class JustificacionService : IJustificacionService
             ResultadoAuditoriaId = 1,
             ReferenciaFuncional = $"Justificacion:{justificacionId}",
             PayloadResumen = $"EstadoDestino={targetEstado};Scope={validation.ScopeSource ?? "N/A"};Delegante={validation.DeleganteUsuarioId?.ToString() ?? "N/A"}"
+        }, cancellationToken);
+    }
+
+    // F-004 T13 R15: re-resolucion del titular sobre lo resuelto por su delegado (D2 = B, endpoint dedicado)
+    public async Task RevisarTitularAsync(UserContextInfo user, int justificacionId, ResolverJustificacionDto request, CancellationToken cancellationToken)
+    {
+        if (!RolesSistema.EsJefatura(user.Role))
+        {
+            throw new AppException("Solo jefatura puede re-revisar boletas resueltas por delegado.", 403);
+        }
+
+        var accion = JustificacionValidator.ValidateAccion(request.Accion);
+
+        var validation = await _repository.GetRevisarTitularValidationAsync(justificacionId, user.UserId, cancellationToken);
+
+        if (!validation.Exists)
+        {
+            throw new AppException("No existe la boleta indicada.", 404);
+        }
+
+        if (!validation.EsTitularPorJerarquia)
+        {
+            throw new AppException("R15: la boleta no pertenece al alcance de jefatura por jerarquia del usuario autenticado.", 403);
+        }
+
+        if (validation.EstadoId == EstadoIds.PendienteJefatura)
+        {
+            throw new AppException("R15: la boleta aun esta pendiente; use el flujo normal de resolucion.", 409);
+        }
+
+        // Verificar que el aprobador anterior fue un delegado (no el propio titular)
+        if (validation.AprobadorAnteriorId == user.UserId)
+        {
+            throw new AppException("R15: la boleta ya fue resuelta por el propio titular; no requiere re-revision.", 409);
+        }
+
+        var comentarioNormalizado = JustificacionValidator.NormalizeComentarioResolucion(request.Comentario);
+        var targetEstado = accion == "APROBAR" ? EstadoIds.Aprobado : EstadoIds.Rechazado;
+
+        var affected = await _repository.RevisarTitularAsync(justificacionId, user.UserId, targetEstado, comentarioNormalizado, user.Role, cancellationToken);
+
+        if (affected == 0)
+        {
+            throw new AppException("No fue posible re-revisar la boleta (estado inesperado o fuera de alcance).", 409);
+        }
+
+        await _auditEventRepository.LogEventAsync(new AuditEventEntry
+        {
+            UsuarioId = user.UserId,
+            NombreUsuario = $"Usuario {user.UserId}",
+            RolCodigo = user.Role,
+            TipoEventoAuditoriaId = targetEstado == EstadoIds.Aprobado ? 2 : 3,
+            DescripcionEvento = targetEstado == EstadoIds.Aprobado
+                ? "Re-resolucion de boleta aprobada por titular."
+                : "Re-resolucion de boleta rechazada por titular.",
+            ResultadoAuditoriaId = 1,
+            ReferenciaFuncional = $"Justificacion:{justificacionId}",
+            PayloadResumen = $"EstadoDestino={targetEstado};Scope=RevisarTitular;AprobadorAnterior={validation.AprobadorAnteriorId}"
         }, cancellationToken);
     }
 }

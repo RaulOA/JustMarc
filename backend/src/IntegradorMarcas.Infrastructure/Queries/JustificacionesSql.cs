@@ -291,7 +291,8 @@ SELECT
     ISNULL(je.EstadoJustificacionId, 0) AS EstadoId,
     CASE WHEN scopeData.ScopeSource IS NULL THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS IsInApprovalScope,
     scopeData.ScopeSource,
-    scopeData.DeleganteUsuarioId
+    scopeData.DeleganteUsuarioId,
+    ISNULL(je.UsuarioID, 0) AS SolicitanteUsuarioId
 FROM (SELECT @JustificacionID AS JustificacionId) seed
 LEFT JOIN Operacion.Justificacion je ON je.JustificacionId = seed.JustificacionId
 OUTER APPLY (
@@ -374,4 +375,47 @@ WHERE
         FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
         WHERE fa.AprobadorUsuarioId = @AprobadorUsuarioID
     );";
+
+    // F-004 T13 R15: validacion para re-resolucion del titular (D2 = B endpoint dedicado)
+    // Verifica que el titular tiene alcance por jerarquia, la justificacion existe,
+    // y fue resuelta por un delegado de ese titular
+    public const string GetRevisarTitularValidation = """
+SELECT
+    CASE WHEN je.JustificacionId IS NULL THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS [Exists],
+    ISNULL(je.EstadoJustificacionId, 0) AS EstadoId,
+    CASE WHEN titularScope.EsTitularPorJerarquia IS NULL THEN CAST(0 AS bit) ELSE titularScope.EsTitularPorJerarquia END AS EsTitularPorJerarquia,
+    ISNULL(je.AprobadorId, 0) AS AprobadorAnteriorId,
+    ISNULL(je.UsuarioID, 0) AS SolicitanteUsuarioId
+FROM (SELECT @JustificacionID AS JustificacionId) seed
+LEFT JOIN Operacion.Justificacion je ON je.JustificacionId = seed.JustificacionId
+OUTER APPLY (
+    SELECT TOP 1 CAST(1 AS bit) AS EsTitularPorJerarquia
+    FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+    WHERE fa.AprobadorUsuarioId = @TitularUsuarioID
+      AND fa.Origen = 'Jerarquia'
+      AND je.UsuarioID <> @TitularUsuarioID
+) titularScope;
+""";
+
+    // F-004 T13 R15: UPDATE de re-resolucion del titular sobre lo resuelto por delegado
+    public const string RevisarTitular = """
+UPDATE je
+SET
+    je.EstadoJustificacionId = @EstadoID,
+    je.AprobadorId = @TitularUsuarioID,
+    je.FechaAprobacion = GETDATE(),
+    je.ComentarioResolucion = @Comentario,
+    je.RolResolucion = @RolResolucion
+FROM Operacion.Justificacion je
+WHERE
+    je.JustificacionId = @JustificacionID
+    AND je.EstadoJustificacionId <> @EstadoPendiente
+    AND je.UsuarioID <> @TitularUsuarioID
+    AND EXISTS (
+        SELECT 1
+        FROM dbo.fn_AprobadoresVigentesPorSolicitante(je.UsuarioID, GETDATE()) fa
+        WHERE fa.AprobadorUsuarioId = @TitularUsuarioID
+          AND fa.Origen = 'Jerarquia'
+    );
+""";
 }

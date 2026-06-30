@@ -198,7 +198,7 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
     {
         EnsureAdmin(user);
         ValidateUpdateDelegacion(request);
-        await EnsureReferencesForDelegacionAsync(request.DeleganteUsuarioId, request.DelegadoUsuarioId, request.JerarquiaAprobacionId, cancellationToken);
+        await EnsureReferencesForDelegacionAsync(request.DeleganteUsuarioId, request.DelegadoUsuarioId, request.JerarquiaAprobacionId, cancellationToken, delegacionAprobacionId);
 
         var previous = await _repository.GetDelegacionByIdAsync(delegacionAprobacionId, cancellationToken);
         if (previous is null)
@@ -252,7 +252,7 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             throw new AppException("No existe la delegacion indicada.", 404);
         }
 
-        var affected = await _repository.ToggleDelegacionEstadoAsync(delegacionAprobacionId, request.EstadoRegistroId, cancellationToken);
+        var affected = await _repository.ToggleDelegacionEstadoAsync(delegacionAprobacionId, request.EstadoRegistroId, user.UserId, cancellationToken);
         if (affected == 0)
         {
             throw new AppException("No existe la delegacion indicada.", 404);
@@ -284,6 +284,48 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
             cancellationToken: cancellationToken);
     }
 
+    // F-004 T14 R19/R20: borrado fisico con auditoria previa (D1 = A)
+    public async Task DeleteDelegacionAsync(UserContextInfo user, int delegacionAprobacionId, string? correlationId, CancellationToken cancellationToken)
+    {
+        EnsureAdmin(user);
+
+        var previous = await _repository.GetDelegacionByIdAsync(delegacionAprobacionId, cancellationToken);
+        if (previous is null)
+        {
+            throw new AppException("No existe la delegacion indicada.", 404);
+        }
+
+        // R20: auditoria previa al borrado (serializar valores anteriores antes del DELETE)
+        await LogSummaryEventAsync(new AuditEventEntry
+        {
+            UsuarioId = user.UserId,
+            NombreUsuario = $"Usuario {user.UserId}",
+            RolCodigo = user.Role,
+            TipoEventoAuditoriaId = 10,
+            DescripcionEvento = "Borrado de delegacion de aprobacion.",
+            ResultadoAuditoriaId = 1,
+            ReferenciaFuncional = $"Delegacion:{delegacionAprobacionId}",
+            PayloadResumen = $"Delegante={previous.DeleganteUsuarioId};Delegado={previous.DelegadoUsuarioId};Estado={previous.EstadoRegistroId}"
+        }, cancellationToken);
+
+        await LogDetailedAuditAsync(
+            user,
+            correlationId,
+            entidadObjetivo: "DelegacionAprobacion",
+            entidadObjetivoId: delegacionAprobacionId.ToString(),
+            accion: "Delete",
+            descripcion: "Borrado fisico de delegacion de aprobacion.",
+            valoresAnteriores: previous,
+            valoresNuevos: null,
+            cancellationToken: cancellationToken);
+
+        var affected = await _repository.DeleteDelegacionAsync(delegacionAprobacionId, cancellationToken);
+        if (affected == 0)
+        {
+            throw new AppException("No se pudo borrar la delegacion indicada.", 404);
+        }
+    }
+
     private async Task EnsureJerarquiaNoDuplicadaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, int nivelAprobacion, int? jerarquiaAprobacionIdExcluida, CancellationToken cancellationToken)
     {
         if (await _repository.ExistsJerarquiaActivaDuplicadaAsync(aprobadorUsuarioId, estructuraOrganizacionalId, nivelAprobacion, jerarquiaAprobacionIdExcluida, cancellationToken))
@@ -305,7 +347,7 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         }
     }
 
-    private async Task EnsureReferencesForDelegacionAsync(int deleganteUsuarioId, int delegadoUsuarioId, int? jerarquiaAprobacionId, CancellationToken cancellationToken)
+    private async Task EnsureReferencesForDelegacionAsync(int deleganteUsuarioId, int delegadoUsuarioId, int? jerarquiaAprobacionId, CancellationToken cancellationToken, int? delegacionIdExcluida = null)
     {
         if (deleganteUsuarioId == delegadoUsuarioId)
         {
@@ -325,6 +367,13 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         if (jerarquiaAprobacionId.HasValue && !await _repository.ExistsJerarquiaAsync(jerarquiaAprobacionId.Value, cancellationToken))
         {
             throw new AppException("La jerarquia indicada no existe.", 400);
+        }
+
+        // F-004 R6: prohibicion de sub-delegacion — el delegante propuesto no puede ser a su vez delegado activo y vigente
+        var fechaRef = DateTime.Today;
+        if (await _repository.ExistsDelegacionActivaComoDelegadoAsync(deleganteUsuarioId, fechaRef, delegacionIdExcluida, cancellationToken))
+        {
+            throw new AppException("El delegante propuesto es a su vez delegado activo en otra delegacion. No se permite sub-delegacion.", 409);
         }
     }
 
@@ -416,6 +465,12 @@ public sealed class AdminAprobacionesService : IAdminAprobacionesService
         if (request.DeleganteUsuarioId == request.DelegadoUsuarioId)
         {
             throw new AppException("No se permite auto-delegacion.", 400);
+        }
+
+        // R1: VigenciaDesde es obligatoria
+        if (request.VigenciaDesde == default)
+        {
+            throw new AppException("VigenciaDesde es requerida.", 400);
         }
 
         if (request.VigenciaHasta.HasValue && request.VigenciaHasta.Value < request.VigenciaDesde)

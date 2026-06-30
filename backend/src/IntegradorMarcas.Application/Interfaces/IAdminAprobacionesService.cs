@@ -12,4 +12,7 @@ public interface IAdminAprobacionesService
     Task<AdminDelegacionDto> CreateDelegacionAsync(UserContextInfo user, CreateDelegacionDto request, string? correlationId, CancellationToken cancellationToken);
     Task<AdminDelegacionDto> UpdateDelegacionAsync(UserContextInfo user, int delegacionAprobacionId, UpdateDelegacionDto request, string? correlationId, CancellationToken cancellationToken);
     Task ToggleDelegacionEstadoAsync(UserContextInfo user, int delegacionAprobacionId, ToggleEstadoRegistroDto request, string? correlationId, CancellationToken cancellationToken);
+
+    // F-004: borrado físico con auditoría (R19, R20, D1)
+    Task DeleteDelegacionAsync(UserContextInfo user, int delegacionAprobacionId, string? correlationId, CancellationToken cancellationToken);
 }

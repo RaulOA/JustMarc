@@ -131,4 +131,28 @@ public sealed class JefaturaController : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>
+    /// Re-resolucion del titular sobre una justificacion resuelta por su delegado (R15, D2).
+    /// Solo jefatura con alcance por jerarquia directa puede invocar este endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Endpoint dedicado separado de Resolver para no alterar la semantica de RN-04.
+    /// Audita la re-resolucion con trazabilidad completa.
+    /// </remarks>
+    [HttpPatch("{justificacionId:int}/revisar-titular")]
+    public async Task<ActionResult> RevisarTitular(
+        int justificacionId,
+        [FromBody] ResolverJustificacionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = _userContext.GetCurrent();
+        await _service.RevisarTitularAsync(user, justificacionId, new ResolverJustificacionDto
+        {
+            Accion = request.Accion,
+            Comentario = request.Comentario
+        }, cancellationToken);
+
+        return NoContent();
+    }
 }

@@ -319,6 +319,21 @@ BEGIN
 END;
 GO
 
+/* F-004 D5: agregar columnas de auditoria de modificacion a DelegacionAprobacion (idempotente).
+   Convencion: todas las entidades de negocio deben tener ModificadoPor / FechaHoraModificacion. */
+IF COL_LENGTH('Operacion.DelegacionAprobacion', 'ModificadoPor') IS NULL
+BEGIN
+    ALTER TABLE Operacion.DelegacionAprobacion
+        ADD ModificadoPor VARCHAR(100) NULL;
+END;
+GO
+IF COL_LENGTH('Operacion.DelegacionAprobacion', 'FechaHoraModificacion') IS NULL
+BEGIN
+    ALTER TABLE Operacion.DelegacionAprobacion
+        ADD FechaHoraModificacion DATETIME2 NULL;
+END;
+GO
+
 /* ############################################################################
    SECCION D — AUDITORIA  (esquema Auditoria)
    Tablas de bitacora. Campos como NombreUsuario / RolCodigo son snapshots

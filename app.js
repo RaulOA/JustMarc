@@ -2151,6 +2151,64 @@ function showNotice(targetId, type, msg) {
   toast(toastType, msg);
 }
 
+// F-004 T15 R11/R12: funcion de delegacion activa del jefe (vista delegado)
+async function loadMiFuncionDelegacion() {
+  const container = document.getElementById('jefe-mi-funcion-container');
+  if (!container) return;
+  container.innerHTML = '<p class="loading-hint">Cargando tu funcion de delegacion...</p>';
+  try {
+    const session = requireJefeSession ? requireJefeSession() : JSON.parse(sessionStorage.getItem('sjm_session') || 'null');
+    const data = await apiFetch('/api/delegaciones/mi-funcion', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    if (!Array.isArray(data) || data.length === 0) {
+      container.innerHTML = '<p class="empty-hint">No tenes delegaciones activas en este momento.</p>';
+      return;
+    }
+    let html = '<table class="jefe-table"><thead><tr><th>Titular</th><th>Desde</th><th>Hasta</th><th>Alcance</th><th>Motivo</th></tr></thead><tbody>';
+    data.forEach(d => {
+      html += `<tr>
+        <td>${escapeHtml(d.titularNombre || '—')}</td>
+        <td>${formatDate(d.vigenciaDesde)}</td>
+        <td>${d.vigenciaHasta ? formatDate(d.vigenciaHasta) : '—'}</td>
+        <td>${escapeHtml(d.alcanceEstructuras || 'Todas las jerarquias del titular')}</td>
+        <td>${escapeHtml(d.motivo || '—')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<p class="error-hint">No se pudo cargar la funcion de delegacion.</p>';
+  }
+}
+
+// F-004 T15 R16/R17/R18: registro de solo lectura de lo tramitado como delegado
+async function loadMiRegistroDelegado() {
+  const container = document.getElementById('jefe-mi-registro-delegado');
+  if (!container) return;
+  container.innerHTML = '<p class="loading-hint">Cargando tu registro de delegado...</p>';
+  try {
+    const session = requireJefeSession ? requireJefeSession() : JSON.parse(sessionStorage.getItem('sjm_session') || 'null');
+    const data = await apiFetch('/api/delegaciones/mi-registro', { method: 'GET', headers: buildApiHeaders(session) }, session);
+    if (!Array.isArray(data) || data.length === 0) {
+      container.innerHTML = '<p class="empty-hint">No hay registros de justificaciones tramitadas como delegado.</p>';
+      return;
+    }
+    let html = '<table class="jefe-table"><thead><tr><th>Boleta</th><th>Solicitante</th><th>Estado</th><th>Fecha Aprobacion</th><th>Titular</th></tr></thead><tbody>';
+    data.forEach(d => {
+      html += `<tr>
+        <td>${escapeHtml(String(d.justificacionID))}</td>
+        <td>${escapeHtml(d.solicitanteNombre || '—')}</td>
+        <td>${escapeHtml(d.estadoDescripcion || '—')}</td>
+        <td>${d.fechaAprobacion ? formatDate(d.fechaAprobacion) : '—'}</td>
+        <td>${escapeHtml(d.titularNombre || '—')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<p class="error-hint">No se pudo cargar el registro de delegado.</p>';
+  }
+}
+
 function formatDate(isoDate) {
   if (!isoDate) return '—';
   const date = new Date(isoDate);

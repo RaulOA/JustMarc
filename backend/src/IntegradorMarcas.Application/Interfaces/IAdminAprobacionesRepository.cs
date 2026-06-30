@@ -14,10 +14,16 @@ public interface IAdminAprobacionesRepository
     Task<AdminDelegacionDto?> GetDelegacionByIdAsync(int delegacionAprobacionId, CancellationToken cancellationToken);
     Task<AdminDelegacionDto> CreateDelegacionAsync(CreateDelegacionDto request, int actorUsuarioId, CancellationToken cancellationToken);
     Task<int> UpdateDelegacionAsync(int delegacionAprobacionId, UpdateDelegacionDto request, int actorUsuarioId, CancellationToken cancellationToken);
-    Task<int> ToggleDelegacionEstadoAsync(int delegacionAprobacionId, int estadoRegistroId, CancellationToken cancellationToken);
+    Task<int> ToggleDelegacionEstadoAsync(int delegacionAprobacionId, int estadoRegistroId, int actorUsuarioId, CancellationToken cancellationToken);
 
     Task<bool> ExistsUsuarioAsync(int usuarioId, CancellationToken cancellationToken);
     Task<bool> ExistsEstructuraAsync(int estructuraOrganizacionalId, CancellationToken cancellationToken);
     Task<bool> ExistsJerarquiaAsync(int jerarquiaAprobacionId, CancellationToken cancellationToken);
     Task<bool> ExistsJerarquiaActivaDuplicadaAsync(int aprobadorUsuarioId, int estructuraOrganizacionalId, int nivelAprobacion, int? jerarquiaAprobacionIdExcluida, CancellationToken cancellationToken);
+
+    // F-004: anti-sub-delegación (R6)
+    Task<bool> ExistsDelegacionActivaComoDelegadoAsync(int usuarioId, DateTime fechaRef, int? delegacionIdExcluida, CancellationToken cancellationToken);
+
+    // F-004: borrado físico con auditoría (R19, D1)
+    Task<int> DeleteDelegacionAsync(int delegacionAprobacionId, CancellationToken cancellationToken);
 }
